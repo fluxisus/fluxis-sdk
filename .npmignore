@@ -1,0 +1,13 @@
+src/
+tests/
+examples/
+.claude/
+*.md
+!README.md
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+swagger.yaml
+.gitignore
+.env*
+coverage/

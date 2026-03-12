@@ -1,0 +1,460 @@
+# Fluxis TypeScript SDK — Integration Guide
+
+> This document is optimized for AI coding agents (Claude Code, Cursor, Copilot, etc.).
+> It contains everything needed to integrate Fluxis crypto payments into a TypeScript/Node.js project.
+
+## What is Fluxis?
+
+Fluxis is a crypto payment processing platform. Merchants use Fluxis to accept cryptocurrency payments.
+The SDK wraps the Fluxis REST API and handles authentication, token refresh, and type conversion automatically.
+
+- Package: `@fluxisus/sdk`
+- Runtime: Node.js 18+ (uses native fetch)
+- Types: Full TypeScript support, strict mode
+
+## Installation
+
+```bash
+npm install @fluxisus/sdk
+```
+
+## Initialization
+
+```typescript
+import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({
+  apiKey: 'fxs.stg.xxx',       // API key from Fluxis dashboard
+  apiSecret: 'your-api-secret', // API secret (never expose publicly)
+  environment: 'staging',       // 'staging' or 'production'
+});
+```
+
+### Environments
+
+| Environment | Base URL | API Key Prefix |
+|-------------|----------|----------------|
+| `staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
+| `production` | `https://api.fluxis.us/v1` | `fxs.prd.*` |
+
+Default is `staging`. The SDK authenticates lazily on the first request and refreshes the token automatically before it expires.
+
+You can also pass a custom `baseUrl` to override the environment-based URL:
+
+```typescript
+const fluxis = new FluxisClient({
+  apiKey: 'fxs.stg.xxx',
+  apiSecret: 'secret',
+  baseUrl: 'https://custom-api.example.com/v1',
+});
+```
+
+---
+
+## Flow 1: Direct Crypto Payment (NASPIP Token)
+
+Use this when you know which crypto asset the customer will pay with.
+Returns a NASPIP token that can be rendered as a QR code.
+
+```typescript
+import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({
+  apiKey: 'fxs.stg.xxx',
+  apiSecret: 'your-secret',
+  environment: 'staging',
+});
+
+// Step 1: Create a Point of Sale (do this once, reuse the ID)
+const pos = await fluxis.pointOfSale.create({
+  name: 'Online Store',
+  merchant: { name: 'My Shop', description: 'E-commerce store' },
+  paymentOptions: ['npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'], // USDC on Polygon
+});
+
+// Step 2: Create a payment request
+const payment = await fluxis.pointOfSale.createPaymentRequest(pos.id, {
+  amount: '25.00',
+  uniqueAssetId: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+  referenceId: 'order-001', // your internal order ID
+});
+
+// Step 3: Use the NASPIP token
+console.log(payment.token);      // NASPIP token string — render as QR code
+console.log(payment.id);         // Fluxis payment request ID
+console.log(payment.status);     // "created"
+console.log(payment.expiration); // Unix timestamp when it expires
+```
+
+### Unique Asset IDs
+
+Format: `n{network}_t{tokenAddress}`
+
+Common assets:
+- USDC on Polygon: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`
+- USDT on Polygon: `npolygon_t0xc2132D05D31c914a87C6611C10748AEb04B58e8F`
+
+---
+
+## Flow 2: Hosted Checkout (Reference Currency)
+
+Use this for e-commerce where you specify an amount in a reference currency (e.g., USD). The customer sees "pay 49.99 USD" but the actual payment is processed in crypto (USDT, USDC, etc.) based on the `paymentOptions` configured on the PoS. Fluxis does NOT process fiat — `coinCode` is only used for display purposes.
+
+```typescript
+const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(pos.id, {
+  amount: '49.99',
+  coinCode: 'USD', // reference currency for display (payment is always in crypto)
+  referenceId: 'order-002',
+  order: {
+    total: '49.99',
+    coinCode: 'USD',
+    description: 'Premium subscription',
+    merchant: { name: 'My Store' },
+    items: [
+      {
+        description: 'Premium Plan - Monthly',
+        quantity: 1,
+        unitPrice: '49.99',
+        amount: '49.99',
+        coinCode: 'USD',
+      },
+    ],
+  },
+});
+
+console.log(checkout.id);     // Payment request ID
+console.log(checkout.status); // "created"
+console.log(checkout.token);  // NASPIP token
+```
+
+---
+
+## Flow 3: Webhooks
+
+Fluxis sends payment status updates via webhooks. This is the primary mechanism for knowing when a payment is completed.
+
+### Step 1: Configure webhook on your PoS
+
+```typescript
+const webhook = await fluxis.pointOfSale.createNotifications(pos.id, {
+  webhookUrl: 'https://yourserver.com/webhooks/fluxis',
+});
+
+// IMPORTANT: Save this secret securely — it's only returned once
+const webhookSecret = webhook.secret;
+```
+
+### Step 2: Receive and verify webhooks in your server
+
+```typescript
+import express from 'express';
+import { verifyWebhookSignature } from '@fluxisus/sdk';
+
+const app = express();
+
+// IMPORTANT: Use raw body for signature verification
+app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['x-fluxis-signature'] as string;
+  const rawBody = req.body.toString();
+
+  const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+
+  if (!isValid) {
+    return res.status(401).send('Invalid signature');
+  }
+
+  const event = JSON.parse(rawBody);
+
+  // Process the payment status update
+  switch (event.status) {
+    case 'completed':
+      // Payment received in full — fulfill the order
+      console.log('Payment completed:', event.id);
+      break;
+    case 'overpaid':
+      // Customer sent more than requested — fulfill + consider refund
+      console.log('Payment overpaid:', event.id);
+      break;
+    case 'underpaid':
+      // Customer sent less than requested
+      console.log('Payment underpaid:', event.id);
+      break;
+    case 'expired':
+      // Payment window expired with no payment
+      console.log('Payment expired:', event.id);
+      break;
+    case 'failed':
+      // Payment processing failed
+      console.log('Payment failed:', event.id);
+      break;
+  }
+
+  res.status(200).send('OK');
+});
+
+app.listen(3000);
+```
+
+### Step 3: Update webhook URL (if needed)
+
+```typescript
+await fluxis.pointOfSale.updateNotifications(pos.id, {
+  url: 'https://newserver.com/webhooks/fluxis',
+});
+```
+
+---
+
+## Flow 4: Refunds
+
+Refunds can be issued for completed or overpaid payments.
+
+```typescript
+// Full refund
+const refund = await fluxis.refunds.create(paymentRequestId, {
+  refundToAddress: '0x1234567890abcdef1234567890abcdef12345678',
+  reason: 'Customer requested',
+});
+
+// Partial refund
+const partialRefund = await fluxis.refunds.create(paymentRequestId, {
+  refundToAddress: '0x1234567890abcdef1234567890abcdef12345678',
+  amount: '10.00',
+  reason: 'Partial refund for returned item',
+});
+
+// Check refund status
+const detail = await fluxis.refunds.get(refund.id);
+console.log(detail.status); // "processing" | "completed" | "failed"
+```
+
+---
+
+## SDK Method Reference
+
+### fluxis.accounts
+
+| Method | Description |
+|--------|-------------|
+| `list()` | List all accounts |
+| `get(accountId)` | Get account by ID |
+| `create({ name, externalId? })` | Create account |
+| `update(accountId, { name?, externalId? })` | Update account |
+| `delete(accountId)` | Delete account |
+| `getSettlementAddresses(accountId)` | Get settlement addresses |
+
+### fluxis.organization
+
+| Method | Description |
+|--------|-------------|
+| `setSettlementAddresses(addresses[])` | Set settlement addresses |
+| `updateSettlementAddresses(addresses[])` | Update settlement addresses |
+
+Each address: `{ address: string, network: string, addressTag?: string }`
+
+### fluxis.pointOfSale
+
+| Method | Description |
+|--------|-------------|
+| `list()` | List all PoS |
+| `get(posId)` | Get PoS by ID |
+| `create({ name, accountId?, merchant?, paymentOptions? })` | Create PoS |
+| `update(posId, { name?, merchant?, paymentOptions? })` | Update PoS |
+| `getNotifications(posId)` | Get webhook settings |
+| `createNotifications(posId, { webhookUrl })` | Create webhook (returns secret) |
+| `updateNotifications(posId, { url })` | Update webhook URL |
+| `createPaymentRequest(posId, { amount, uniqueAssetId, referenceId?, order? })` | Create payment request |
+| `getPaymentRequest(posId, paymentRequestId)` | Get payment request status |
+| `createPaymentRequestCheckout(posId, { amount, coinCode, referenceId?, order? })` | Create checkout payment |
+
+### fluxis.naspip
+
+| Method | Description |
+|--------|-------------|
+| `create({ payment })` | Create NASPIP token from raw payment data |
+| `read(token)` | Decode and verify a NASPIP token |
+| `isValidTokenFormat(token)` | Check if string starts with `v4.local.` |
+
+### fluxis.refunds
+
+| Method | Description |
+|--------|-------------|
+| `create(paymentRequestId, { refundToAddress, amount?, reason? })` | Create refund |
+| `get(refundId)` | Get refund details |
+
+### fluxis.transactions
+
+| Method | Description |
+|--------|-------------|
+| `list({ limit?, offset?, status?, sort?, order?, accountId? })` | List transactions |
+
+---
+
+## Types and Enums
+
+### Payment Request Status
+
+| Status | Meaning |
+|--------|---------|
+| `created` | Just created, awaiting payment |
+| `processing` | Deposit detected, confirming on-chain |
+| `completed` | Fully paid |
+| `overpaid` | Received more than requested |
+| `underpaid` | Received less than requested |
+| `expired` | NASPIP token expired, no payment received |
+| `failed` | Payment processing failed |
+
+### Transaction Types
+
+`deposit`, `withdraw`, `refund`, `adjustment`, `swap`, `payment_in`, `payment_out`, `dry_run`
+
+### Transaction Statuses
+
+`preview`, `pending`, `created`, `processing`, `error`, `expired`, `failed`, `completed`
+
+---
+
+## Error Handling
+
+The SDK throws typed errors:
+
+```typescript
+import { FluxisError, FluxisAuthError, FluxisNetworkError } from '@fluxisus/sdk';
+
+try {
+  const payment = await fluxis.pointOfSale.createPaymentRequest(posId, {
+    amount: '25.00',
+    uniqueAssetId: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+  });
+} catch (error) {
+  if (error instanceof FluxisAuthError) {
+    // API key/secret invalid, or token refresh failed
+    // error.code — e.g. "AUTH_ERROR"
+    // error.message — human-readable message
+  } else if (error instanceof FluxisNetworkError) {
+    // Could not connect to Fluxis API (DNS, timeout, etc.)
+    // error.cause — original fetch error
+  } else if (error instanceof FluxisError) {
+    // API returned an error response
+    // error.code — e.g. "AK0001"
+    // error.message — human-readable message
+    // error.details — additional context
+    // error.statusCode — HTTP status code
+  }
+}
+```
+
+Error class hierarchy:
+- `FluxisError` (base) — all API errors
+  - `FluxisAuthError` — authentication failures (401)
+  - `FluxisNetworkError` — connection/timeout issues
+
+---
+
+## Complete Example: Express Server with Payments and Webhooks
+
+```typescript
+import express from 'express';
+import { FluxisClient, FluxisError, verifyWebhookSignature } from '@fluxisus/sdk';
+
+const app = express();
+
+const fluxis = new FluxisClient({
+  apiKey: process.env.FLUXIS_API_KEY!,
+  apiSecret: process.env.FLUXIS_API_SECRET!,
+  environment: 'staging',
+});
+
+const WEBHOOK_SECRET = process.env.FLUXIS_WEBHOOK_SECRET!;
+const POS_ID = process.env.FLUXIS_POS_ID!;
+
+// Create a payment
+app.post('/api/payments', express.json(), async (req, res) => {
+  try {
+    const { amount, orderId } = req.body;
+
+    const payment = await fluxis.pointOfSale.createPaymentRequest(POS_ID, {
+      amount: String(amount),
+      uniqueAssetId: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      referenceId: orderId,
+    });
+
+    res.json({
+      paymentId: payment.id,
+      token: payment.token,       // Render as QR code on frontend
+      expiresAt: payment.expiration,
+    });
+  } catch (error) {
+    if (error instanceof FluxisError) {
+      res.status(400).json({ error: error.message, code: error.code });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Receive webhook
+app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['x-fluxis-signature'] as string;
+  const rawBody = req.body.toString();
+
+  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  if (!isValid) {
+    return res.status(401).send('Invalid signature');
+  }
+
+  const event = JSON.parse(rawBody);
+
+  if (event.status === 'completed' || event.status === 'overpaid') {
+    // Mark order as paid in your database
+    console.log(`Payment ${event.id} completed for reference ${event.reference_id}`);
+  }
+
+  res.status(200).send('OK');
+});
+
+// Check payment status (polling fallback)
+app.get('/api/payments/:paymentId/status', async (req, res) => {
+  try {
+    const status = await fluxis.pointOfSale.getPaymentRequest(POS_ID, req.params.paymentId);
+    res.json({ status: status.status });
+  } catch (error) {
+    if (error instanceof FluxisError) {
+      res.status(400).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+app.listen(3000, () => console.log('Server running on port 3000'));
+```
+
+---
+
+## Going from Staging to Production
+
+1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
+2. Change `environment` from `'staging'` to `'production'`
+3. Update webhook URLs to your production server
+4. Re-create notification settings on production PoS (webhook secrets are per-environment)
+
+```typescript
+const fluxis = new FluxisClient({
+  apiKey: 'fxs.prd.xxx',
+  apiSecret: 'your-production-secret',
+  environment: 'production', // Points to https://api.fluxis.us/v1
+});
+```
+
+---
+
+## Configuration Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | required | Fluxis API key |
+| `apiSecret` | `string` | required | Fluxis API secret |
+| `environment` | `'staging' \| 'production'` | `'staging'` | API environment |
+| `baseUrl` | `string` | — | Custom base URL (overrides environment) |
+| `timeout` | `number` | `30000` | Request timeout in milliseconds |
