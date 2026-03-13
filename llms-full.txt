@@ -9,8 +9,9 @@ Fluxis is a crypto payment processing platform. Merchants use Fluxis to accept c
 The SDK wraps the Fluxis REST API and handles authentication, token refresh, and type conversion automatically.
 
 - Package: `@fluxisus/sdk`
-- Runtime: Node.js 18+ (uses native fetch)
+- Runtime: Node.js 18+ (uses native `fetch`, `AbortSignal.timeout()`, and `crypto.subtle`)
 - Types: Full TypeScript support, strict mode
+- Zero dependencies
 
 ## Installation
 
@@ -37,7 +38,7 @@ const fluxis = new FluxisClient({
 | `staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
 | `production` | `https://api.fluxis.us/v1` | `fxs.prd.*` |
 
-Default is `staging`. The SDK authenticates lazily on the first request and refreshes the token automatically before it expires.
+Default is `staging`. The SDK authenticates lazily on the first request and refreshes the token automatically ~60 seconds before it expires. If multiple requests fire concurrently while the token is being refreshed, only one auth call is made (deduplication). If a request receives a 401 (e.g. token revoked server-side), the SDK invalidates the cached token, re-authenticates, and retries the request once.
 
 You can also pass a custom `baseUrl` to override the environment-based URL:
 
@@ -122,9 +123,10 @@ const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(pos.id, {
   },
 });
 
-console.log(checkout.id);     // Payment request ID
-console.log(checkout.status); // "created"
-console.log(checkout.token);  // NASPIP token
+console.log(checkout.id);          // Payment request ID
+console.log(checkout.status);      // "created"
+console.log(checkout.token);       // NASPIP token
+console.log(checkout.checkoutUrl); // Hosted checkout page URL
 ```
 
 ---
@@ -195,11 +197,31 @@ app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (r
 app.listen(3000);
 ```
 
+### Webhook in Next.js App Router
+
+```typescript
+import { verifyWebhookSignature } from '@fluxisus/sdk';
+
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-fluxis-signature') || '';
+
+  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  if (!isValid) return new Response('Invalid signature', { status: 401 });
+
+  const event = JSON.parse(rawBody);
+  // Handle event...
+  return new Response('OK', { status: 200 });
+}
+```
+
+**Important:** Signature verification requires the raw request body as a string. If your framework auto-parses JSON, preserve the raw body (use `express.raw()` in Express, `request.text()` in Next.js).
+
 ### Step 3: Update webhook URL (if needed)
 
 ```typescript
 await fluxis.pointOfSale.updateNotifications(pos.id, {
-  url: 'https://newserver.com/webhooks/fluxis',
+  webhookUrl: 'https://newserver.com/webhooks/fluxis',
 });
 ```
 
@@ -262,10 +284,10 @@ Each address: `{ address: string, network: string, addressTag?: string }`
 | `update(posId, { name?, merchant?, paymentOptions? })` | Update PoS |
 | `getNotifications(posId)` | Get webhook settings |
 | `createNotifications(posId, { webhookUrl })` | Create webhook (returns secret) |
-| `updateNotifications(posId, { url })` | Update webhook URL |
-| `createPaymentRequest(posId, { amount, uniqueAssetId, referenceId?, order? })` | Create payment request |
-| `getPaymentRequest(posId, paymentRequestId)` | Get payment request status |
-| `createPaymentRequestCheckout(posId, { amount, coinCode, referenceId?, order? })` | Create checkout payment |
+| `updateNotifications(posId, { webhookUrl })` | Update webhook URL |
+| `createPaymentRequest(posId, { amount, uniqueAssetId, referenceId?, order? })` | Create payment request → `PaymentRequestResponse` |
+| `getPaymentRequest(posId, paymentRequestId)` | Get payment request status → `PaymentRequestResponse` |
+| `createPaymentRequestCheckout(posId, { amount, coinCode, referenceId?, order? })` | Create checkout → `PaymentRequestCheckoutResponse` (includes `checkoutUrl`) |
 
 ### fluxis.naspip
 
@@ -316,10 +338,15 @@ Each address: `{ address: string, network: string, addressTag?: string }`
 
 ## Error Handling
 
-The SDK throws typed errors:
+The SDK throws typed errors. Error messages automatically include the HTTP method and path for easier debugging (e.g. `"POST /pos/xxx/payment-request: Invalid amount"`).
 
 ```typescript
-import { FluxisError, FluxisAuthError, FluxisNetworkError } from '@fluxisus/sdk';
+import {
+  FluxisError,
+  FluxisAuthError,
+  FluxisNetworkError,
+  FluxisResponseParseError,
+} from '@fluxisus/sdk';
 
 try {
   const payment = await fluxis.pointOfSale.createPaymentRequest(posId, {
@@ -334,20 +361,27 @@ try {
   } else if (error instanceof FluxisNetworkError) {
     // Could not connect to Fluxis API (DNS, timeout, etc.)
     // error.cause — original fetch error
+  } else if (error instanceof FluxisResponseParseError) {
+    // API returned a non-JSON response (e.g. HTML error page from a proxy)
+    // error.rawBody — the raw response body string
+    // error.statusCode — HTTP status code
+    // error.method, error.path — request context
   } else if (error instanceof FluxisError) {
-    // API returned an error response
+    // API returned a structured error response
     // error.code — e.g. "AK0001"
-    // error.message — human-readable message
+    // error.message — includes "METHOD /path: message" prefix
     // error.details — additional context
     // error.statusCode — HTTP status code
+    // error.method, error.path — request context
   }
 }
 ```
 
 Error class hierarchy:
-- `FluxisError` (base) — all API errors
+- `FluxisError` (base) — all API errors. Fields: `code`, `message`, `details`, `statusCode`, `method`, `path`.
   - `FluxisAuthError` — authentication failures (401)
   - `FluxisNetworkError` — connection/timeout issues
+  - `FluxisResponseParseError` — non-JSON responses (proxy errors, HTML pages). Additional field: `rawBody`.
 
 ---
 
@@ -458,3 +492,14 @@ const fluxis = new FluxisClient({
 | `environment` | `'staging' \| 'production'` | `'staging'` | API environment |
 | `baseUrl` | `string` | — | Custom base URL (overrides environment) |
 | `timeout` | `number` | `30000` | Request timeout in milliseconds |
+
+---
+
+## Key Implementation Details
+
+- **camelCase ↔ snake_case**: The Fluxis API uses `snake_case` for all JSON keys. The SDK automatically converts between camelCase (TypeScript) and snake_case (API) in both directions, so you always work with idiomatic TypeScript property names.
+- **Lazy auth with dedup**: Authentication happens on the first API call. Concurrent requests during token refresh share a single auth call.
+- **401 auto-retry**: If a request gets a 401, the SDK invalidates the token, re-authenticates, and retries once (prevents infinite loops).
+- **Safe response parsing**: 204 No Content and empty bodies are handled gracefully. Non-JSON responses (e.g. HTML from a reverse proxy) throw `FluxisResponseParseError` with the raw body preserved.
+- **`AbortSignal.timeout()`**: All requests use the configured timeout (default 30s) via `AbortSignal.timeout()`.
+- **`crypto.subtle`**: Webhook signature verification uses `crypto.subtle.importKey` + `HMAC-SHA256` (available in Node.js 18+ and all modern browsers).
