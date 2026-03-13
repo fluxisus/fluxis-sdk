@@ -21,7 +21,12 @@ npm install @fluxisus/sdk
 
 ## Initialization
 
+> **IMPORTANT — Server-only:** `FluxisClient` holds your `apiKey` and `apiSecret`. It must ONLY be instantiated in server-side code (Node.js, Next.js Server Components, Route Handlers, Server Actions). **Never import or instantiate `FluxisClient` in client-side / browser code** — this would expose your credentials in the JavaScript bundle sent to the browser.
+>
+> In Next.js projects, add `import 'server-only'` at the top of the file where you create the client. This makes Next.js throw a **build-time error** if the file is ever accidentally imported from a Client Component (`'use client'`).
+
 ```typescript
+import 'server-only';           // Next.js: prevents accidental client-side import
 import { FluxisClient } from '@fluxisus/sdk';
 
 const fluxis = new FluxisClient({
@@ -497,6 +502,7 @@ const fluxis = new FluxisClient({
 
 ## Key Implementation Details
 
+- **Server-only — never use in the browser**: `FluxisClient` contains API credentials and must only run server-side (Node.js, Next.js Server Components/Route Handlers/Server Actions). In Next.js, use `import 'server-only'` (from the `server-only` npm package) in the file where you create the client to get a build-time error if it's ever imported from a Client Component.
 - **camelCase ↔ snake_case**: The Fluxis API uses `snake_case` for all JSON keys. The SDK automatically converts between camelCase (TypeScript) and snake_case (API) in both directions, so you always work with idiomatic TypeScript property names.
 - **Lazy auth with dedup**: Authentication happens on the first API call. Concurrent requests during token refresh share a single auth call.
 - **401 auto-retry**: If a request gets a 401, the SDK invalidates the token, re-authenticates, and retries once (prevents infinite loops).
