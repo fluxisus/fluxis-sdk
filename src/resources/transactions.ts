@@ -2,6 +2,10 @@ import type { FluxisClient } from '../client.js';
 import type { ListTransactionsOptions, TransactionListResponse } from '../types/transactions.js';
 import { toSnakeCase } from '../utils.js';
 
+const QUERY_KEY_OVERRIDES: Record<string, string> = {
+  accountId: 'accountID',
+};
+
 export class TransactionsResource {
   constructor(private readonly client: FluxisClient) {}
 
@@ -10,7 +14,7 @@ export class TransactionsResource {
     if (options) {
       for (const [key, value] of Object.entries(options)) {
         if (value !== undefined) {
-          query[toSnakeCase(key)] = value;
+          query[QUERY_KEY_OVERRIDES[key] ?? toSnakeCase(key)] = value;
         }
       }
     }

@@ -6,6 +6,7 @@ import type {
   CreatePaymentRequestRequest,
   CreatePointOfSaleRequest,
   NotificationSettings,
+  PaymentRequestCheckoutResponse,
   PaymentRequestResponse,
   PointOfSale,
   UpdateNotificationSettingsRequest,
@@ -52,7 +53,7 @@ export class PointOfSaleResource {
     return this.client.request<PaymentRequestResponse>('GET', `/pos/${posId}/payment-request/${paymentRequestId}`);
   }
 
-  async createPaymentRequestCheckout(posId: string, data: CreatePaymentRequestCheckoutRequest): Promise<PaymentRequestResponse> {
-    return this.client.request<PaymentRequestResponse>('POST', `/pos/${posId}/payment-request-checkout`, data);
+  async createPaymentRequestCheckout(posId: string, data: CreatePaymentRequestCheckoutRequest): Promise<PaymentRequestCheckoutResponse> {
+    return this.client.request<PaymentRequestCheckoutResponse>('POST', `/pos/${posId}/payment-request-checkout`, data);
   }
 }

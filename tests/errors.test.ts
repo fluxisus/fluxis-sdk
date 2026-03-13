@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FluxisError, FluxisAuthError, FluxisNetworkError } from '../src/errors.js';
+import { FluxisError, FluxisAuthError, FluxisNetworkError, FluxisResponseParseError } from '../src/errors.js';
 
 describe('FluxisError', () => {
   it('stores code, message, details, and statusCode', () => {
@@ -10,6 +10,20 @@ describe('FluxisError', () => {
     expect(err.statusCode).toBe(400);
     expect(err.name).toBe('FluxisError');
     expect(err).toBeInstanceOf(Error);
+  });
+
+  it('prefixes message with method and path when provided', () => {
+    const err = new FluxisError('Not found', 'NOT_FOUND', undefined, 404, 'GET', '/account/123');
+    expect(err.message).toBe('GET /account/123: Not found');
+    expect(err.method).toBe('GET');
+    expect(err.path).toBe('/account/123');
+  });
+
+  it('omits prefix when method/path are not provided', () => {
+    const err = new FluxisError('Bad request', 'AK0001');
+    expect(err.message).toBe('Bad request');
+    expect(err.method).toBeUndefined();
+    expect(err.path).toBeUndefined();
   });
 });
 
@@ -30,5 +44,25 @@ describe('FluxisNetworkError', () => {
     expect(err.code).toBe('NETWORK_ERROR');
     expect(err.details).toBe('fetch failed');
     expect(err.cause).toBe(cause);
+  });
+});
+
+describe('FluxisResponseParseError', () => {
+  it('stores raw body and request context', () => {
+    const err = new FluxisResponseParseError(
+      'Response is not valid JSON',
+      '<html>Bad Gateway</html>',
+      502,
+      'POST',
+      '/pos/123/payment-request',
+    );
+    expect(err.name).toBe('FluxisResponseParseError');
+    expect(err.code).toBe('RESPONSE_PARSE_ERROR');
+    expect(err.rawBody).toBe('<html>Bad Gateway</html>');
+    expect(err.statusCode).toBe(502);
+    expect(err.method).toBe('POST');
+    expect(err.path).toBe('/pos/123/payment-request');
+    expect(err.message).toContain('POST /pos/123/payment-request');
+    expect(err).toBeInstanceOf(FluxisError);
   });
 });

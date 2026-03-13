@@ -1,7 +1,7 @@
 export { FluxisClient } from './client.js';
 
 // Errors
-export { FluxisError, FluxisAuthError, FluxisNetworkError } from './errors.js';
+export { FluxisError, FluxisAuthError, FluxisNetworkError, FluxisResponseParseError } from './errors.js';
 
 // Webhook utility
 export { verifyWebhookSignature } from './webhooks.js';
@@ -55,6 +55,7 @@ export type {
   CreatePaymentRequestRequest,
   CreatePaymentRequestCheckoutRequest,
   PaymentRequestResponse,
+  PaymentRequestCheckoutResponse,
 } from './types/pointOfSale.js';
 
 // Types — NASPIP

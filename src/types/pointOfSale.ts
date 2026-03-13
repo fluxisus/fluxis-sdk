@@ -44,7 +44,7 @@ export interface CreateNotificationSettingsResponse {
 }
 
 export interface UpdateNotificationSettingsRequest {
-  url: string;
+  webhookUrl: string;
 }
 
 export interface UpdateNotificationSettingsResponse {
@@ -71,4 +71,8 @@ export interface PaymentRequestResponse {
   token: string;
   referenceId?: string;
   expiration?: number;
+}
+
+export interface PaymentRequestCheckoutResponse extends PaymentRequestResponse {
+  checkoutUrl?: string;
 }

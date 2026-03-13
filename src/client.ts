@@ -1,5 +1,5 @@
 import type { ApiErrorResponse, ApiResponse, Environment, FluxisClientOptions } from './types/common.js';
-import { FluxisAuthError, FluxisError, FluxisNetworkError } from './errors.js';
+import { FluxisAuthError, FluxisError, FluxisNetworkError, FluxisResponseParseError } from './errors.js';
 import { keysToCamelCase, keysToSnakeCase } from './utils.js';
 import { AccountsResource } from './resources/accounts.js';
 import { OrganizationResource } from './resources/organization.js';
@@ -13,7 +13,7 @@ const BASE_URLS: Record<Environment, string> = {
   production: 'https://api.fluxis.us/v1',
 };
 
-const TOKEN_REFRESH_BUFFER_MS = 60_000; // Refresh 1 minute before expiry
+const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 export class FluxisClient {
   private readonly apiKey: string;
@@ -57,6 +57,44 @@ export class FluxisClient {
     return Date.now() >= this.tokenExpiresAt.getTime() - TOKEN_REFRESH_BUFFER_MS;
   }
 
+  private buildUrl(path: string, query?: Record<string, string | number | undefined>): string {
+    let url = `${this.baseUrl}${path}`;
+    if (query) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined) {
+          params.set(key, String(value));
+        }
+      }
+      const qs = params.toString();
+      if (qs) url += `?${qs}`;
+    }
+    return url;
+  }
+
+  private async parseResponseBody(
+    response: Response,
+    method?: string,
+    path?: string,
+  ): Promise<ApiResponse<unknown> | ApiErrorResponse | undefined> {
+    if (response.status === 204) return undefined;
+
+    const text = await response.text();
+    if (!text) return undefined;
+
+    try {
+      return JSON.parse(text) as ApiResponse<unknown> | ApiErrorResponse;
+    } catch {
+      throw new FluxisResponseParseError(
+        'Response is not valid JSON',
+        text,
+        response.status,
+        method,
+        path,
+      );
+    }
+  }
+
   private async authenticate(): Promise<void> {
     const url = `${this.baseUrl}/auth/token`;
     const body = JSON.stringify({
@@ -76,14 +114,14 @@ export class FluxisClient {
       throw new FluxisNetworkError('Failed to connect to Fluxis API for authentication', err as Error);
     }
 
-    const json = (await response.json()) as ApiResponse<{ token: string; expired_at: string }> | ApiErrorResponse;
+    const json = await this.parseResponseBody(response, 'POST', '/auth/token');
 
-    if (!response.ok || json.status === 'error') {
-      const errorJson = json as ApiErrorResponse;
+    if (!response.ok || !json || json.status === 'error') {
+      const errorJson = json as ApiErrorResponse | undefined;
       throw new FluxisAuthError(
-        errorJson.message ?? 'Authentication failed',
-        errorJson.code ?? 'AUTH_ERROR',
-        errorJson.details,
+        errorJson?.message ?? 'Authentication failed',
+        errorJson?.code ?? 'AUTH_ERROR',
+        errorJson?.details,
       );
     }
 
@@ -95,7 +133,6 @@ export class FluxisClient {
   private async ensureAuthenticated(): Promise<void> {
     if (!this.isTokenExpired()) return;
 
-    // Deduplicate concurrent auth requests
     if (!this.authPromise) {
       this.authPromise = this.authenticate().finally(() => {
         this.authPromise = null;
@@ -105,20 +142,25 @@ export class FluxisClient {
   }
 
   /** @internal */
-  async request<T>(method: string, path: string, body?: unknown, query?: Record<string, string | number | undefined>): Promise<T> {
+  async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<T> {
+    return this.executeRequest<T>(method, path, body, query, true);
+  }
+
+  private async executeRequest<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    query?: Record<string, string | number | undefined>,
+    retryOn401 = false,
+  ): Promise<T> {
     await this.ensureAuthenticated();
 
-    let url = `${this.baseUrl}${path}`;
-    if (query) {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined) {
-          params.set(key, String(value));
-        }
-      }
-      const qs = params.toString();
-      if (qs) url += `?${qs}`;
-    }
+    const url = this.buildUrl(path, query);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -143,78 +185,29 @@ export class FluxisClient {
       throw new FluxisNetworkError(`Request failed: ${method} ${path}`, err as Error);
     }
 
-    const json = (await response.json()) as ApiResponse<unknown> | ApiErrorResponse;
+    const json = await this.parseResponseBody(response, method, path);
 
-    if (!response.ok || json.status === 'error') {
-      const errorJson = json as ApiErrorResponse;
+    if (!response.ok || (json && json.status === 'error')) {
+      const errorJson = json as ApiErrorResponse | undefined;
 
-      if (response.status === 401) {
-        // Token might have expired between check and request — retry once
+      if (response.status === 401 && retryOn401) {
         this.accessToken = null;
         this.tokenExpiresAt = null;
         await this.ensureAuthenticated();
-        return this.requestWithoutRetry<T>(method, path, body, query);
+        return this.executeRequest<T>(method, path, body, query, false);
       }
 
       throw new FluxisError(
-        errorJson.message ?? `Request failed with status ${response.status}`,
-        errorJson.code ?? 'UNKNOWN_ERROR',
-        errorJson.details,
+        errorJson?.message ?? `Request failed with status ${response.status}`,
+        errorJson?.code ?? 'UNKNOWN_ERROR',
+        errorJson?.details,
         response.status,
+        method,
+        path,
       );
     }
 
-    const successJson = json as ApiResponse<unknown>;
-    return keysToCamelCase(successJson.data) as T;
-  }
-
-  private async requestWithoutRetry<T>(method: string, path: string, body?: unknown, query?: Record<string, string | number | undefined>): Promise<T> {
-    let url = `${this.baseUrl}${path}`;
-    if (query) {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined) {
-          params.set(key, String(value));
-        }
-      }
-      const qs = params.toString();
-      if (qs) url += `?${qs}`;
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.accessToken}`,
-      'x-fluxis-api-key': this.apiKey,
-    };
-
-    const fetchOptions: RequestInit = {
-      method,
-      headers,
-      signal: AbortSignal.timeout(this.timeout),
-    };
-
-    if (body !== undefined) {
-      fetchOptions.body = JSON.stringify(keysToSnakeCase(body));
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(url, fetchOptions);
-    } catch (err) {
-      throw new FluxisNetworkError(`Request failed: ${method} ${path}`, err as Error);
-    }
-
-    const json = (await response.json()) as ApiResponse<unknown> | ApiErrorResponse;
-
-    if (!response.ok || json.status === 'error') {
-      const errorJson = json as ApiErrorResponse;
-      throw new FluxisError(
-        errorJson.message ?? `Request failed with status ${response.status}`,
-        errorJson.code ?? 'UNKNOWN_ERROR',
-        errorJson.details,
-        response.status,
-      );
-    }
+    if (!json) return undefined as T;
 
     const successJson = json as ApiResponse<unknown>;
     return keysToCamelCase(successJson.data) as T;

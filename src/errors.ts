@@ -2,13 +2,25 @@ export class FluxisError extends Error {
   readonly code: string;
   readonly details?: string;
   readonly statusCode?: number;
+  readonly method?: string;
+  readonly path?: string;
 
-  constructor(message: string, code: string, details?: string, statusCode?: number) {
-    super(message);
+  constructor(
+    message: string,
+    code: string,
+    details?: string,
+    statusCode?: number,
+    method?: string,
+    path?: string,
+  ) {
+    const prefix = method && path ? `${method} ${path}: ` : '';
+    super(`${prefix}${message}`);
     this.name = 'FluxisError';
     this.code = code;
     this.details = details;
     this.statusCode = statusCode;
+    this.method = method;
+    this.path = path;
   }
 }
 
@@ -26,5 +38,15 @@ export class FluxisNetworkError extends FluxisError {
     if (cause) {
       this.cause = cause;
     }
+  }
+}
+
+export class FluxisResponseParseError extends FluxisError {
+  readonly rawBody: string;
+
+  constructor(message: string, rawBody: string, statusCode?: number, method?: string, path?: string) {
+    super(message, 'RESPONSE_PARSE_ERROR', rawBody, statusCode, method, path);
+    this.name = 'FluxisResponseParseError';
+    this.rawBody = rawBody;
   }
 }

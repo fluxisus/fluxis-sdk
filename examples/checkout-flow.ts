@@ -14,14 +14,15 @@ async function main() {
       merchant: { name: 'My Store' },
     });
 
-    // Set up webhook notifications
+    // Set up webhook notifications — the primary way to track payment status
     const webhook = await fluxis.pointOfSale.createNotifications(pos.id, {
       webhookUrl: 'https://myshop.com/webhooks/fluxis',
     });
 
     console.log('Save this webhook secret:', webhook.secret);
 
-    // Create a checkout URL (amount in reference currency, payment processed in crypto)
+    // Create a hosted checkout (amount in fiat reference currency, payment in crypto).
+    // Order data is defined server-side — never trust client-supplied amounts.
     const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(pos.id, {
       amount: '49.99',
       coinCode: 'USD',
@@ -44,8 +45,9 @@ async function main() {
 
     console.log('Checkout payment ID:', checkout.id);
     console.log('Status:', checkout.status);
+    console.log('Checkout URL:', checkout.checkoutUrl);
 
-    // Check payment status later
+    // Poll as a fallback — prefer webhooks for production payment fulfillment
     const status = await fluxis.pointOfSale.getPaymentRequest(pos.id, checkout.id);
     console.log('Payment status:', status.status);
   } catch (error) {

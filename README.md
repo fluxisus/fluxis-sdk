@@ -209,7 +209,7 @@ app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (r
 
 ```typescript
 await fluxis.pointOfSale.updateNotifications(pos.id, {
-  url: 'https://newserver.com/webhooks/fluxis',
+  webhookUrl: 'https://newserver.com/webhooks/fluxis',
 });
 ```
 
@@ -314,20 +314,21 @@ const payment = await fluxis.pointOfSale.createPaymentRequest('pos-id', {
 // Get payment request status
 const status = await fluxis.pointOfSale.getPaymentRequest('pos-id', 'payment-id');
 
-// Create checkout (reference currency amount, paid in crypto)
+// Create checkout (reference currency amount, paid in crypto) → PaymentRequestCheckoutResponse
 const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout('pos-id', {
   amount: '49.99',                             // required
   coinCode: 'USD',                             // required (reference currency for display)
   referenceId: 'order-002',                    // optional
   order: { /* ... */ },                        // optional
 });
+// checkout.checkoutUrl — hosted checkout page URL
 
 // Notifications (webhooks)
 const webhook = await fluxis.pointOfSale.createNotifications('pos-id', {
   webhookUrl: 'https://...',
 });
 const settings = await fluxis.pointOfSale.getNotifications('pos-id');
-await fluxis.pointOfSale.updateNotifications('pos-id', { url: 'https://...' });
+await fluxis.pointOfSale.updateNotifications('pos-id', { webhookUrl: 'https://...' });
 ```
 
 ### NASPIP Tokens
@@ -402,7 +403,12 @@ const txs = await fluxis.transactions.list({
 The SDK throws typed errors that you can catch and handle:
 
 ```typescript
-import { FluxisError, FluxisAuthError, FluxisNetworkError } from '@fluxisus/sdk';
+import {
+  FluxisError,
+  FluxisAuthError,
+  FluxisNetworkError,
+  FluxisResponseParseError,
+} from '@fluxisus/sdk';
 
 try {
   const payment = await fluxis.pointOfSale.createPaymentRequest(posId, {
@@ -413,20 +419,23 @@ try {
   if (error instanceof FluxisAuthError) {
     // Invalid API key/secret, or token refresh failed
     console.error('Auth failed:', error.message);
-    console.error('Code:', error.code); // e.g. "AUTH_ERROR"
   } else if (error instanceof FluxisNetworkError) {
     // Could not connect (DNS failure, timeout, network down)
     console.error('Network error:', error.message);
-    console.error('Cause:', error.cause);
+  } else if (error instanceof FluxisResponseParseError) {
+    // API returned a non-JSON response (e.g., HTML error page from a proxy)
+    console.error('Unexpected response:', error.rawBody);
   } else if (error instanceof FluxisError) {
-    // API returned an error response
-    console.error('API error:', error.message);
-    console.error('Code:', error.code);       // e.g. "AK0001"
-    console.error('Details:', error.details);  // Additional context
-    console.error('Status:', error.statusCode); // HTTP status code
+    // API returned a structured error response
+    console.error('API error:', error.message);   // Includes method + path prefix
+    console.error('Code:', error.code);            // e.g. "AK0001"
+    console.error('Details:', error.details);      // Additional context
+    console.error('Status:', error.statusCode);    // HTTP status code
   }
 }
 ```
+
+Error messages include request context automatically (e.g. `"POST /pos/xxx/payment-request: Invalid amount"`), which makes debugging easier.
 
 ### Error hierarchy
 
@@ -435,6 +444,7 @@ try {
 | `FluxisError` | `Error` | Any API error response |
 | `FluxisAuthError` | `FluxisError` | Authentication failures (401) |
 | `FluxisNetworkError` | `FluxisError` | Connection/timeout issues |
+| `FluxisResponseParseError` | `FluxisError` | Non-JSON responses (proxy errors, HTML pages) |
 
 ---
 
@@ -486,10 +496,93 @@ Common assets:
 
 ---
 
+## Architecture Notes
+
+### Authentication and token refresh
+
+The SDK lazily authenticates on the first API call by exchanging your `apiKey` + `apiSecret` for a PASETO v4 access token via `POST /auth/token`. The token is cached and reused for subsequent requests. One minute before the token expires, the SDK automatically re-authenticates. If multiple requests are made concurrently while the token is being refreshed, only one auth call is made (deduplication).
+
+If a request receives a 401 response (e.g. the token was revoked server-side), the SDK invalidates the cached token, re-authenticates, and retries the request once.
+
+### camelCase ↔ snake_case conversion
+
+The Fluxis API uses `snake_case` for all JSON keys. The SDK automatically converts between camelCase (TypeScript) and snake_case (API) in both directions, so you always work with idiomatic TypeScript property names.
+
+---
+
+## Webhook Verification: Raw Body Handling
+
+Webhook signature verification requires the **raw request body** as a string. If your framework parses JSON automatically, you need to preserve the raw body.
+
+### Next.js App Router
+
+```typescript
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-fluxis-signature') || '';
+
+  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  if (!isValid) return new Response('Invalid signature', { status: 401 });
+
+  const event = JSON.parse(rawBody);
+  // Handle event...
+}
+```
+
+### Express
+
+Use `express.raw()` instead of `express.json()` on the webhook route:
+
+```typescript
+app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
+  const rawBody = req.body.toString();
+  const signature = req.headers['x-fluxis-signature'] as string;
+
+  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  // ...
+});
+```
+
+---
+
+## Troubleshooting
+
+### `FluxisAuthError: Authentication failed`
+
+- Verify your `apiKey` and `apiSecret` are correct and not swapped.
+- Staging keys start with `fxs.stg.*`, production with `fxs.prd.*`. Make sure you're using the right environment.
+- Secrets may contain special characters — ensure they're not being truncated by your shell or `.env` parser.
+
+### `FluxisNetworkError: Failed to connect`
+
+- Check that your network allows outbound HTTPS to `api.stgfluxis.us` (staging) or `api.fluxis.us` (production).
+- If behind a corporate proxy, you may need to configure `fetch` accordingly.
+- The default timeout is 30 seconds. Increase it with the `timeout` option if your network is slow.
+
+### Webhook signature verification fails
+
+- The signature is computed over the **raw request body**. If your framework parses or re-serializes the body, the signature will not match.
+- Ensure you're using the `secret` returned by `createNotifications()`, not the API secret.
+- Secrets are only returned once when creating webhook settings. If lost, delete and recreate the webhook.
+
+### `FluxisResponseParseError: Response is not valid JSON`
+
+- This typically means a proxy, CDN, or load balancer returned an HTML error page (e.g. 502 Bad Gateway).
+- Check the `rawBody` property on the error for the actual response content.
+- This is usually a transient infrastructure issue — retry after a delay.
+
+### Environment mismatch
+
+- Staging and production are completely separate. PoS IDs, webhook secrets, and payment requests do not carry over between environments.
+- If you're getting 404s, check that the resource ID matches the environment you're using.
+
+---
+
 ## Requirements
 
-- **Node.js 18+** — uses native `fetch` (no external HTTP dependencies)
+- **Node.js 18+** — uses native `fetch` and `AbortSignal.timeout()` (no external HTTP dependencies)
 - **TypeScript 5.0+** — for type definitions (optional, works with JavaScript too)
+- **`crypto.subtle`** — used for webhook signature verification (available in Node.js 18+ and all modern browsers)
 
 ## License
 
