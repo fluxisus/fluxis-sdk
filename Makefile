@@ -4,9 +4,9 @@
 
 .PHONY: help \
         build-csharp test-csharp pack-csharp publish-dry-csharp \
-        build-ts test-ts \
-        test-py \
-        test-go \
+        build-ts test-ts publish-dry-ts \
+        build-py test-py publish-dry-py \
+        build-go test-go \
         release-status tag
 
 # Default target
@@ -47,12 +47,24 @@ build-ts: ## Build the TypeScript SDK
 test-ts: ## Run TypeScript tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
 	cd packages/sdk && npm ci && npm test
 
+publish-dry-ts: ## Dry-run npm publish — shows what would be pushed without pushing
+	cd packages/sdk && npm ci && npm run build && npm publish --dry-run
+
 # ── Python ────────────────────────────────────────────────────────────────────
+
+build-py: ## Build the Python SDK
+	cd packages/sdk-python && pip install build -q && python -m build
 
 test-py: ## Run Python tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
 	cd packages/sdk-python && pip install -e ".[dev]" -q && pytest
 
+publish-dry-py: ## Dry-run PyPI publish — builds and lists package contents
+	cd packages/sdk-python && pip install build -q && python -m build && ls -lh dist/
+
 # ── Go ────────────────────────────────────────────────────────────────────────
+
+build-go: ## Build the Go SDK
+	cd packages/sdk-go && go build ./...
 
 test-go: ## Run Go tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
 	cd packages/sdk-go && go test ./... -v
