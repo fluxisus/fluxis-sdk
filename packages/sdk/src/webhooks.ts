@@ -1,3 +1,12 @@
+async function getSubtleCrypto(): Promise<SubtleCrypto> {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.subtle) {
+    return globalThis.crypto.subtle;
+  }
+  // Node.js < 19 fallback
+  const { webcrypto } = await import('node:crypto');
+  return (webcrypto as unknown as Crypto).subtle;
+}
+
 /**
  * Verify a Fluxis webhook signature.
  *
@@ -11,8 +20,9 @@ export async function verifyWebhookSignature(
   signature: string,
   secret: string,
 ): Promise<boolean> {
+  const subtle = await getSubtleCrypto();
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
+  const key = await subtle.importKey(
     'raw',
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
@@ -20,7 +30,7 @@ export async function verifyWebhookSignature(
     ['sign'],
   );
 
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  const sig = await subtle.sign('HMAC', key, encoder.encode(payload));
   const computed = Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
