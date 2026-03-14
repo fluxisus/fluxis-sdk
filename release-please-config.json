@@ -20,7 +20,7 @@
     "packages/sdk-go": {
       "release-type": "go",
       "package-name": "fluxis-sdk-go",
-      "tag-name": "packages/sdk-go/v${version}"
+      "tag-name": "sdk-go/v${version}"
     }
   }
 }
