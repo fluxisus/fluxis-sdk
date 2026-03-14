@@ -1,11 +1,20 @@
 name: SDK — Go
 
+# Trigger strategy:
+#   • build-and-test  → any push/PR touching sdk-go or spec paths
+#   • publish         → only when a tag like `packages/sdk-go/v1.2.3` is pushed (by release-please)
+#
+# Go "publishing" = the tag exists on the repo. proxy.golang.org picks it up automatically.
+# The publish job explicitly requests pkg.go.dev to index the new version.
+
 on:
   push:
     branches: [main]
     paths:
       - 'packages/sdk-go/**'
       - 'spec/**'
+    tags:
+      - 'packages/sdk-go/v*'
   pull_request:
     paths:
       - 'packages/sdk-go/**'
@@ -39,3 +48,30 @@ jobs:
         env:
           FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
           FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
+
+  publish:
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/packages/sdk-go/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#packages/sdk-go/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Request pkg.go.dev indexing
+        # The Go module proxy indexes the tag automatically within minutes.
+        # This step explicitly fetches the module to ensure proxy.golang.org sees it immediately.
+        run: |
+          MODULE="github.com/fluxisus/fluxis-sdk/packages/sdk-go"
+          VERSION="v${{ steps.version.outputs.VERSION }}"
+          echo "Requesting proxy index for ${MODULE}@${VERSION}"
+          curl -sSf "https://proxy.golang.org/${MODULE}/@v/${VERSION}.info" || true
+          curl -sSf "https://sum.golang.org/lookup/${MODULE}@${VERSION}" || true
+          echo "Module published: ${MODULE}@${VERSION}"
+          echo "View at: https://pkg.go.dev/${MODULE}@${VERSION}"

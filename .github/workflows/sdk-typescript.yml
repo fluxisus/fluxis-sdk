@@ -1,11 +1,17 @@
 name: SDK — TypeScript
 
+# Trigger strategy:
+#   • build-and-test  → any push/PR touching sdk or spec paths
+#   • publish         → only when a tag like `sdk/v1.2.3` is pushed (by release-please)
+
 on:
   push:
     branches: [main]
     paths:
       - 'packages/sdk/**'
       - 'spec/**'
+    tags:
+      - 'sdk/v*'
   pull_request:
     paths:
       - 'packages/sdk/**'
@@ -45,7 +51,7 @@ jobs:
 
   publish:
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/sdk/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -57,6 +63,20 @@ jobs:
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#sdk/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package.json version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.version.outputs.VERSION }}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "ERROR: version in package.json ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version check passed: $PKG_VERSION"
 
       - name: Install dependencies
         run: npm ci
