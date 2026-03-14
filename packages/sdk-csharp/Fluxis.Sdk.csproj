@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;net6.0</TargetFrameworks>
     <RootNamespace>Fluxis</RootNamespace>
     <AssemblyName>Fluxis.Sdk</AssemblyName>
     <LangVersion>12</LangVersion>
@@ -20,6 +20,11 @@
     <PackageTags>fluxis;crypto;payments;naspip;sdk;blockchain</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+    <Compile Remove="examples/**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.*" />
