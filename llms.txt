@@ -1,0 +1,45 @@
+# Fluxis — Crypto Payment SDKs
+
+> Fluxis is a crypto payment processing platform that standardizes payment instructions
+> via the NASPIP protocol. Merchants integrate Fluxis to accept cryptocurrency payments.
+> This is the index for all available SDK integration guides.
+
+## Available SDKs
+
+- [TypeScript SDK](packages/sdk/llms-full.txt): `@fluxisus/sdk` — Node.js 18+, zero dependencies, native fetch
+- [C# SDK](packages/sdk-csharp/llms-full.txt): `Fluxis.Sdk` — .NET 6/8, async/await, System.Text.Json
+
+## Common Concepts (all SDKs)
+
+### Authentication
+Two-step auth — all SDKs handle this automatically:
+1. `POST /v1/auth/token` with `api_key` + `api_secret` → PASETO v4 access token
+2. All requests send dual headers: `Authorization: Bearer <token>` + `x-fluxis-api-key: <api_key_id>`
+
+### Environments
+| Environment | Base URL | API Key Prefix |
+|-------------|----------|----------------|
+| Staging | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
+| Production | `https://api.fluxis.us/v1` | `fxs.prd.*` |
+
+### Two Payment Flows
+1. **Direct crypto** (`createPaymentRequest`): You specify a `unique_asset_id`. Returns a NASPIP token (render as QR).
+2. **Hosted checkout** (`createPaymentRequestCheckout`): You specify a `coin_code` (fiat for display). Returns a checkout URL.
+
+### Unique Asset IDs
+Format: `n{network}_t{tokenAddress}`. Example: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` = USDC on Polygon.
+
+### Webhooks
+HMAC-SHA256 signature verification. The webhook secret is returned once when creating notification settings on a PoS.
+
+### Payment Request Statuses
+`created`, `processing`, `completed`, `overpaid`, `underpaid`, `expired`, `failed`
+
+### Transaction Types
+`deposit`, `withdraw`, `refund`, `adjustment`, `swap`, `payment_in`, `payment_out`, `dry_run`
+
+### API Response Envelope
+```json
+{ "status": "success", "data": { ... } }
+{ "status": "error", "code": "AK0001", "message": "...", "details": "..." }
+```
