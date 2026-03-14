@@ -1,13 +1,50 @@
-# CLAUDE.md — Fluxis TypeScript SDK
+# CLAUDE.md — Fluxis SDK Monorepo
 
-> This file provides context for AI coding agents (Claude Code, Cursor, Copilot, etc.)
-> working on the Fluxis TypeScript SDK. Read this FIRST before writing any code.
+> This file provides shared API context for AI coding agents working on any Fluxis SDK.
+> For language-specific conventions, see the `CLAUDE.md` inside each `packages/sdk-*` directory.
 
 ## What is Fluxis?
 
 Fluxis is a crypto payment processing infrastructure. It standardizes payment instructions
 via the **NASPIP protocol** — a portable token that encodes payment data and can be
 transmitted via QR, NFC, or API. Merchants integrate Fluxis to accept crypto payments.
+
+## Monorepo Structure
+
+```
+fluxis-sdks/
+├── CLAUDE.md                 # This file — shared API context
+├── packages/
+│   ├── sdk/                  # TypeScript SDK (@fluxisus/sdk)
+│   ├── react/                # React bindings (future)
+│   ├── sdk-csharp/           # C# SDK (Fluxis.Sdk)
+│   ├── sdk-python/           # Python SDK (fluxis)
+│   └── sdk-go/               # Go SDK (github.com/fluxisus/fluxis-sdk/packages/sdk-go)
+├── spec/
+│   └── swagger.yaml          # OpenAPI spec — source of truth
+├── examples/
+│   └── demo-checkout/        # TS example apps
+├── scripts/
+│   ├── publish-npm.sh
+│   ├── publish-nuget.sh
+│   ├── publish-pypi.sh
+│   └── validate-spec.sh
+└── .github/workflows/        # Per-language CI/CD
+    ├── sdk-typescript.yml
+    ├── sdk-csharp.yml
+    ├── sdk-python.yml
+    ├── sdk-go.yml
+    └── validate-spec.yml
+```
+
+### Principles
+
+- Each SDK is an **independent package** with its own lifecycle, version, and publish pipeline.
+- The **source of truth** is always `spec/swagger.yaml`.
+- SDKs are **hand-written** for idiomatic ergonomics — NOT auto-generated from the spec.
+- Tests run against the **Fluxis staging sandbox**, not mocks.
+- Non-JS packages (C#, Python, Go) live alongside JS workspaces without interference.
+  The root `package.json` uses npm workspaces only for JS packages.
 
 ## Architecture: Key Concepts
 
@@ -30,7 +67,7 @@ Fluxis uses a **two-step auth**:
    - `Authorization: Bearer <token>` (the PASETO token from step 1)
    - `x-fluxis-api-key: <api_key_id>` (the API key ID, NOT the secret)
 
-**The SDK must handle token refresh automatically** — check `expired_at` before each request
+**Every SDK must handle token refresh automatically** — check `expired_at` before each request
 and re-authenticate if expired or about to expire.
 
 ## API Base URLs
@@ -97,10 +134,10 @@ and re-authenticate if expired or about to expire.
 ### PaymentRequestRequest (create payment)
 ```json
 {
-  "amount": "1234.99",          // string, required
-  "unique_asset_id": "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // string, required
-  "reference_id": "order-12345", // string, optional (your external order ID)
-  "order": {                     // optional order metadata
+  "amount": "1234.99",
+  "unique_asset_id": "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+  "reference_id": "order-12345",
+  "order": {
     "total": "1234.99",
     "coin_code": "USD",
     "description": "Order description",
@@ -114,20 +151,20 @@ and re-authenticate if expired or about to expire.
 ```json
 {
   "id": "uuid",
-  "status": "created",           // created | processing | expired | completed | overpaid | underpaid | failed
-  "token": "v4.local.xxx...",    // NASPIP token — THIS IS THE KEY OUTPUT
+  "status": "created",
+  "token": "v4.local.xxx...",
   "reference_id": "order-12345",
-  "expiration": 1717833600       // unix timestamp
+  "expiration": 1717833600
 }
 ```
 
 ### PaymentRequestCheckoutRequest (creates checkout URL)
 ```json
 {
-  "amount": "1234.99",          // string, required
-  "coin_code": "USD",           // string, required (FIAT code, NOT crypto asset)
-  "reference_id": "order-12345", // optional
-  "order": { ... }              // same order structure as above
+  "amount": "1234.99",
+  "coin_code": "USD",
+  "reference_id": "order-12345",
+  "order": { "..." : "same structure as above" }
 }
 ```
 
@@ -142,9 +179,9 @@ and re-authenticate if expired or about to expire.
 ### CreateRefundRequest
 ```json
 {
-  "refund_to_address": "0x1234...",  // required — blockchain address
-  "amount": "100.50",                // optional — defaults to full amount
-  "reason": "Customer requested"     // optional
+  "refund_to_address": "0x1234...",
+  "amount": "100.50",
+  "reason": "Customer requested"
 }
 ```
 
@@ -160,7 +197,7 @@ All responses follow this pattern:
 ### Payment Request Statuses
 - `created` — just created, awaiting payment
 - `processing` — deposit detected, confirming
-- `completed` — fully paid ✓
+- `completed` — fully paid
 - `overpaid` — received more than requested
 - `underpaid` — received less than requested
 - `expired` — NASPIP token expired, no payment received
@@ -172,161 +209,31 @@ All responses follow this pattern:
 ### Transaction Statuses
 `preview`, `pending`, `created`, `processing`, `error`, `expired`, `failed`, `completed`
 
-## SDK Design Guidelines
+## Cross-SDK Implementation Notes
 
-### Project Structure
-```
-@fluxis/sdk/
-├── src/
-│   ├── client.ts              # FluxisClient class — auth, config, HTTP, token refresh
-│   ├── resources/
-│   │   ├── auth.ts            # POST /auth/token
-│   │   ├── accounts.ts        # /account CRUD + settlement addresses
-│   │   ├── organization.ts    # /organization/settlement-addresses
-│   │   ├── pointOfSale.ts     # /pos CRUD + notifications + payment requests
-│   │   ├── naspip.ts          # /naspip/create and /naspip/read
-│   │   ├── refunds.ts         # /refunds/*
-│   │   └── transactions.ts    # /transactions (list with pagination)
-│   ├── types/
-│   │   ├── common.ts          # APIResponse, APIError, enums
-│   │   ├── auth.ts            # Auth request/response types
-│   │   ├── accounts.ts        # Account types
-│   │   ├── pointOfSale.ts     # PoS, PaymentRequest, Notification types
-│   │   ├── naspip.ts          # NASPIP create/read types
-│   │   ├── refunds.ts         # Refund types
-│   │   └── transactions.ts    # Transaction types
-│   ├── errors.ts              # FluxisError, FluxisAuthError, etc.
-│   └── index.ts               # Main export
-├── examples/
-│   ├── create-payment.ts      # Minimal: auth → create PoS → create payment request
-│   ├── checkout-flow.ts       # Full checkout with webhook handling
-│   └── read-naspip-token.ts   # Decode a NASPIP token
-├── tests/
-├── package.json
-├── tsconfig.json
-├── README.md
-└── CLAUDE.md                  # This file
-```
+These rules apply to **every SDK**, regardless of language:
 
-### Naming Conventions
-- Use **camelCase** for all SDK method names and properties (even though the API uses snake_case)
-- The SDK should automatically convert between camelCase (SDK) ↔ snake_case (API)
-- Class name: `FluxisClient`
-- Package name: `@fluxis/sdk`
+1. **Auto-auth**: Lazily authenticate on first request. Cache the token. Re-auth before expiry.
 
-### Usage Pattern (what the developer experience should look like)
+2. **Case conversion**: The API uses `snake_case`. Each SDK should convert to the idiomatic
+   case for its language (camelCase for TS, PascalCase for C#, snake_case for Python, PascalCase for Go structs).
 
-```typescript
-import { FluxisClient } from '@fluxis/sdk';
+3. **Unique Asset IDs**: Format: `n{network}_t{tokenAddress}`. Example: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` = USDC on Polygon.
 
-// Initialize — auth happens automatically on first request
-const fluxis = new FluxisClient({
-  apiKey: 'fxs.stg.08ecd032-73ed-4a5a-9ccf-500eb1f9a56f',
-  apiSecret: 'tQd^RW213A3q2ojzvJn',
-  environment: 'staging', // or 'production'
-});
+4. **NASPIP tokens**: PASETO v4 tokens. Do NOT decode locally — use `/naspip/read`. Provide a helper to check validity (`v4.local.` prefix).
 
-// Create a Point of Sale
-const pos = await fluxis.pointOfSale.create({
-  name: 'Online Store',
-  merchant: { name: 'My Shop', description: 'E-commerce store' },
-  paymentOptions: ['npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'],
-});
+5. **Webhook verification**: Provide a `verifyWebhookSignature()` utility using the secret from `POST /pos/{posId}/notifications`.
 
-// Set up webhook for this PoS
-const webhook = await fluxis.pointOfSale.createNotifications(pos.id, {
-  url: 'https://myshop.com/webhooks/fluxis',
-});
-// Save webhook.secret for signature verification!
+6. **Two payment flows**:
+   - `createPaymentRequest`: Takes `unique_asset_id`. Returns NASPIP token.
+   - `createPaymentRequestCheckout`: Takes `coin_code` (fiat). Returns checkout URL.
 
-// Create a payment request → returns NASPIP token
-const payment = await fluxis.pointOfSale.createPaymentRequest(pos.id, {
-  amount: '25.00',
-  uniqueAssetId: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
-  referenceId: 'order-001',
-});
+7. **Pagination**: `/transactions` supports `limit`, `offset`, `sort`, `order`, `status`.
 
-console.log(payment.token);      // NASPIP token → render as QR
-console.log(payment.status);     // "created"
-console.log(payment.expiration); // unix timestamp
+## What NOT to Do (all SDKs)
 
-// Check payment status (for reconciliation)
-const status = await fluxis.pointOfSale.getPaymentRequest(pos.id, payment.id);
-console.log(status.status); // "created" | "processing" | "completed" | ...
-
-// Create a checkout URL (alternative flow for ecommerce)
-const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(pos.id, {
-  amount: '25.00',
-  coinCode: 'USD',
-  referenceId: 'order-002',
-});
-
-// Issue a refund
-const refund = await fluxis.refunds.create(payment.id, {
-  refundToAddress: '0x1234567890abcdef1234567890abcdef12345678',
-  reason: 'Customer requested',
-});
-
-// List transactions
-const txs = await fluxis.transactions.list({
-  limit: 50,
-  offset: 0,
-  status: 'completed',
-  sort: 'created_at',
-  order: 'desc',
-});
-```
-
-### Error Handling
-```typescript
-import { FluxisError, FluxisAuthError } from '@fluxis/sdk';
-
-try {
-  const payment = await fluxis.pointOfSale.createPaymentRequest(posId, { ... });
-} catch (error) {
-  if (error instanceof FluxisAuthError) {
-    // API key invalid or token expired and refresh failed
-    console.error('Auth failed:', error.message);
-  } else if (error instanceof FluxisError) {
-    console.error(`API error [${error.code}]: ${error.message}`);
-    console.error('Details:', error.details);
-  }
-}
-```
-
-### Important Implementation Notes
-
-1. **Auto-auth**: The client should lazily authenticate on first request and cache the token. Before each request, check if `expired_at` is approaching and re-auth if needed.
-
-2. **snake_case ↔ camelCase**: The API uses snake_case everywhere. The SDK must expose camelCase to TypeScript developers but convert automatically when sending/receiving.
-
-3. **Path params inconsistency**: The swagger uses `:posID` syntax in some paths (Express-style) and `{param}` in others. The actual API uses the standard `/pos/{posId}/...` pattern. Normalize all paths.
-
-4. **Unique Asset IDs**: These are Fluxis-specific identifiers for crypto assets on specific networks. Format: `n{network}_t{tokenAddress}`. Example: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` = USDC on Polygon.
-
-5. **NASPIP tokens**: Are PASETO v4 tokens. The SDK does NOT need to decode them locally — use the `/naspip/read` endpoint. The SDK should provide a helper to check if a token looks valid (starts with `v4.local.`) and a convenience method to read it via the API.
-
-6. **Webhook secret**: When creating notification settings (`POST /pos/{posId}/notifications`), the response includes a `secret`. This is used to verify webhook signatures. The SDK should provide a `verifyWebhookSignature()` utility.
-
-7. **Pagination**: The `/transactions` endpoint supports `limit`, `offset`, `sort`, `order`, and `status` filters. The SDK should expose these as a typed options object.
-
-8. **Two payment creation flows**:
-   - `createPaymentRequest`: Takes `unique_asset_id` (specific crypto asset). Returns NASPIP token.
-   - `createPaymentRequestCheckout`: Takes `coin_code` (fiat code like "USD"). Returns checkout URL. Used for ecommerce where the user picks their crypto on a hosted page.
-
-## Tech Stack for the SDK
-
-- **TypeScript** (strict mode)
-- **axios** or **fetch** for HTTP (prefer native fetch for zero dependencies, with axios as fallback)
-- **tsup** or **unbuild** for bundling (ESM + CJS dual output)
-- **vitest** for testing
-- Export types alongside runtime code
-- Target: Node.js 18+ and modern browsers
-
-## What NOT to Do
-
-- Do NOT hardcode any API keys or secrets in examples (use placeholder format `fxs.stg.xxx`)
-- Do NOT implement PASETO token decoding locally — always use `/naspip/read`
-- Do NOT poll payment status aggressively — the primary mechanism is webhooks
-- Do NOT expose the `api_secret` after initialization — store it only for re-auth
-- Do NOT use `any` types — everything must be strictly typed
+- Do NOT hardcode API keys or secrets (use `fxs.stg.xxx` in examples)
+- Do NOT implement PASETO decoding locally — use `/naspip/read`
+- Do NOT poll payment status aggressively — webhooks are primary
+- Do NOT expose `api_secret` after initialization
+- Do NOT use untyped/dynamic constructs for API responses

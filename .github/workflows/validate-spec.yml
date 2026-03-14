@@ -1,0 +1,23 @@
+name: Validate OpenAPI Spec
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'spec/**'
+  pull_request:
+    paths:
+      - 'spec/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate spec
+        run: npx --yes @redocly/cli lint spec/swagger.yaml --skip-rule no-unused-components

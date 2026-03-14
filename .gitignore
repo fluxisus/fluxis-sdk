@@ -1,8 +1,39 @@
+# Dependencies
 node_modules/
+
+# Build outputs — TypeScript
 dist/
 *.tsbuildinfo
+
+# Build outputs — C#
+packages/sdk-csharp/**/bin/
+packages/sdk-csharp/**/obj/
+*.nupkg
+
+# Build outputs — Python
+packages/sdk-python/dist/
+packages/sdk-python/build/
+packages/sdk-python/*.egg-info/
+packages/sdk-python/**/__pycache__/
+*.pyc
+
+# Build outputs — Go
+packages/sdk-go/bin/
+
+# Environment & secrets
 .env
 .env.*
 !.env.example
-coverage/
+
+# IDE
 .DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test & coverage
+coverage/
+.pytest_cache/
+htmlcov/
+TestResults/
