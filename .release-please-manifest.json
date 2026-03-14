@@ -1,0 +1,6 @@
+{
+  "packages/sdk": "0.1.0",
+  "packages/sdk-csharp": "0.1.0",
+  "packages/sdk-python": "0.1.0",
+  "packages/sdk-go": "0.1.0"
+}
