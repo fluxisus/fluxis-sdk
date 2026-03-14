@@ -39,6 +39,6 @@ coverage/
 htmlcov/
 TestResults/
 
-.claude/
+.claude/worktrees/
 SESSION_START.md
 sdk-improvements-plan.md
