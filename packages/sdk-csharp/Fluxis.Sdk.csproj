@@ -17,13 +17,23 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fluxisus/fluxis-sdk</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fluxisus/fluxis-sdk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageTags>fluxis;crypto;payments;naspip;sdk;blockchain</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="tests/**" />
     <Compile Remove="examples/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
   </ItemGroup>
 
   <ItemGroup>
