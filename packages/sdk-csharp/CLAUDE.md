@@ -7,7 +7,7 @@
 
 ```
 packages/sdk-csharp/
-├── Fluxis.Sdk.csproj        # Project file (multi-target: net8.0 + netstandard2.1)
+├── Fluxis.Sdk.csproj        # Project file (multi-target: net8.0 + net6.0)
 ├── src/Fluxis/
 │   ├── FluxisClient.cs       # Main client — auth, HTTP, token refresh
 │   ├── FluxisClientOptions.cs
@@ -67,7 +67,7 @@ packages/sdk-csharp/
 
 6. **Nullable reference types**: Enabled — all optional fields should be `string?`, etc.
 
-7. **Target**: `net8.0` + `netstandard2.1` for broad compatibility.
+7. **Target**: `net8.0` + `net6.0` for broad compatibility.
 
 ## Testing
 
