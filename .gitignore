@@ -31,9 +31,14 @@ packages/sdk-go/bin/
 .vscode/
 *.swp
 *.swo
+demo/
 
 # Test & coverage
 coverage/
 .pytest_cache/
 htmlcov/
 TestResults/
+
+.claude/
+SESSION_START.md
+sdk-improvements-plan.md
