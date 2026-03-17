@@ -11,7 +11,7 @@
 
     <!-- NuGet metadata -->
     <PackageId>Fluxis.Sdk</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Fluxis</Authors>
     <Description>Official C# SDK for the Fluxis crypto payment processing API</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -27,17 +27,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="tests/**" />
-    <Compile Remove="examples/**" />
+    <Compile Remove="tests/**"/>
+    <Compile Remove="examples/**"/>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="/" />
-    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
+    <None Include="README.md" Pack="true" PackagePath="/"/>
+    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="8.*" />
+    <PackageReference Include="System.Text.Json" Version="8.*"/>
   </ItemGroup>
 
 </Project>
