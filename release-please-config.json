@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "bootstrap-sha": "700e97baf64dae02b918a0ad22251fa4cf2985f8",
   "separate-pull-requests": true,
+  "pull-request-title-pattern": "chore(${scope}): release ${component} v${version}",
   "packages": {
     "packages/sdk": {
       "component": "typescript-sdk",
