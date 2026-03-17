@@ -8,9 +8,16 @@
       "tag-name": "sdk/v${version}"
     },
     "packages/sdk-csharp": {
-      "release-type": "dotnet",
+      "release-type": "simple",
       "package-name": "Fluxis.Sdk",
-      "tag-name": "sdk-csharp/v${version}"
+      "tag-name": "sdk-csharp/v${version}",
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Fluxis.Sdk.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        }
+      ]
     },
     "packages/sdk-python": {
       "release-type": "python",
