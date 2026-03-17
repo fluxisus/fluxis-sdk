@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Publish C# SDK to NuGet
+# Publish C# SDK to NuGet manually
 # Usage: ./scripts/publish-nuget.sh [--dry-run]
 #
+# Primary release path: release-please + .github/workflows/sdk-csharp.yml
+# Use this script only for manual/fallback publishes.
 # Requires: NUGET_API_KEY env var
 
 PACKAGE_DIR="packages/sdk-csharp"

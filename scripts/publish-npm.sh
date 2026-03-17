@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Publish TypeScript SDK to npm
+# Publish TypeScript SDK to npm manually
 # Usage: ./scripts/publish-npm.sh [--dry-run]
 #
+# Primary release path: release-please + .github/workflows/sdk-typescript.yml
+# Use this script only for manual/fallback publishes.
 # Requires: NPM_TOKEN env var (or npm login)
 
 PACKAGE_DIR="packages/sdk"
