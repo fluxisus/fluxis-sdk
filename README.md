@@ -32,7 +32,6 @@ import { FluxisClient } from '@fluxisus/sdk';
 const fluxis = new FluxisClient({
   apiKey: 'fxs.stg.your-api-key',
   apiSecret: 'your-api-secret',
-  environment: 'staging',
 });
 ```
 
@@ -70,36 +69,28 @@ The `token` is a NASPIP token (PASETO v4 format) that encodes the payment instru
 
 ## Environments
 
-| Environment | Base URL | API Key Prefix | Use for |
-|-------------|----------|----------------|---------|
-| `staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` | Development and testing |
-| `production` | `https://api.fluxis.us/v1` | `fxs.prd.*` | Live payments |
+The SDK infers the target API automatically from your API key prefix:
+
+| API Key Prefix | Base URL | Use for |
+|----------------|----------|---------|
+| `fxs.stg.*` | `https://api.stgfluxis.us/v1` | Development and testing |
+| `fxs.prd.*` | `https://api.fluxis.us/v1` | Live payments |
 
 ```typescript
-// Staging (default)
+// Staging
 const fluxis = new FluxisClient({
   apiKey: 'fxs.stg.xxx',
   apiSecret: 'your-staging-secret',
-  environment: 'staging',
 });
 
 // Production
 const fluxis = new FluxisClient({
   apiKey: 'fxs.prd.xxx',
   apiSecret: 'your-production-secret',
-  environment: 'production',
 });
 ```
 
-You can also override the base URL directly:
-
-```typescript
-const fluxis = new FluxisClient({
-  apiKey: 'fxs.stg.xxx',
-  apiSecret: 'secret',
-  baseUrl: 'https://custom-api.example.com/v1',
-});
-```
+If the key does not start with `fxs.stg.` or `fxs.prd.`, the client throws during initialization.
 
 ---
 
@@ -454,8 +445,6 @@ Error messages include request context automatically (e.g. `"POST /pos/xxx/payme
 |--------|------|---------|-------------|
 | `apiKey` | `string` | *required* | Fluxis API key (`fxs.stg.*` or `fxs.prd.*`) |
 | `apiSecret` | `string` | *required* | Fluxis API secret |
-| `environment` | `'staging' \| 'production'` | `'staging'` | API environment |
-| `baseUrl` | `string` | — | Custom base URL (overrides environment) |
 | `timeout` | `number` | `30000` | Request timeout in milliseconds |
 
 ---
@@ -465,7 +454,7 @@ Error messages include request context automatically (e.g. `"POST /pos/xxx/payme
 Checklist for moving from staging to production:
 
 - [ ] Obtain production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
-- [ ] Change `environment` to `'production'` in your client configuration
+- [ ] Update your deployed configuration to use your production `fxs.prd.*` key
 - [ ] Create new PoS on production (staging PoS don't carry over)
 - [ ] Set up webhook notifications on your production PoS
 - [ ] Store the new webhook secret securely
@@ -478,9 +467,53 @@ Checklist for moving from staging to production:
 const fluxis = new FluxisClient({
   apiKey: process.env.FLUXIS_API_KEY!,      // fxs.prd.*
   apiSecret: process.env.FLUXIS_API_SECRET!,
-  environment: 'production',
 });
 ```
+
+---
+
+## Releasing SDKs
+
+This repo uses `release-please` as the primary release flow for both the TypeScript SDK (`@fluxisus/sdk`) and the C# SDK (`Fluxis.Sdk`).
+
+### Required GitHub secrets
+
+- `NPM_TOKEN` for npm publishing
+- `NUGET_API_KEY` for NuGet publishing
+- `FLUXIS_API_KEY` and `FLUXIS_API_SECRET` for CI test runs
+
+### Release flow
+
+1. Merge your SDK changes to `main`.
+2. Wait for the `Release Please` workflow to open or update the release PR for the package you changed.
+3. Review that release PR and verify the version bump and release notes.
+4. Merge the release PR.
+5. `release-please` creates the release tag automatically:
+   - TypeScript: `sdk/vX.Y.Z`
+   - C#: `sdk-csharp/vX.Y.Z`
+6. The tag triggers the publish workflow:
+   - `sdk-typescript.yml` publishes `@fluxisus/sdk` to npm
+   - `sdk-csharp.yml` publishes `Fluxis.Sdk` to NuGet and creates a GitHub Release
+
+### How to validate a release
+
+1. In GitHub Actions, confirm the `Release Please` run succeeded and that the publish workflow for the generated tag also succeeded.
+2. Check the registry version:
+   - npm: `npm view @fluxisus/sdk version`
+   - NuGet: verify the new `Fluxis.Sdk` version appears on nuget.org
+3. Validate installation in a clean sample:
+   - npm: `npm install @fluxisus/sdk@X.Y.Z`
+   - NuGet: `dotnet add package Fluxis.Sdk --version X.Y.Z`
+4. For C#, also verify the GitHub Release exists and includes the `.nupkg` artifact.
+
+### Manual fallback
+
+If the automated release flow is unavailable, the repo also includes:
+
+- `scripts/publish-npm.sh`
+- `scripts/publish-nuget.sh`
+
+These scripts are intended for manual/fallback publishing, not the default release path.
 
 ---
 
@@ -550,7 +583,7 @@ app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (r
 ### `FluxisAuthError: Authentication failed`
 
 - Verify your `apiKey` and `apiSecret` are correct and not swapped.
-- Staging keys start with `fxs.stg.*`, production with `fxs.prd.*`. Make sure you're using the right environment.
+- Staging keys start with `fxs.stg.*`, production with `fxs.prd.*`. The SDK selects the target API from that prefix automatically.
 - Secrets may contain special characters — ensure they're not being truncated by your shell or `.env` parser.
 
 ### `FluxisNetworkError: Failed to connect`

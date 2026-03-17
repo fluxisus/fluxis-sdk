@@ -2,11 +2,13 @@ name: SDK — C#
 
 # Trigger strategy:
 #   • build-and-test  → any push/PR touching sdk-csharp or spec paths
-#   • publish         → only when a tag like `sdk-csharp/v1.2.3` is pushed
+#   • publish         → only when a tag like `sdk-csharp/v1.2.3` is pushed (by release-please)
 #
-# To release a new version:
-#   1. Bump <Version> in Fluxis.Sdk.csproj and push to main
-#   2. git tag sdk-csharp/v<version> && git push origin sdk-csharp/v<version>
+# Release flow:
+#   1. Merge sdk-csharp changes to main
+#   2. Review and merge the release-please PR for packages/sdk-csharp
+#   3. release-please creates the `sdk-csharp/v<version>` tag
+#   4. this workflow publishes the package to NuGet and creates a GitHub Release
 
 on:
   push:

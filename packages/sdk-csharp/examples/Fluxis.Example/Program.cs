@@ -23,7 +23,6 @@ using var client = new FluxisClient(new FluxisClientOptions
 {
     ApiKey = apiKey,
     ApiSecret = apiSecret,
-    Environment = FluxisEnvironment.Staging,
 });
 
 try

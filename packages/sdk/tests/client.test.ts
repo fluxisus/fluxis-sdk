@@ -31,7 +31,6 @@ function createClient(): FluxisClient {
   return new FluxisClient({
     apiKey: 'fxs.stg.test-key',
     apiSecret: 'test-secret',
-    environment: 'staging',
   });
 }
 
@@ -44,6 +43,44 @@ describe('FluxisClient', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('base URL inference', () => {
+    it('uses the staging API for staging keys', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(authSuccessResponse())
+        .mockResolvedValueOnce(apiSuccessResponse([]));
+
+      const client = createClient();
+      await client.accounts.list();
+
+      expect(fetchSpy.mock.calls[0]![0]).toBe('https://api.stgfluxis.us/v1/auth/token');
+    });
+
+    it('uses the production API for production keys', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(authSuccessResponse())
+        .mockResolvedValueOnce(apiSuccessResponse([]));
+
+      const client = new FluxisClient({
+        apiKey: 'fxs.prd.test-key',
+        apiSecret: 'test-secret',
+      });
+
+      await client.accounts.list();
+
+      expect(fetchSpy.mock.calls[0]![0]).toBe('https://api.fluxis.us/v1/auth/token');
+    });
+
+    it('throws on invalid API key prefixes', () => {
+      expect(
+        () =>
+          new FluxisClient({
+            apiKey: 'invalid-key',
+            apiSecret: 'test-secret',
+          }),
+      ).toThrow('Invalid Fluxis API key format');
+    });
   });
 
   describe('authentication', () => {
@@ -59,8 +96,6 @@ describe('FluxisClient', () => {
 
       // Auth called once, then two API calls
       expect(fetchSpy).toHaveBeenCalledTimes(3);
-      const authCall = fetchSpy.mock.calls[0]!;
-      expect(authCall[0]).toBe('https://api.stgfluxis.us/v1/auth/token');
     });
 
     it('refreshes token when expired', async () => {

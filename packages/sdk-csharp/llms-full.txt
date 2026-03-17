@@ -28,38 +28,24 @@ var fluxis = new FluxisClient(new FluxisClientOptions
 {
     ApiKey = "fxs.stg.xxx",           // API key from Fluxis dashboard
     ApiSecret = "your-api-secret",     // API secret (never expose publicly)
-    Environment = FluxisEnvironment.Staging, // Staging or Production
 });
 ```
 
 ### Environments
 
-| Environment | Base URL | API Key Prefix |
-|-------------|----------|----------------|
-| `FluxisEnvironment.Staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
-| `FluxisEnvironment.Production` | `https://api.fluxis.us/v1` | `fxs.prd.*` |
+The SDK infers the target API from the API key prefix:
 
-Default is `Staging`. The SDK authenticates lazily on the first request and refreshes the token automatically before expiry.
+- `fxs.stg.*` -> `https://api.stgfluxis.us/v1`
+- `fxs.prd.*` -> `https://api.fluxis.us/v1`
 
-You can also pass a custom `BaseUrl` to override the environment-based URL:
-
-```csharp
-var fluxis = new FluxisClient(new FluxisClientOptions
-{
-    ApiKey = "fxs.stg.xxx",
-    ApiSecret = "secret",
-    BaseUrl = "https://custom-api.example.com/v1",
-});
-```
+If the key does not start with `fxs.stg.` or `fxs.prd.`, the constructor throws an `ArgumentException`.
 
 ### Configuration Reference
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `ApiKey` | `string` | required | Fluxis API key |
+| `ApiKey` | `string` | required | Fluxis API key (`fxs.stg.*` or `fxs.prd.*`) |
 | `ApiSecret` | `string` | required | Fluxis API secret |
-| `Environment` | `FluxisEnvironment` | `Staging` | API environment |
-| `BaseUrl` | `string?` | `null` | Custom base URL (overrides environment) |
 | `Timeout` | `TimeSpan` | `30s` | Request timeout |
 
 ### Dependency Injection (ASP.NET Core)
@@ -70,7 +56,6 @@ builder.Services.AddSingleton<FluxisClient>(_ => new FluxisClient(new FluxisClie
 {
     ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
     ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
-    Environment = FluxisEnvironment.Production,
 }));
 ```
 
@@ -98,7 +83,6 @@ var fluxis = new FluxisClient(new FluxisClientOptions
 {
     ApiKey = "fxs.stg.xxx",
     ApiSecret = "your-secret",
-    Environment = FluxisEnvironment.Staging,
 });
 
 // Step 1: Create a Point of Sale (do this once, reuse the ID)
@@ -369,12 +353,6 @@ Each address: `new SettlementAddressRequest { Address = "0x...", Network = "poly
 
 `Preview`, `Pending`, `Created`, `Processing`, `Error`, `Expired`, `Failed`, `Completed`
 
-### FluxisEnvironment (enum)
-
-`Staging`, `Production`
-
----
-
 ## Error Handling
 
 The SDK throws typed exceptions. Error messages automatically include the HTTP method and path.
@@ -429,7 +407,6 @@ builder.Services.AddSingleton<FluxisClient>(_ => new FluxisClient(new FluxisClie
 {
     ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
     ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
-    Environment = FluxisEnvironment.Staging,
 }));
 
 var app = builder.Build();
@@ -516,7 +493,7 @@ record CreatePaymentDto(string Amount, string OrderId);
 ## Going from Staging to Production
 
 1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
-2. Change `Environment` from `Staging` to `Production`
+2. Update your deployed configuration to use your production `fxs.prd.*` key
 3. Update webhook URLs to your production server
 4. Re-create notification settings on production PoS (webhook secrets are per-environment)
 
@@ -525,7 +502,6 @@ var fluxis = new FluxisClient(new FluxisClientOptions
 {
     ApiKey = "fxs.prd.xxx",
     ApiSecret = "your-production-secret",
-    Environment = FluxisEnvironment.Production, // Points to https://api.fluxis.us/v1
 });
 ```
 

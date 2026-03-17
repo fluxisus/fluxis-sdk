@@ -24,11 +24,8 @@ namespace Fluxis;
 /// </example>
 public sealed class FluxisClient : IDisposable
 {
-    private static readonly Dictionary<FluxisEnvironment, string> BaseUrls = new()
-    {
-        [FluxisEnvironment.Staging] = "https://api.stgfluxis.us/v1",
-        [FluxisEnvironment.Production] = "https://api.fluxis.us/v1",
-    };
+    private const string StagingBaseUrl = "https://api.stgfluxis.us/v1";
+    private const string ProductionBaseUrl = "https://api.fluxis.us/v1";
 
     private static readonly TimeSpan TokenRefreshBuffer = TimeSpan.FromSeconds(60);
 
@@ -89,9 +86,7 @@ public sealed class FluxisClient : IDisposable
 
         _apiKey = options.ApiKey;
         _apiSecret = options.ApiSecret;
-
-        _baseUrl = options.BaseUrl
-            ?? (BaseUrls.TryGetValue(options.Environment, out var url) ? url : BaseUrls[FluxisEnvironment.Staging]);
+        _baseUrl = InferBaseUrl(options.ApiKey);
 
         if (httpClient != null)
         {
@@ -110,6 +105,19 @@ public sealed class FluxisClient : IDisposable
         Naspip = new NaspipResource(this);
         Refunds = new RefundsResource(this);
         Transactions = new TransactionsResource(this);
+    }
+
+    private static string InferBaseUrl(string apiKey)
+    {
+        if (apiKey.StartsWith("fxs.stg.", StringComparison.Ordinal))
+            return StagingBaseUrl;
+
+        if (apiKey.StartsWith("fxs.prd.", StringComparison.Ordinal))
+            return ProductionBaseUrl;
+
+        throw new ArgumentException(
+            "ApiKey must start with \"fxs.stg.\" or \"fxs.prd.\".",
+            nameof(apiKey));
     }
 
     /// <summary>

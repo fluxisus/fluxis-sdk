@@ -53,17 +53,30 @@ public class FluxisClientTests
     }
 
     [Fact]
-    public void Constructor_WithCustomBaseUrl_AcceptsIt()
+    public void Constructor_WithProductionApiKey_CreatesClient()
     {
         var client = new FluxisClient(new FluxisClientOptions
         {
-            ApiKey = "fxs.stg.test-key",
+            ApiKey = "fxs.prd.test-key",
             ApiSecret = "test-secret",
-            BaseUrl = "https://custom.api.example.com/v1",
         });
 
         client.Should().NotBeNull();
         client.Dispose();
+    }
+
+    [Fact]
+    public void Constructor_WithInvalidApiKeyPrefix_ThrowsArgumentException()
+    {
+        var act = () => new FluxisClient(new FluxisClientOptions
+        {
+            ApiKey = "invalid-key",
+            ApiSecret = "test-secret",
+        });
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("ApiKey must start with \"fxs.stg.\" or \"fxs.prd.\".*")
+            .WithParameterName("apiKey");
     }
 
     [Fact]

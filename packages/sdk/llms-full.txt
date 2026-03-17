@@ -32,28 +32,17 @@ import { FluxisClient } from '@fluxisus/sdk';
 const fluxis = new FluxisClient({
   apiKey: 'fxs.stg.xxx',       // API key from Fluxis dashboard
   apiSecret: 'your-api-secret', // API secret (never expose publicly)
-  environment: 'staging',       // 'staging' or 'production'
 });
 ```
 
 ### Environments
 
-| Environment | Base URL | API Key Prefix |
-|-------------|----------|----------------|
-| `staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
-| `production` | `https://api.fluxis.us/v1` | `fxs.prd.*` |
+The SDK infers the target API from the API key prefix:
 
-Default is `staging`. The SDK authenticates lazily on the first request and refreshes the token automatically ~60 seconds before it expires. If multiple requests fire concurrently while the token is being refreshed, only one auth call is made (deduplication). If a request receives a 401 (e.g. token revoked server-side), the SDK invalidates the cached token, re-authenticates, and retries the request once.
+- `fxs.stg.*` -> `https://api.stgfluxis.us/v1`
+- `fxs.prd.*` -> `https://api.fluxis.us/v1`
 
-You can also pass a custom `baseUrl` to override the environment-based URL:
-
-```typescript
-const fluxis = new FluxisClient({
-  apiKey: 'fxs.stg.xxx',
-  apiSecret: 'secret',
-  baseUrl: 'https://custom-api.example.com/v1',
-});
-```
+If the key does not start with `fxs.stg.` or `fxs.prd.`, the constructor throws.
 
 ---
 
@@ -68,7 +57,6 @@ import { FluxisClient } from '@fluxisus/sdk';
 const fluxis = new FluxisClient({
   apiKey: 'fxs.stg.xxx',
   apiSecret: 'your-secret',
-  environment: 'staging',
 });
 
 // Step 1: Create a Point of Sale (do this once, reuse the ID)
@@ -401,7 +389,6 @@ const app = express();
 const fluxis = new FluxisClient({
   apiKey: process.env.FLUXIS_API_KEY!,
   apiSecret: process.env.FLUXIS_API_SECRET!,
-  environment: 'staging',
 });
 
 const WEBHOOK_SECRET = process.env.FLUXIS_WEBHOOK_SECRET!;
@@ -474,7 +461,7 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 ## Going from Staging to Production
 
 1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
-2. Change `environment` from `'staging'` to `'production'`
+2. Update your deployed configuration to use your production `fxs.prd.*` key
 3. Update webhook URLs to your production server
 4. Re-create notification settings on production PoS (webhook secrets are per-environment)
 
@@ -482,7 +469,6 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 const fluxis = new FluxisClient({
   apiKey: 'fxs.prd.xxx',
   apiSecret: 'your-production-secret',
-  environment: 'production', // Points to https://api.fluxis.us/v1
 });
 ```
 
@@ -492,10 +478,8 @@ const fluxis = new FluxisClient({
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `apiKey` | `string` | required | Fluxis API key |
+| `apiKey` | `string` | required | Fluxis API key (`fxs.stg.*` or `fxs.prd.*`) |
 | `apiSecret` | `string` | required | Fluxis API secret |
-| `environment` | `'staging' \| 'production'` | `'staging'` | API environment |
-| `baseUrl` | `string` | — | Custom base URL (overrides environment) |
 | `timeout` | `number` | `30000` | Request timeout in milliseconds |
 
 ---

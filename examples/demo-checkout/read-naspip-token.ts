@@ -4,7 +4,6 @@ async function main() {
   const fluxis = new FluxisClient({
     apiKey: 'fxs.stg.xxx',
     apiSecret: 'your-api-secret',
-    environment: 'staging',
   });
 
   const token = 'v4.local.your-naspip-token-here';
