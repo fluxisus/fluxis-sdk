@@ -7,16 +7,12 @@
     "packages/sdk": {
       "component": "typescript-sdk",
       "release-type": "node",
-      "package-name": "@fluxisus/sdk",
-      "tag-name": "sdk/v${version}",
-      "include-component-in-tag": false
+      "package-name": "@fluxisus/sdk"
     },
     "packages/sdk-csharp": {
       "component": "csharp-sdk",
       "release-type": "simple",
       "package-name": "Fluxis.Sdk",
-      "tag-name": "sdk-csharp/v${version}",
-      "include-component-in-tag": false,
       "extra-files": [
         {
           "type": "xml",
