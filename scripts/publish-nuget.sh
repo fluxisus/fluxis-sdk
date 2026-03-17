@@ -17,6 +17,9 @@ fi
 echo "==> Building ${PACKAGE_DIR}..."
 dotnet build "${PACKAGE_DIR}" -c Release
 
+echo "==> Building tests..."
+dotnet build "${PACKAGE_DIR}/tests" -c Release --no-restore
+
 echo "==> Running tests..."
 dotnet test "${PACKAGE_DIR}/tests" -c Release --no-build
 

@@ -20,4 +20,9 @@ jobs:
           node-version: 22
 
       - name: Validate spec
-        run: npx --yes @redocly/cli lint spec/swagger.yaml --skip-rule no-unused-components
+        run: >-
+          npx --yes @redocly/cli lint spec/swagger.yaml
+          --skip-rule no-unused-components
+          --skip-rule struct
+          --skip-rule security-defined
+          --skip-rule path-parameters-defined

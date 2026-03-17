@@ -520,7 +520,15 @@ definitions:
         example: "2021-01-01T00:00:00Z"
         type: string
     type: object
-  infrastructure_http_router_v1.GetNotificationSettingsResponseSchema:
+  infrastructure_http_router_v1.GetSettlementAddressesResponseSchema:
+    properties:
+      addresses:
+        description: Account config
+        items:
+          $ref: '#/definitions/core-api_src_domain_types.SettlementAddressSchema'
+        type: array
+    type: object
+  infrastructure_http_router_v1.NotificationSettingsRequestSchema:
     properties:
       webhook_url:
         description: Webhook URL to receive payment request status updates
@@ -529,13 +537,14 @@ definitions:
     required:
     - webhook_url
     type: object
-  infrastructure_http_router_v1.GetSettlementAddressesResponseSchema:
+  infrastructure_http_router_v1.NotificationSettingsResponseSchema:
     properties:
-      addresses:
-        description: Account config
-        items:
-          $ref: '#/definitions/core-api_src_domain_types.SettlementAddressSchema'
-        type: array
+      webhook_url:
+        description: Webhook URL to receive payment request status updates
+        example: https://fluxis.us
+        type: string
+    required:
+    - webhook_url
     type: object
   infrastructure_http_router_v1.PaymentRequestCheckoutRequestSchema:
     properties:
@@ -558,6 +567,28 @@ definitions:
     required:
     - amount
     - coin_code
+    type: object
+  infrastructure_http_router_v1.PaymentRequestCheckoutResponseSchema:
+    properties:
+      checkout_url:
+        description: Hosted checkout URL consumers can open directly
+        type: string
+      expiration:
+        description: Payment request expiration timestamp
+        type: integer
+      id:
+        description: Fluxis payment request ID
+        type: string
+      reference_id:
+        description: External payment request reference ID
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.PaymentRequestStatus'
+        description: Payment request status
+      token:
+        description: NASPIP token containing the hosted checkout payload
+        type: string
     type: object
   infrastructure_http_router_v1.PaymentRequestRequestSchema:
     properties:
@@ -775,24 +806,6 @@ definitions:
         description: Total number of transactions matching the criteria
         example: 150
         type: integer
-    type: object
-  infrastructure_http_router_v1.UpdateNotificationSettingsRequestSchema:
-    properties:
-      url:
-        description: Webhook URL to receive payment request status updates
-        example: https://fluxis.us
-        type: string
-    required:
-    - url
-    type: object
-  infrastructure_http_router_v1.UpdateNotificationSettingsResponseSchema:
-    properties:
-      webhook_url:
-        description: Webhook URL to receive payment request status updates
-        example: https://fluxis.us
-        type: string
-    required:
-    - webhook_url
     type: object
   infrastructure_http_router_v1.UpdatePointOfSaleOptionsRequestSchema:
     properties:
@@ -1618,7 +1631,7 @@ paths:
             - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
             - properties:
                 data:
-                  $ref: '#/definitions/infrastructure_http_router_v1.GetNotificationSettingsResponseSchema'
+                  $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsResponseSchema'
               type: object
         "400":
           description: Bad Request
@@ -1656,7 +1669,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/infrastructure_http_router_v1.UpdateNotificationSettingsRequestSchema'
+          $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsRequestSchema'
       - description: Point of sale ID
         in: path
         name: posID
@@ -1710,7 +1723,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/infrastructure_http_router_v1.UpdateNotificationSettingsRequestSchema'
+          $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsRequestSchema'
       - description: Point of sale ID
         in: path
         name: posID
@@ -1726,7 +1739,7 @@ paths:
             - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
             - properties:
                 data:
-                  $ref: '#/definitions/infrastructure_http_router_v1.UpdateNotificationSettingsResponseSchema'
+                  $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsResponseSchema'
               type: object
         "400":
           description: Bad Request
@@ -1801,8 +1814,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a payment request for the given point of sale ID with url
-        options.
+      description: Create a hosted checkout payment request for the given point of
+        sale ID.
       parameters:
       - description: Bearer token
         example: Bearer <your_token>
@@ -1837,7 +1850,7 @@ paths:
             - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
             - properties:
                 data:
-                  $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestCheckoutRequestSchema'
+                  $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestCheckoutResponseSchema'
               type: object
         "400":
           description: Bad Request
@@ -1850,7 +1863,7 @@ paths:
       security:
       - BearerAuth: []
       - ApiKeyAuth: []
-      summary: Create payment request checkout url
+      summary: Create payment request checkout
       tags:
       - Point of Sale
   /pos/:posID/payment-request/:paymentRequestID:

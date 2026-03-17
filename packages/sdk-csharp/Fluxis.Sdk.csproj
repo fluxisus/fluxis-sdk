@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;net6.0</TargetFrameworks>
     <RootNamespace>Fluxis</RootNamespace>
     <AssemblyName>Fluxis.Sdk</AssemblyName>
     <LangVersion>12</LangVersion>
@@ -17,9 +17,24 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/fluxisus/fluxis-sdk</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fluxisus/fluxis-sdk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageTags>fluxis;crypto;payments;naspip;sdk;blockchain</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+    <Compile Remove="examples/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="icon.png" Pack="true" PackagePath="/" Condition="Exists('icon.png')" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.*" />

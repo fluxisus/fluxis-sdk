@@ -1,0 +1,14 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Fluxis SDK",
+  "description": "Crypto payment processing SDK using the NASPIP protocol. 3 endpoints + 1 webhook.",
+  "excludeFolders": ["node_modules", "dist", "coverage"],
+  "excludeFiles": ["CHANGELOG.md"],
+  "rules": [
+    "Always authenticate first with POST /auth/token before any other API call",
+    "Every request needs TWO headers: Authorization (Bearer token) and x-fluxis-api-key",
+    "Payment requests are created under a Point of Sale, not directly",
+    "The NASPIP token in the payment response is what you render as QR code",
+    "Use webhooks as primary notification, polling only for reconciliation"
+  ]
+}
