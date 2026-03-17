@@ -1,0 +1,518 @@
+# Fluxis C# SDK — Integration Guide
+
+> This document is optimized for AI coding agents (Claude Code, Cursor, Copilot, etc.).
+> It contains everything needed to integrate Fluxis crypto payments into a C# / .NET project.
+
+## What is Fluxis?
+
+Fluxis is a crypto payment processing platform. Merchants use Fluxis to accept cryptocurrency payments.
+The SDK wraps the Fluxis REST API and handles authentication, token refresh, and type conversion automatically.
+
+- Package: `Fluxis.Sdk` (NuGet)
+- Target frameworks: `net6.0`, `net8.0`
+- Style: async/await, strong types, nullable reference types enabled
+- Zero heavy dependencies — only `HttpClient` + `System.Text.Json`
+
+## Installation
+
+```bash
+dotnet add package Fluxis.Sdk
+```
+
+## Initialization
+
+```csharp
+using Fluxis.Sdk;
+
+var fluxis = new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = "fxs.stg.xxx",           // API key from Fluxis dashboard
+    ApiSecret = "your-api-secret",     // API secret (never expose publicly)
+});
+```
+
+### Environments
+
+The SDK infers the target API from the API key prefix:
+
+- `fxs.stg.*` -> `https://api.stgfluxis.us/v1`
+- `fxs.prd.*` -> `https://api.fluxis.us/v1`
+
+If the key does not start with `fxs.stg.` or `fxs.prd.`, the constructor throws an `ArgumentException`.
+
+### Configuration Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ApiKey` | `string` | required | Fluxis API key (`fxs.stg.*` or `fxs.prd.*`) |
+| `ApiSecret` | `string` | required | Fluxis API secret |
+| `Timeout` | `TimeSpan` | `30s` | Request timeout |
+
+### Dependency Injection (ASP.NET Core)
+
+```csharp
+// In Program.cs or Startup.cs
+builder.Services.AddSingleton<FluxisClient>(_ => new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
+    ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
+}));
+```
+
+```csharp
+// In a controller or service — inject via constructor
+public class PaymentService
+{
+    private readonly FluxisClient _fluxis;
+    public PaymentService(FluxisClient fluxis) => _fluxis = fluxis;
+}
+```
+
+---
+
+## Flow 1: Direct Crypto Payment (NASPIP Token)
+
+Use this when you know which crypto asset the customer will pay with.
+Returns a NASPIP token that can be rendered as a QR code.
+
+```csharp
+using Fluxis.Sdk;
+using Fluxis.Sdk.Models;
+
+var fluxis = new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = "fxs.stg.xxx",
+    ApiSecret = "your-secret",
+});
+
+// Step 1: Create a Point of Sale (do this once, reuse the ID)
+var pos = await fluxis.PointOfSale.CreateAsync(new CreatePointOfSaleRequest
+{
+    Name = "Online Store",
+    Merchant = new Merchant { Name = "My Shop", Description = "E-commerce store" },
+    PaymentOptions = new List<string> { "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
+});
+
+// Step 2: Create a payment request
+var payment = await fluxis.PointOfSale.CreatePaymentRequestAsync(pos.Id, new CreatePaymentRequestRequest
+{
+    Amount = "25.00",
+    UniqueAssetId = "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    ReferenceId = "order-001",
+});
+
+// Step 3: Use the NASPIP token
+Console.WriteLine(payment.Token);      // NASPIP token — render as QR code
+Console.WriteLine(payment.Id);         // Fluxis payment request ID
+Console.WriteLine(payment.Status);     // "created"
+Console.WriteLine(payment.Expiration); // Unix timestamp when it expires
+```
+
+### Unique Asset IDs
+
+Format: `n{network}_t{tokenAddress}`
+
+Common assets:
+- USDC on Polygon: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`
+- USDT on Polygon: `npolygon_t0xc2132D05D31c914a87C6611C10748AEb04B58e8F`
+
+---
+
+## Flow 2: Hosted Checkout (Reference Currency)
+
+Use this for e-commerce where you specify an amount in a reference currency (e.g., USD). The customer sees "pay 49.99 USD" but the actual payment is processed in crypto based on the `PaymentOptions` configured on the PoS. Fluxis does NOT process fiat — `CoinCode` is only used for display purposes.
+
+```csharp
+var checkout = await fluxis.PointOfSale.CreatePaymentRequestCheckoutAsync(pos.Id, new CreatePaymentRequestCheckoutRequest
+{
+    Amount = "49.99",
+    CoinCode = "USD",
+    ReferenceId = "order-002",
+    Order = new Order
+    {
+        Total = "49.99",
+        CoinCode = "USD",
+        Description = "Premium subscription",
+        Merchant = new Merchant { Name = "My Store" },
+        Items = new List<OrderItem>
+        {
+            new OrderItem
+            {
+                Description = "Premium Plan - Monthly",
+                Quantity = 1,
+                UnitPrice = "49.99",
+                Amount = "49.99",
+                CoinCode = "USD",
+            },
+        },
+    },
+});
+
+Console.WriteLine(checkout.Id);          // Payment request ID
+Console.WriteLine(checkout.Status);      // "created"
+Console.WriteLine(checkout.Token);       // NASPIP token
+Console.WriteLine(checkout.CheckoutUrl); // Hosted checkout page URL
+```
+
+---
+
+## Flow 3: Webhooks
+
+Fluxis sends payment status updates via webhooks. This is the primary mechanism for knowing when a payment is completed.
+
+### Step 1: Configure webhook on your PoS
+
+```csharp
+var webhook = await fluxis.PointOfSale.CreateNotificationsAsync(pos.Id, new CreateNotificationSettingsRequest
+{
+    WebhookUrl = "https://yourserver.com/webhooks/fluxis",
+});
+
+// IMPORTANT: Save this secret securely — it's only returned once
+var webhookSecret = webhook.Secret;
+```
+
+### Step 2: Receive and verify webhooks in ASP.NET Core
+
+```csharp
+using Fluxis.Sdk.Webhooks;
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("webhooks/fluxis")]
+public class FluxisWebhookController : ControllerBase
+{
+    private readonly string _webhookSecret;
+
+    public FluxisWebhookController(IConfiguration config)
+    {
+        _webhookSecret = config["Fluxis:WebhookSecret"]!;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> HandleWebhook()
+    {
+        // Read raw body for signature verification
+        using var reader = new StreamReader(Request.Body);
+        var rawBody = await reader.ReadToEndAsync();
+
+        var signature = Request.Headers["x-fluxis-signature"].FirstOrDefault() ?? "";
+
+        if (!WebhookVerifier.VerifySignature(rawBody, signature, _webhookSecret))
+        {
+            return Unauthorized("Invalid signature");
+        }
+
+        var payload = System.Text.Json.JsonSerializer.Deserialize<WebhookEvent>(rawBody);
+
+        switch (payload?.Status)
+        {
+            case PaymentRequestStatus.Completed:
+                // Payment received in full — fulfill the order
+                break;
+            case PaymentRequestStatus.Overpaid:
+                // Customer sent more than requested — fulfill + consider refund
+                break;
+            case PaymentRequestStatus.Underpaid:
+                // Customer sent less than requested
+                break;
+            case PaymentRequestStatus.Expired:
+                // Payment window expired with no payment
+                break;
+            case PaymentRequestStatus.Failed:
+                // Payment processing failed
+                break;
+        }
+
+        return Ok("OK");
+    }
+}
+```
+
+**Important:** Signature verification requires the raw request body as a string. Do NOT let ASP.NET Core model binding consume the body before you read it — read it with `StreamReader` first.
+
+### Step 3: Update webhook URL (if needed)
+
+```csharp
+await fluxis.PointOfSale.UpdateNotificationsAsync(pos.Id, new UpdateNotificationSettingsRequest
+{
+    WebhookUrl = "https://newserver.com/webhooks/fluxis",
+});
+```
+
+---
+
+## Flow 4: Refunds
+
+Refunds can be issued for completed or overpaid payments.
+
+```csharp
+// Full refund
+var refund = await fluxis.Refunds.CreateAsync(paymentRequestId, new CreateRefundRequest
+{
+    RefundToAddress = "0x1234567890abcdef1234567890abcdef12345678",
+    Reason = "Customer requested",
+});
+
+// Partial refund
+var partialRefund = await fluxis.Refunds.CreateAsync(paymentRequestId, new CreateRefundRequest
+{
+    RefundToAddress = "0x1234567890abcdef1234567890abcdef12345678",
+    Amount = "10.00",
+    Reason = "Partial refund for returned item",
+});
+
+// Check refund status
+var detail = await fluxis.Refunds.GetAsync(refund.Id);
+Console.WriteLine(detail.Status); // "processing" | "completed" | "failed"
+```
+
+---
+
+## SDK Method Reference
+
+### fluxis.Accounts
+
+| Method | Description |
+|--------|-------------|
+| `ListAsync(ct)` | List all accounts |
+| `GetAsync(accountId, ct)` | Get account by ID |
+| `CreateAsync(request, ct)` | Create account |
+| `UpdateAsync(accountId, request, ct)` | Update account |
+| `DeleteAsync(accountId, ct)` | Delete account |
+| `GetSettlementAddressesAsync(accountId, ct)` | Get settlement addresses |
+
+### fluxis.Organization
+
+| Method | Description |
+|--------|-------------|
+| `SetSettlementAddressesAsync(addresses, ct)` | Set settlement addresses |
+| `UpdateSettlementAddressesAsync(addresses, ct)` | Update settlement addresses |
+
+Each address: `new SettlementAddressRequest { Address = "0x...", Network = "polygon", AddressTag = null }`
+
+### fluxis.PointOfSale
+
+| Method | Description |
+|--------|-------------|
+| `ListAsync(ct)` | List all PoS |
+| `GetAsync(posId, ct)` | Get PoS by ID |
+| `CreateAsync(request, ct)` | Create PoS |
+| `UpdateAsync(posId, request, ct)` | Update PoS |
+| `GetNotificationsAsync(posId, ct)` | Get webhook settings |
+| `CreateNotificationsAsync(posId, request, ct)` | Create webhook (returns secret) |
+| `UpdateNotificationsAsync(posId, request, ct)` | Update webhook URL |
+| `CreatePaymentRequestAsync(posId, request, ct)` | Create payment request → `PaymentRequestResponse` |
+| `GetPaymentRequestAsync(posId, paymentRequestId, ct)` | Get payment request status |
+| `CreatePaymentRequestCheckoutAsync(posId, request, ct)` | Create checkout → `PaymentRequestCheckoutResponse` (includes `CheckoutUrl`) |
+
+### fluxis.Naspip
+
+| Method | Description |
+|--------|-------------|
+| `CreateAsync(request, ct)` | Create NASPIP token from raw payment data |
+| `ReadAsync(token, ct)` | Decode and verify a NASPIP token |
+| `NaspipResource.IsValidTokenFormat(token)` | Static: check if string starts with `v4.local.` |
+
+### fluxis.Refunds
+
+| Method | Description |
+|--------|-------------|
+| `CreateAsync(paymentRequestId, request, ct)` | Create refund |
+| `GetAsync(refundId, ct)` | Get refund details |
+
+### fluxis.Transactions
+
+| Method | Description |
+|--------|-------------|
+| `ListAsync(options?, ct)` | List transactions (paginated, filterable) |
+
+`ct` = optional `CancellationToken` parameter on all async methods.
+
+---
+
+## Types and Constants
+
+### PaymentRequestStatus (static class)
+
+| Constant | Value |
+|----------|-------|
+| `PaymentRequestStatus.Created` | `"created"` — awaiting payment |
+| `PaymentRequestStatus.Processing` | `"processing"` — deposit detected, confirming |
+| `PaymentRequestStatus.Completed` | `"completed"` — fully paid |
+| `PaymentRequestStatus.Overpaid` | `"overpaid"` — received more than requested |
+| `PaymentRequestStatus.Underpaid` | `"underpaid"` — received less than requested |
+| `PaymentRequestStatus.Expired` | `"expired"` — NASPIP token expired |
+| `PaymentRequestStatus.Failed` | `"failed"` — payment processing failed |
+
+### TransactionTypes (static class)
+
+`Deposit`, `Withdraw`, `Refund`, `Adjustment`, `Swap`, `PaymentIn`, `PaymentOut`, `DryRun`
+
+### TransactionStatuses (static class)
+
+`Preview`, `Pending`, `Created`, `Processing`, `Error`, `Expired`, `Failed`, `Completed`
+
+## Error Handling
+
+The SDK throws typed exceptions. Error messages automatically include the HTTP method and path.
+
+```csharp
+using Fluxis.Sdk;
+using Fluxis.Sdk.Exceptions;
+
+try
+{
+    var payment = await fluxis.PointOfSale.CreatePaymentRequestAsync(posId, new CreatePaymentRequestRequest
+    {
+        Amount = "25.00",
+        UniqueAssetId = "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    });
+}
+catch (FluxisAuthException ex)
+{
+    // API key/secret invalid, or token refresh failed (401)
+    // ex.ErrorCode — e.g. "AUTH_ERROR"
+    // ex.Message — human-readable message
+}
+catch (FluxisException ex)
+{
+    // API returned a structured error response
+    // ex.ErrorCode — e.g. "AK0001"
+    // ex.Message — includes "METHOD /path: message" prefix
+    // ex.Details — additional context
+    // ex.StatusCode — HTTP status code
+    // ex.HttpMethod, ex.RequestPath — request context
+}
+```
+
+Exception hierarchy:
+- `FluxisException` (base) — all API errors. Properties: `ErrorCode`, `Details`, `StatusCode`, `HttpMethod`, `RequestPath`.
+  - `FluxisAuthException` — authentication failures (401).
+
+---
+
+## Complete Example: ASP.NET Core API with Payments and Webhooks
+
+```csharp
+using Fluxis.Sdk;
+using Fluxis.Sdk.Exceptions;
+using Fluxis.Sdk.Models;
+using Fluxis.Sdk.Webhooks;
+using Microsoft.AspNetCore.Mvc;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<FluxisClient>(_ => new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
+    ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
+}));
+
+var app = builder.Build();
+
+var webhookSecret = builder.Configuration["Fluxis:WebhookSecret"]!;
+var posId = builder.Configuration["Fluxis:PosId"]!;
+
+// Create a payment
+app.MapPost("/api/payments", async (
+    [FromBody] CreatePaymentDto dto,
+    FluxisClient fluxis,
+    CancellationToken ct) =>
+{
+    try
+    {
+        var payment = await fluxis.PointOfSale.CreatePaymentRequestAsync(posId, new CreatePaymentRequestRequest
+        {
+            Amount = dto.Amount,
+            UniqueAssetId = "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            ReferenceId = dto.OrderId,
+        }, ct);
+
+        return Results.Ok(new
+        {
+            PaymentId = payment.Id,
+            Token = payment.Token,       // Render as QR code on frontend
+            ExpiresAt = payment.Expiration,
+        });
+    }
+    catch (FluxisException ex)
+    {
+        return Results.BadRequest(new { Error = ex.Message, Code = ex.ErrorCode });
+    }
+});
+
+// Receive webhook
+app.MapPost("/webhooks/fluxis", async (HttpContext context) =>
+{
+    using var reader = new StreamReader(context.Request.Body);
+    var rawBody = await reader.ReadToEndAsync();
+
+    var signature = context.Request.Headers["x-fluxis-signature"].FirstOrDefault() ?? "";
+
+    if (!WebhookVerifier.VerifySignature(rawBody, signature, webhookSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    var payload = System.Text.Json.JsonSerializer.Deserialize<WebhookEvent>(rawBody);
+
+    if (payload?.Status is PaymentRequestStatus.Completed or PaymentRequestStatus.Overpaid)
+    {
+        // Mark order as paid in your database
+        Console.WriteLine($"Payment {payload.Id} completed for reference {payload.ReferenceId}");
+    }
+
+    return Results.Ok("OK");
+});
+
+// Check payment status (polling fallback)
+app.MapGet("/api/payments/{paymentId}/status", async (
+    string paymentId,
+    FluxisClient fluxis,
+    CancellationToken ct) =>
+{
+    try
+    {
+        var status = await fluxis.PointOfSale.GetPaymentRequestAsync(posId, paymentId, ct);
+        return Results.Ok(new { Status = status.Status });
+    }
+    catch (FluxisException ex)
+    {
+        return Results.BadRequest(new { Error = ex.Message });
+    }
+});
+
+app.Run();
+
+record CreatePaymentDto(string Amount, string OrderId);
+```
+
+---
+
+## Going from Staging to Production
+
+1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
+2. Update your deployed configuration to use your production `fxs.prd.*` key
+3. Update webhook URLs to your production server
+4. Re-create notification settings on production PoS (webhook secrets are per-environment)
+
+```csharp
+var fluxis = new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = "fxs.prd.xxx",
+    ApiSecret = "your-production-secret",
+});
+```
+
+---
+
+## Key Implementation Details
+
+- **PascalCase ↔ snake_case**: The Fluxis API uses `snake_case`. The SDK automatically converts between PascalCase (C#) and snake_case (API) via `[JsonPropertyName]` attributes, so you always work with idiomatic C# property names.
+- **Lazy auth**: Authentication happens on the first API call. The token is cached and refreshed automatically before expiry.
+- **IDisposable**: `FluxisClient` implements `IDisposable`. If you provide your own `HttpClient`, the SDK won't dispose it. If the SDK creates one internally, it disposes it when you dispose the client.
+- **CancellationToken**: All async methods accept an optional `CancellationToken` for cooperative cancellation.
+- **Nullable reference types**: Enabled throughout — optional properties are `string?`, required properties are `string`.
+- **System.Text.Json**: No Newtonsoft dependency. Uses source-compatible `[JsonPropertyName]` attributes.
+- **Thread-safe**: The client is safe to use as a singleton in DI containers.

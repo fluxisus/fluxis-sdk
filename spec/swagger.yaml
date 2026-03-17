@@ -1,0 +1,2121 @@
+basePath: /v1
+definitions:
+  core-api_src_domain_model.AccountModel:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      external_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      organization:
+        $ref: '#/definitions/core-api_src_domain_model.OrganizationModel'
+      organization_id:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - external_id
+    - name
+    - organization_id
+    type: object
+  core-api_src_domain_model.OrganizationModel:
+    properties:
+      country:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.CountryCode'
+        description: ISO 3166-1 alpha-2
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      owner_email:
+        type: string
+      tax_id:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - country
+    - name
+    - owner_email
+    - tax_id
+    type: object
+  core-api_src_domain_types.CountryCode:
+    enum:
+    - AR
+    - BR
+    - DK
+    type: string
+    x-enum-varnames:
+    - CountryCodeArgentina
+    - CountryCodeBrazil
+    - CountryCodeDenmark
+  core-api_src_domain_types.EntityType:
+    enum:
+    - organization
+    - account
+    - financial_provider
+    - point_of_sale
+    type: string
+    x-enum-varnames:
+    - EntityTypeOrganization
+    - EntityTypeAccount
+    - EntityTypeFinancialProvider
+    - EntityTypePointOfSale
+  core-api_src_domain_types.MerchantSchema:
+    properties:
+      description:
+        description: Merchant description
+        example: 'This is merchant #1 description'
+        type: string
+      name:
+        description: Merchant name
+        example: 'Merchant #1'
+        type: string
+    type: object
+  core-api_src_domain_types.PaymentRequestStatus:
+    enum:
+    - created
+    - processing
+    - expired
+    - completed
+    - overpaid
+    - underpaid
+    - failed
+    type: string
+    x-enum-comments:
+      PaymentRequestStatusCompleted: fully completed (+)
+      PaymentRequestStatusCreated: created
+      PaymentRequestStatusExpired: expired by expiration time
+      PaymentRequestStatusFailed: failed (-)
+      PaymentRequestStatusOverpaid: overpaid (+)
+      PaymentRequestStatusProcessing: deposit identified related to this payment request
+      PaymentRequestStatusUnderpaid: underpaid (-)
+    x-enum-varnames:
+    - PaymentRequestStatusCreated
+    - PaymentRequestStatusProcessing
+    - PaymentRequestStatusExpired
+    - PaymentRequestStatusCompleted
+    - PaymentRequestStatusOverpaid
+    - PaymentRequestStatusUnderpaid
+    - PaymentRequestStatusFailed
+  core-api_src_domain_types.PointOfSaleConfigSchema:
+    properties:
+      merchant:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.MerchantSchema'
+        description: Merchant information
+      payment_options:
+        description: Allowed unique asset IDs for the point of sale
+        example:
+        - '[npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+        - ' npolygon_t0xc2132D05D31c914a87C6611C10748AEb04B58e8F]'
+        items:
+          type: string
+        type: array
+    type: object
+  core-api_src_domain_types.SettlementAddressSchema:
+    properties:
+      address_tag:
+        type: string
+      address_type:
+        type: string
+      owner:
+        $ref: '#/definitions/core-api_src_domain_types.EntityType'
+      settlement_address:
+        type: string
+      settlement_type:
+        $ref: '#/definitions/core-api_src_domain_types.TransactionDetailType'
+    type: object
+  core-api_src_domain_types.TransactionDetailType:
+    enum:
+    - base
+    - fee
+    - tax
+    - other
+    - payment_net_amount
+    - payment_service_fee
+    - payment_developer_fee
+    - payment_revenue_shared_fee
+    type: string
+    x-enum-varnames:
+    - TransactionDetailTypeBase
+    - TransactionDetailTypeFee
+    - TransactionDetailTypeTax
+    - TransactionDetailTypeOther
+    - TransactionDetailTypePaymentNetAmount
+    - TransactionDetailTypePaymentServiceFee
+    - TransactionDetailTypePaymentDeveloperFee
+    - TransactionDetailTypePaymentRevenueSharedFee
+  core-api_src_domain_types.TransactionStatus:
+    enum:
+    - preview
+    - pending
+    - created
+    - processing
+    - error
+    - expired
+    - failed
+    - completed
+    type: string
+    x-enum-varnames:
+    - TransactionStatusPreview
+    - TransactionStatusPending
+    - TransactionStatusCreated
+    - TransactionStatusProcessing
+    - TransactionStatusError
+    - TransactionStatusExpired
+    - TransactionStatusFailed
+    - TransactionStatusCompleted
+  core-api_src_domain_types.TransactionType:
+    enum:
+    - deposit
+    - withdraw
+    - refund
+    - adjustment
+    - swap
+    - payment_in
+    - payment_out
+    - dry_run
+    type: string
+    x-enum-varnames:
+    - TransactionTypeDeposit
+    - TransactionTypeWithdraw
+    - TransactionTypeRefund
+    - TransactionTypeAdjustment
+    - TransactionTypeSwap
+    - TransactionTypePaymentIn
+    - TransactionTypePaymentOut
+    - TransactionTypeDryRun
+  core-api_src_infrastructure_http_types.APIErrorSchema:
+    properties:
+      code:
+        description: Error code
+        example: AK0001
+        type: string
+      details:
+        description: Detailed error information
+        example: The provided API key is invalid
+        type: string
+      message:
+        description: Error message
+        example: Invalid credentials
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_infrastructure_http_types.ResponseStatus'
+        description: Response status
+        example: error
+    type: object
+  core-api_src_infrastructure_http_types.APIResponseSchema:
+    properties:
+      data:
+        description: |-
+          Response data (only for success status)
+          Data T `json:"data,omitempty"` lo dejo como interface{} para que no falle con el swagger
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_infrastructure_http_types.ResponseStatus'
+        description: Response status
+        example: success
+    type: object
+  core-api_src_infrastructure_http_types.ResponseStatus:
+    enum:
+    - success
+    - error
+    type: string
+    x-enum-varnames:
+    - StatusSuccess
+    - StatusError
+  core-api_src_pkg_utils.PasetoV4MerchantData:
+    properties:
+      description:
+        description: Merchant description
+        example: Merchant number one description
+        type: string
+      name:
+        description: Merchant name
+        example: 'Merchant #1'
+        type: string
+    type: object
+  core-api_src_pkg_utils.PasetoV4OrderData:
+    properties:
+      coin_code:
+        description: Order coin code (FIAT or crypto)
+        example: USD
+        type: string
+      description:
+        description: Order description
+        example: Order description
+        type: string
+      items:
+        description: Order items
+        items:
+          $ref: '#/definitions/protocol.InstructionItem'
+        type: array
+      merchant:
+        allOf:
+        - $ref: '#/definitions/core-api_src_pkg_utils.PasetoV4MerchantData'
+        description: Merchant information
+      total:
+        description: Order total amount
+        example: "1234.99"
+        type: string
+    type: object
+  core-api_src_pkg_utils.PasetoV4PaymentData:
+    properties:
+      address:
+        description: Payment address
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+      amount:
+        description: Requested payment amount
+        example: 1234.99
+        type: number
+      expires_at:
+        description: Payment request expiration timestamp
+        example: 1717833600
+        type: integer
+      id:
+        description: Payment ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      is_open:
+        description: Payment request status
+        example: false
+        type: boolean
+      unique_asset_id:
+        description: Unique identifier for the cryptocurrency asset
+        example: npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
+        type: string
+    type: object
+  infrastructure_http_router_v1.AuthTokenRequestSchema:
+    properties:
+      api_key:
+        description: Fluxis API key
+        example: fxs.stg.08ecd032-73ed-4a5a-9ccf-500eb1f9a56f
+        type: string
+      api_secret:
+        description: Fluxis API secret
+        example: tQd^RW213A3q2ojzvJn
+        type: string
+    required:
+    - api_key
+    - api_secret
+    type: object
+  infrastructure_http_router_v1.AuthTokenResponseSchema:
+    properties:
+      expired_at:
+        description: Access token expiration date in UTC RFC3339 format
+        example: "2025-08-07T10:34:03.000Z"
+        type: string
+      token:
+        description: Access token
+        example: v4.local.Gx1TZT3STnhzZ-0o
+        type: string
+    type: object
+  infrastructure_http_router_v1.CreateAccountRequestSchema:
+    properties:
+      external_id:
+        description: Account external ID
+        type: string
+      name:
+        description: Account name in Fluxis database
+        type: string
+    required:
+    - name
+    type: object
+  infrastructure_http_router_v1.CreateNASPIPRequestSchema:
+    properties:
+      payment:
+        description: Payment data to be encoded in the NASPIP token
+        properties:
+          address:
+            description: Payment address
+            type: string
+          amount:
+            description: Payment amount
+            type: number
+          expires_at:
+            description: Payment expires at
+            type: integer
+          id:
+            description: Payment id
+            type: string
+          is_open:
+            description: Payment is open
+            type: boolean
+          unique_asset_id:
+            description: Payment unique asset id
+            type: string
+        required:
+        - address
+        - amount
+        - unique_asset_id
+        type: object
+    type: object
+  infrastructure_http_router_v1.CreateNASPIPResponseSchema:
+    properties:
+      token:
+        description: NASPIP token
+        type: string
+    type: object
+  infrastructure_http_router_v1.CreateNotificationSettingsResponseSchema:
+    properties:
+      secret:
+        description: Secret to secure the webhook URL
+        example: this-is-a-secret-string
+        type: string
+      webhook_url:
+        description: Webhook URL to receive payment request status updates
+        example: https://fluxis.us
+        type: string
+    required:
+    - webhook_url
+    type: object
+  infrastructure_http_router_v1.CreatePointOfSaleRequestSchema:
+    properties:
+      account_id:
+        description: _Optional:_ Account ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      merchant:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.MerchantSchema'
+        description: Merchant information
+      name:
+        description: Human friendly name for the point of sale.
+        example: 'Point of Sale #1'
+        type: string
+      payment_options:
+        description: _Optional:_ Allowed unique asset IDs for the point of sale
+        example:
+        - '[npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+        - ' npolygon_t0xc2132D05D31c914a87C6611C10748AEb04B58e8F]'
+        items:
+          type: string
+        type: array
+    required:
+    - name
+    type: object
+  infrastructure_http_router_v1.CreateRefundRequestSchema:
+    properties:
+      amount:
+        description: _Optional:_ Amount to refund. If not provided, the full payment
+          amount will be refunded for completed payments, or the overpaid amount for
+          overpaid payments.
+        example: "100.50"
+        type: string
+      reason:
+        description: _Optional:_ Reason for the refund request
+        example: Customer requested refund
+        type: string
+      refund_to_address:
+        description: Blockchain address where the refund will be sent
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+    required:
+    - refund_to_address
+    type: object
+  infrastructure_http_router_v1.GetAccountResponseSchema:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      external_id:
+        description: Account external ID
+        type: string
+      id:
+        type: string
+      name:
+        description: Account name in Fluxis database
+        type: string
+      updated_at:
+        type: string
+    type: object
+  infrastructure_http_router_v1.GetAllTransactionsResponseSchema:
+    properties:
+      account_external_id:
+        description: Account external ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      created_at:
+        description: Transaction creation date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      currency:
+        description: Currency code
+        example: USDC
+        type: string
+      expected_amount:
+        description: Expected amount
+        example: 100
+        type: number
+      financial_provider:
+        description: Financial provider name
+        example: fluxis
+        type: string
+      from:
+        description: From address
+        example: 0x1234567890abcdef1234567890abcdef1234567890abcdef
+        type: string
+      from_type:
+        description: From address type
+        example: wallet
+        type: string
+      gross_amount:
+        description: Gross amount
+        example: 100
+        type: number
+      id:
+        description: Transaction ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      net_amount:
+        description: Net amount
+        example: 100
+        type: number
+      network:
+        description: Blockchain network
+        example: ethereum
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.TransactionStatus'
+        description: Transaction status
+        example: pending
+      to:
+        description: To address
+        example: 0x1234567890abcdef1234567890abcdef1234567890abcdef
+        type: string
+      to_type:
+        description: To address type
+        example: wallet
+        type: string
+      transaction_hash:
+        description: Transaction hash
+        example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.TransactionType'
+        description: Transaction type
+        example: deposit
+      unique_asset_id:
+        description: Unique asset ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      updated_at:
+        description: Transaction last update date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+    type: object
+  infrastructure_http_router_v1.GetSettlementAddressesResponseSchema:
+    properties:
+      addresses:
+        description: Account config
+        items:
+          $ref: '#/definitions/core-api_src_domain_types.SettlementAddressSchema'
+        type: array
+    type: object
+  infrastructure_http_router_v1.NotificationSettingsRequestSchema:
+    properties:
+      webhook_url:
+        description: Webhook URL to receive payment request status updates
+        example: https://fluxis.us
+        type: string
+    required:
+    - webhook_url
+    type: object
+  infrastructure_http_router_v1.NotificationSettingsResponseSchema:
+    properties:
+      webhook_url:
+        description: Webhook URL to receive payment request status updates
+        example: https://fluxis.us
+        type: string
+    required:
+    - webhook_url
+    type: object
+  infrastructure_http_router_v1.PaymentRequestCheckoutRequestSchema:
+    properties:
+      amount:
+        description: Requested payment amount
+        example: "1234.99"
+        type: string
+      coin_code:
+        description: Unique identifier for the cryptocurrency asset
+        example: USD
+        type: string
+      order:
+        allOf:
+        - $ref: '#/definitions/core-api_src_pkg_utils.PasetoV4OrderData'
+        description: Order data
+      reference_id:
+        description: Optional reference ID for tracking the payment request
+        example: order-12345
+        type: string
+    required:
+    - amount
+    - coin_code
+    type: object
+  infrastructure_http_router_v1.PaymentRequestCheckoutResponseSchema:
+    properties:
+      checkout_url:
+        description: Hosted checkout URL consumers can open directly
+        type: string
+      expiration:
+        description: Payment request expiration timestamp
+        type: integer
+      id:
+        description: Fluxis payment request ID
+        type: string
+      reference_id:
+        description: External payment request reference ID
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.PaymentRequestStatus'
+        description: Payment request status
+      token:
+        description: NASPIP token containing the hosted checkout payload
+        type: string
+    type: object
+  infrastructure_http_router_v1.PaymentRequestRequestSchema:
+    properties:
+      amount:
+        description: Requested payment amount
+        example: "1234.99"
+        type: string
+      order:
+        allOf:
+        - $ref: '#/definitions/core-api_src_pkg_utils.PasetoV4OrderData'
+        description: Order data
+      reference_id:
+        description: Optional reference ID for tracking the payment request
+        example: order-12345
+        type: string
+      unique_asset_id:
+        description: Unique identifier for the cryptocurrency asset
+        example: npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
+        type: string
+    required:
+    - amount
+    - unique_asset_id
+    type: object
+  infrastructure_http_router_v1.PaymentRequestResponseSchema:
+    properties:
+      expiration:
+        description: Payment request expiration timestamp
+        type: integer
+      id:
+        description: Fluxis payment request ID
+        type: string
+      reference_id:
+        description: External payment request reference ID
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.PaymentRequestStatus'
+        description: Payment request status
+      token:
+        description: NASPIP token, containing payment instructions
+        type: string
+    type: object
+  infrastructure_http_router_v1.PointOfSaleResponseSchema:
+    properties:
+      account_id:
+        description: Account ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      account_name:
+        description: Account name (omitted if no account is associated with the point
+          of sale)
+        example: 'Account #1'
+        type: string
+      config:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.PointOfSaleConfigSchema'
+        description: Point of sale configuration
+      created_at:
+        description: Point of sale creation date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      id:
+        description: Fluxis point of sale ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      name:
+        description: Point of sale given name
+        example: 'Point of Sale #1'
+        type: string
+      organization_id:
+        description: Organization ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      organization_name:
+        description: Organization name
+        example: 'Organization #1'
+        type: string
+      updated_at:
+        description: Point of sale last update date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+    type: object
+  infrastructure_http_router_v1.ReadNASPIPRequestSchema:
+    properties:
+      token:
+        description: NASPIP token to verify and read
+        type: string
+    type: object
+  infrastructure_http_router_v1.ReadNASPIPResponseData:
+    properties:
+      order:
+        $ref: '#/definitions/core-api_src_pkg_utils.PasetoV4OrderData'
+      payment:
+        $ref: '#/definitions/core-api_src_pkg_utils.PasetoV4PaymentData'
+      payment_options:
+        items:
+          type: string
+        type: array
+      url:
+        type: string
+    type: object
+  infrastructure_http_router_v1.RefundDetailResponseSchema:
+    properties:
+      amount:
+        description: Amount being refunded
+        example: 100.5
+        type: number
+      created_at:
+        description: Refund request creation date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      id:
+        description: Fluxis refund request ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      network:
+        description: Blockchain network where the refund will be processed
+        example: polygon
+        type: string
+      payment_request_id:
+        description: ID of the original payment request being refunded
+        example: 123e4567-e89b-12d3-a456-426614174001
+        type: string
+      payment_transaction_hash:
+        description: Transaction hash of the original payment
+        example: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab
+        type: string
+      reason:
+        description: Reason for the refund request
+        example: Customer requested refund
+        type: string
+      refund_to_address:
+        description: Blockchain address where the refund will be sent
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+      refund_transaction_hash:
+        description: Transaction hash of the refund (available once processed)
+        example: 0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba
+        type: string
+      requested_by_entity_id:
+        description: ID of the entity that requested the refund
+        example: 123e4567-e89b-12d3-a456-426614174002
+        type: string
+      requested_by_entity_type:
+        description: Type of entity that requested the refund (organization or account)
+        example: organization
+        type: string
+      status:
+        description: Current status of the refund (processing, completed, failed)
+        example: processing
+        type: string
+      unique_asset_id:
+        description: Unique identifier for the cryptocurrency asset
+        example: npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
+        type: string
+      updated_at:
+        description: Refund request last update date
+        example: "2021-01-01T00:00:00Z"
+        type: string
+    type: object
+  infrastructure_http_router_v1.RefundResponseSchema:
+    properties:
+      amount:
+        description: Amount being refunded
+        example: 100.5
+        type: number
+      id:
+        description: Fluxis refund request ID
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      refund_to_address:
+        description: Blockchain address where the refund will be sent
+        example: 0x1234567890abcdef1234567890abcdef12345678
+        type: string
+      status:
+        description: Refund request status
+        example: processing
+        type: string
+    type: object
+  infrastructure_http_router_v1.SettlementAddressResponseSchema:
+    properties:
+      address:
+        description: Address of the settlement address
+        example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        type: string
+      address_tag:
+        description: Address tag of the settlement address - like memo or destination
+          tag
+        example: nacho-memo
+        type: string
+      network:
+        description: Network of the settlement address
+        example: polygon
+        type: string
+    required:
+    - address
+    - network
+    type: object
+  infrastructure_http_router_v1.TransactionListResponseSchema:
+    properties:
+      data:
+        description: List of transactions
+        items:
+          $ref: '#/definitions/infrastructure_http_router_v1.GetAllTransactionsResponseSchema'
+        type: array
+      limit:
+        description: Number of transactions returned (limit)
+        example: 50
+        type: integer
+      offset:
+        description: Number of transactions skipped (offset)
+        example: 0
+        type: integer
+      total:
+        description: Total number of transactions matching the criteria
+        example: 150
+        type: integer
+    type: object
+  infrastructure_http_router_v1.UpdatePointOfSaleOptionsRequestSchema:
+    properties:
+      merchant:
+        allOf:
+        - $ref: '#/definitions/core-api_src_domain_types.MerchantSchema'
+        description: Merchant information
+      name:
+        description: Human friendly name for the point of sale.
+        example: 'Point of Sale #1'
+        type: string
+      payment_options:
+        description: Point of sale configuration
+        example:
+        - '[npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'
+        - ' npolygon_t0xc2132D05D31c914a87C6611C10748AEb04B58e8F]'
+        items:
+          type: string
+        type: array
+    type: object
+  protocol.InstructionItem:
+    properties:
+      amount:
+        description: Total amount for this item
+        type: string
+      coin_code:
+        description: Currency code for this item
+        type: string
+      description:
+        description: Item description
+        type: string
+      quantity:
+        description: Number of units
+        type: integer
+      unit_price:
+        description: Price per unit
+        type: string
+    type: object
+host: api.stgfluxis.us
+info:
+  contact:
+    email: support@fluxis.us
+    name: API Support
+    url: https://fluxis.us/support
+  description: Core API for Fluxis platform with authentication and account management
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Fluxis Core API
+  version: "1.0"
+paths:
+  /account:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all accounts
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/infrastructure_http_router_v1.GetAccountResponseSchema'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Get all accounts
+      tags:
+      - Accounts
+    post:
+      consumes:
+      - application/json
+      description: Create a new account
+      parameters:
+      - description: Account details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/core-api_src_domain_model.AccountModel'
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.GetAccountResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Create account
+      tags:
+      - Accounts
+  /account/{accountId}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing account
+      parameters:
+      - description: Account ID
+        in: path
+        name: accountId
+        required: true
+        type: string
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Delete account
+      tags:
+      - Accounts
+    get:
+      consumes:
+      - application/json
+      description: Retrieve an account by its ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: accountId
+        required: true
+        type: string
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.GetAccountResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Get account by ID
+      tags:
+      - Accounts
+    put:
+      consumes:
+      - application/json
+      description: Update an existing account
+      parameters:
+      - description: Account ID
+        in: path
+        name: accountId
+        required: true
+        type: string
+      - description: Account details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.CreateAccountRequestSchema'
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.GetAccountResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Update account
+      tags:
+      - Accounts
+  /account/{accountId}/settlement-addresses:
+    get:
+      consumes:
+      - application/json
+      description: Get the settlement addresses for an account
+      parameters:
+      - description: Account ID
+        in: path
+        name: accountId
+        required: true
+        type: string
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.GetSettlementAddressesResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Get settlement addresses
+      tags:
+      - Accounts
+  /auth/token:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate using API key and secret to get an access token
+      parameters:
+      - description: Auth credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.AuthTokenRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.AuthTokenResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      summary: Authenticate and get access token
+      tags:
+      - Authentication
+  /naspip/create:
+    post:
+      consumes:
+      - application/json
+      description: Generate a new NASPIP token with the provided data
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Data to be encoded in the NASPIP token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.CreateNASPIPRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.CreateNASPIPResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Create NASPIP token
+      tags:
+      - NASPIP Token
+  /naspip/read:
+    post:
+      consumes:
+      - application/json
+      description: Verify and return data from a NASPIP token
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: NASPIP token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.ReadNASPIPRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.ReadNASPIPResponseData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "406":
+          description: Not Acceptable
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Read NASPIP token
+      tags:
+      - NASPIP Token
+  /organization/settlement-addresses:
+    post:
+      consumes:
+      - application/json
+      description: Set the settlement addresses for an organization
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.SettlementAddressResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Set settlement addresses
+      tags:
+      - Organization
+    put:
+      consumes:
+      - application/json
+      description: Update the settlement addresses for an organization
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.SettlementAddressResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+      summary: Update settlement addresses
+      tags:
+      - Organization
+  /pos:
+    get:
+      consumes:
+      - application/json
+      description: Get all point of sales for the authenticated entity (organization
+        or account)
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/infrastructure_http_router_v1.PointOfSaleResponseSchema'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Get all point of sales
+      tags:
+      - Point of Sale
+    post:
+      consumes:
+      - application/json
+      description: Create a new point of sale. If an `account_id` is provided, the
+        point of sale will be created for that account.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Create point of sale
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.CreatePointOfSaleRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PointOfSaleResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Create point of sale
+      tags:
+      - Point of Sale
+  /pos/:posID:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the point of sale data for the given ID.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PointOfSaleResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Get point of sale
+      tags:
+      - Point of Sale
+    put:
+      consumes:
+      - application/json
+      description: Update point of sale attributes.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      - description: Update point of sale attributes
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.UpdatePointOfSaleOptionsRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PointOfSaleResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Update point of sale payment options
+      tags:
+      - Point of Sale
+  /pos/:posID/notifications:
+    get:
+      consumes:
+      - application/json
+      description: Get point of sale webhook notification settings.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Retrieve point of sale notifications settings
+      tags:
+      - Point of Sale
+    post:
+      consumes:
+      - application/json
+      description: Set point of sale webhook notification settings.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Update notification settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsRequestSchema'
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.CreateNotificationSettingsResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Point of sale notifications settings
+      tags:
+      - Point of Sale
+    put:
+      consumes:
+      - application/json
+      description: Update point of sale webhook notification settings.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Update notification settings
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsRequestSchema'
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.NotificationSettingsResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Point of sale notifications settings
+      tags:
+      - Point of Sale
+  /pos/:posID/payment-request:
+    post:
+      consumes:
+      - application/json
+      description: Create a payment request for the given point of sale ID.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      - description: Payment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Create payment request
+      tags:
+      - Point of Sale
+  /pos/:posID/payment-request-checkout:
+    post:
+      consumes:
+      - application/json
+      description: Create a hosted checkout payment request for the given point of
+        sale ID.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Point of sale ID
+        in: path
+        name: posID
+        required: true
+        type: string
+      - description: Payment request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestCheckoutRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestCheckoutResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Create payment request checkout
+      tags:
+      - Point of Sale
+  /pos/:posID/payment-request/:paymentRequestID:
+    get:
+      consumes:
+      - application/json
+      description: Get payment request by ID.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Payment request ID
+        in: path
+        name: paymentRequestID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.PaymentRequestResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Get payment request
+      tags:
+      - Point of Sale
+  /refunds/{refundID}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific refund request,
+        including its current status, transaction details, and processing information.
+        The API credentials must have permissions for the organization or account
+        associated with the refund.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Refund ID
+        in: path
+        name: refundID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Refund details retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.RefundDetailResponseSchema'
+              type: object
+        "400":
+          description: Invalid refund ID format
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Authentication required or invalid credentials
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: API credentials do not have permissions for this refund
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "404":
+          description: Refund not found
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Get refund details
+      tags:
+      - Refunds
+  /refunds/payment-request/{paymentRequestID}:
+    post:
+      consumes:
+      - application/json
+      description: Create and immediately process a refund for a payment request.
+        The API credentials must have permissions for the organization or account
+        associated with the payment request's point of sale. Amount is optional -
+        if not provided, the full amount will be refunded for completed payments,
+        or the overpaid amount for overpaid payments. The refund is automatically
+        approved and scheduled for processing.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: Payment Request ID
+        in: path
+        name: paymentRequestID
+        required: true
+        type: string
+      - description: Refund details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/infrastructure_http_router_v1.CreateRefundRequestSchema'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Refund created and processing started
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.RefundResponseSchema'
+              type: object
+        "400":
+          description: Invalid request data or payment request not eligible for refund
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Authentication required or invalid credentials
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: API credentials do not have permissions for this payment request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Create and process refund
+      tags:
+      - Refunds
+  /transactions:
+    get:
+      consumes:
+      - application/json
+      description: Get all transactions for the authenticated entity (organization
+        or account). Supports pagination and filtering via query parameters.
+      parameters:
+      - description: Bearer token
+        example: Bearer <your_token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Fluxis API Key ID
+        example: <your_api_key_id>
+        in: header
+        name: x-fluxis-api-key
+        required: true
+        type: string
+      - description: 'Number of transactions to return (default: 50, max: 100)'
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      - description: 'Number of transactions to skip (default: 0)'
+        example: 0
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by transaction status (pending, processing, completed,
+          failed)
+        example: completed
+        in: query
+        name: status
+        type: string
+      - description: Filter by account ID (only for organization-level API keys)
+        example: 123e4567-e89b-12d3-a456-426614174000
+        in: query
+        name: accountID
+        type: string
+      - description: 'Sort field: created_at or updated_at (default: created_at)'
+        example: created_at
+        in: query
+        name: sort
+        type: string
+      - description: 'Sort order: asc or desc (default: desc)'
+        example: desc
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/core-api_src_infrastructure_http_types.APIResponseSchema'
+            - properties:
+                data:
+                  $ref: '#/definitions/infrastructure_http_router_v1.TransactionListResponseSchema'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/core-api_src_infrastructure_http_types.APIErrorSchema'
+      summary: Get all transactions
+      tags:
+      - Transactions
+schemes:
+- https
+swagger: "2.0"

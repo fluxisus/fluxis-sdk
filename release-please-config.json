@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "700e97baf64dae02b918a0ad22251fa4cf2985f8",
+  "separate-pull-requests": true,
+  "pull-request-title-pattern": "chore${scope}: release ${component} v${version}",
+  "packages": {
+    "packages/sdk": {
+      "component": "typescript-sdk",
+      "release-type": "node",
+      "package-name": "@fluxisus/sdk"
+    },
+    "packages/sdk-csharp": {
+      "component": "csharp-sdk",
+      "release-type": "simple",
+      "package-name": "Fluxis.Sdk",
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Fluxis.Sdk.csproj",
+          "xpath": "//Project/PropertyGroup/Version"
+        }
+      ]
+    },
+    "packages/sdk-python": {
+      "release-type": "python",
+      "package-name": "fluxis",
+      "tag-name": "sdk-python/v${version}"
+    },
+    "packages/sdk-go": {
+      "release-type": "go",
+      "package-name": "fluxis-sdk-go",
+      "tag-name": "sdk-go/v${version}"
+    }
+  }
+}

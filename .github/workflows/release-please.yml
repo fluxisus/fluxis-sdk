@@ -1,0 +1,105 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      ts_release_created: ${{ steps.release.outputs['packages/sdk--release_created'] }}
+      ts_tag_name: ${{ steps.release.outputs['packages/sdk--tag_name'] }}
+      ts_version: ${{ steps.release.outputs['packages/sdk--version'] }}
+      cs_release_created: ${{ steps.release.outputs['packages/sdk-csharp--release_created'] }}
+      cs_tag_name: ${{ steps.release.outputs['packages/sdk-csharp--tag_name'] }}
+      cs_version: ${{ steps.release.outputs['packages/sdk-csharp--version'] }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish-typescript:
+    needs: release-please
+    if: needs.release-please.outputs.ts_release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+        env:
+          FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
+          FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-csharp:
+    needs: release-please
+    if: needs.release-please.outputs.cs_release_created == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/sdk-csharp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test -c Release --no-build
+        env:
+          FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
+          FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
+
+      - name: Pack
+        run: dotnet pack -c Release --no-restore -o ./artifacts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fluxis.Sdk.${{ needs.release-please.outputs.cs_version }}.nupkg
+          path: packages/sdk-csharp/artifacts/*.nupkg
+
+      - name: Publish to NuGet
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source "https://api.nuget.org/v3/index.json" \
+            --skip-duplicate
