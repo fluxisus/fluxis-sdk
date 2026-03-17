@@ -1,23 +1,11 @@
 name: SDK — C#
 
-# Trigger strategy:
-#   • build-and-test  → any push/PR touching sdk-csharp or spec paths
-#   • publish         → only when a tag like `sdk-csharp/v1.2.3` is pushed (by release-please)
-#
-# Release flow:
-#   1. Merge sdk-csharp changes to main
-#   2. Review and merge the release-please PR for packages/sdk-csharp
-#   3. release-please creates the `sdk-csharp/v<version>` tag
-#   4. this workflow publishes the package to NuGet and creates a GitHub Release
-
 on:
   push:
     branches: [main]
     paths:
       - 'packages/sdk-csharp/**'
       - 'spec/**'
-    tags:
-      - 'sdk-csharp/v*'
   pull_request:
     paths:
       - 'packages/sdk-csharp/**'
@@ -51,54 +39,3 @@ jobs:
         env:
           FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
           FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
-
-  publish:
-    needs: build-and-test
-    if: startsWith(github.ref, 'refs/tags/sdk-csharp/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write   # needed to create a GitHub Release
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Extract version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#sdk-csharp/v}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify csproj version matches tag
-        run: |
-          CSPROJ_VERSION=$(grep -oP '(?<=<Version>)[^<]+' Fluxis.Sdk.csproj)
-          TAG_VERSION="${{ steps.version.outputs.VERSION }}"
-          if [ "$CSPROJ_VERSION" != "$TAG_VERSION" ]; then
-            echo "ERROR: <Version> in csproj ($CSPROJ_VERSION) does not match tag ($TAG_VERSION)"
-            exit 1
-          fi
-          echo "Version check passed: $CSPROJ_VERSION"
-
-      - name: Pack
-        run: dotnet pack -c Release --no-restore -o ./artifacts
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fluxis.Sdk.${{ steps.version.outputs.VERSION }}.nupkg
-          path: packages/sdk-csharp/artifacts/*.nupkg
-
-      - name: Publish to NuGet
-        run: |
-          dotnet nuget push ./artifacts/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source "https://api.nuget.org/v3/index.json" \
-            --skip-duplicate
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Fluxis.Sdk v${{ steps.version.outputs.VERSION }}"
-          tag_name: ${{ github.ref_name }}
-          files: packages/sdk-csharp/artifacts/*.nupkg
-          generate_release_notes: true

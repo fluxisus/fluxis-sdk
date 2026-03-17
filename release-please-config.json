@@ -1,22 +1,21 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "bootstrap-sha": "700e97baf64dae02b918a0ad22251fa4cf2985f8",
+  "separate-pull-requests": true,
   "packages": {
     "packages/sdk": {
       "component": "typescript-sdk",
       "release-type": "node",
       "package-name": "@fluxisus/sdk",
       "tag-name": "sdk/v${version}",
-      "separate-pull-requests": true,
-      "pull-request-title-pattern": "chore(release): ${component} ${version}"
+      "include-component-in-tag": false
     },
     "packages/sdk-csharp": {
       "component": "csharp-sdk",
       "release-type": "simple",
       "package-name": "Fluxis.Sdk",
       "tag-name": "sdk-csharp/v${version}",
-      "separate-pull-requests": true,
-      "pull-request-title-pattern": "chore(release): ${component} ${version}",
+      "include-component-in-tag": false,
       "extra-files": [
         {
           "type": "xml",
