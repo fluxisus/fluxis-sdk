@@ -23,7 +23,6 @@ import { FluxisClient } from '@fluxisus/sdk';
 const fluxis = new FluxisClient({
   apiKey: 'fxs.stg.xxx',
   apiSecret: 'your-secret',
-  environment: 'staging', // 'staging' | 'production'
 });
 
 // Create a payment request (direct crypto)
@@ -100,10 +99,14 @@ try {
 
 ## Environments
 
-| Environment | Base URL | Key Prefix |
-|-------------|----------|------------|
-| `staging` | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
-| `production` | `https://api.fluxis.us/v1` | `fxs.prd.*` |
+The SDK infers the target API automatically from your API key prefix:
+
+| Key Prefix | Base URL |
+|------------|----------|
+| `fxs.stg.*` | `https://api.stgfluxis.us/v1` |
+| `fxs.prd.*` | `https://api.fluxis.us/v1` |
+
+If the key does not start with `fxs.stg.` or `fxs.prd.`, the client throws during initialization.
 
 ## Key Features
 

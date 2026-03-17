@@ -184,12 +184,3 @@ public sealed class SettlementAddress
     public string? SettlementType { get; set; }
 }
 
-/// <summary>Fluxis environment (staging or production).</summary>
-public enum FluxisEnvironment
-{
-    /// <summary>Staging sandbox environment.</summary>
-    Staging,
-
-    /// <summary>Production environment.</summary>
-    Production
-}

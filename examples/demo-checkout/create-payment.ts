@@ -4,7 +4,6 @@ async function main() {
   const fluxis = new FluxisClient({
     apiKey: 'fxs.stg.xxx',
     apiSecret: 'your-api-secret',
-    environment: 'staging',
   });
 
   // Create a Point of Sale

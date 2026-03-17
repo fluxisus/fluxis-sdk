@@ -25,7 +25,6 @@ using var client = new FluxisClient(new FluxisClientOptions
 {
     ApiKey = "fxs.stg.your-key-id",    // from your Fluxis dashboard
     ApiSecret = "your-api-secret",
-    Environment = FluxisEnvironment.Staging,  // or .Production
 });
 
 // 2. Create a payment request
@@ -238,7 +237,6 @@ builder.Services.AddSingleton(sp =>
     {
         ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
         ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
-        Environment = FluxisEnvironment.Production,
     }, httpClient);
 });
 ```
@@ -305,13 +303,18 @@ You don't need to manage tokens. The SDK:
 ```csharp
 var options = new FluxisClientOptions
 {
-    ApiKey = "fxs.stg.your-key",         // Required
-    ApiSecret = "your-secret",            // Required
-    Environment = FluxisEnvironment.Staging, // Default: Staging
-    BaseUrl = null,                       // Override to point to a custom URL
-    Timeout = TimeSpan.FromSeconds(30),   // Default: 30s
+    ApiKey = "fxs.stg.your-key",       // Required: fxs.stg.* or fxs.prd.*
+    ApiSecret = "your-secret",         // Required
+    Timeout = TimeSpan.FromSeconds(30) // Default: 30s
 };
 ```
+
+The client infers the target API from the `ApiKey` prefix:
+
+- `fxs.stg.*` -> `https://api.stgfluxis.us/v1`
+- `fxs.prd.*` -> `https://api.fluxis.us/v1`
+
+If the key does not start with one of those prefixes, the constructor throws an `ArgumentException`.
 
 ## Build & Test
 

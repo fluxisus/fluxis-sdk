@@ -20,7 +20,6 @@ export type {
   OrderItem,
   Order,
   SettlementAddress,
-  Environment,
   FluxisClientOptions,
 } from './types/common.js';
 

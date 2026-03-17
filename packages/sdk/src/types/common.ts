@@ -84,12 +84,8 @@ export interface SettlementAddress {
   settlementType?: TransactionDetailType;
 }
 
-export type Environment = 'staging' | 'production';
-
 export interface FluxisClientOptions {
   apiKey: string;
   apiSecret: string;
-  environment?: Environment;
-  baseUrl?: string;
   timeout?: number;
 }

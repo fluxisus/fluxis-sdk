@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, ApiResponse, Environment, FluxisClientOptions } from './types/common.js';
+import type { ApiErrorResponse, ApiResponse, FluxisClientOptions } from './types/common.js';
 import { FluxisAuthError, FluxisError, FluxisNetworkError, FluxisResponseParseError } from './errors.js';
 import { keysToCamelCase, keysToSnakeCase } from './utils.js';
 import { AccountsResource } from './resources/accounts.js';
@@ -8,12 +8,19 @@ import { NaspipResource } from './resources/naspip.js';
 import { RefundsResource } from './resources/refunds.js';
 import { TransactionsResource } from './resources/transactions.js';
 
-const BASE_URLS: Record<Environment, string> = {
-  staging: 'https://api.stgfluxis.us/v1',
-  production: 'https://api.fluxis.us/v1',
-};
+const STAGING_BASE_URL = 'https://api.stgfluxis.us/v1';
+const PRODUCTION_BASE_URL = 'https://api.fluxis.us/v1';
 
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
+
+function inferBaseUrl(apiKey: string): string {
+  if (apiKey.startsWith('fxs.stg.')) return STAGING_BASE_URL;
+  if (apiKey.startsWith('fxs.prd.')) return PRODUCTION_BASE_URL;
+
+  throw new TypeError(
+    'Invalid Fluxis API key format. Expected a key starting with "fxs.stg." or "fxs.prd.".',
+  );
+}
 
 export class FluxisClient {
   private readonly apiKey: string;
@@ -36,13 +43,7 @@ export class FluxisClient {
     this.apiKey = options.apiKey;
     this.apiSecret = options.apiSecret;
     this.timeout = options.timeout ?? 30_000;
-
-    if (options.baseUrl) {
-      this.baseUrl = options.baseUrl;
-    } else {
-      const env = options.environment ?? 'staging';
-      this.baseUrl = BASE_URLS[env];
-    }
+    this.baseUrl = inferBaseUrl(options.apiKey);
 
     this.accounts = new AccountsResource(this);
     this.organization = new OrganizationResource(this);
