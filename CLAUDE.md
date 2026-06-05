@@ -1,7 +1,7 @@
 # CLAUDE.md — Fluxis SDK Monorepo
 
 > This file provides shared API context for AI coding agents working on any Fluxis SDK.
-> For language-specific conventions, see the `CLAUDE.md` inside each `packages/sdk-*` directory.
+> For language-specific conventions, see the `CLAUDE.md` inside each `packages/backend/sdk-*` or `packages/frontend/` package directory.
 
 ## What is Fluxis?
 
@@ -15,11 +15,15 @@ transmitted via QR, NFC, or API. Merchants integrate Fluxis to accept crypto pay
 fluxis-sdks/
 ├── CLAUDE.md                 # This file — shared API context
 ├── packages/
-│   ├── sdk/                  # TypeScript SDK (@fluxisus/sdk)
-│   ├── react/                # React bindings (future)
-│   ├── sdk-csharp/           # C# SDK (Fluxis.Sdk)
-│   ├── sdk-python/           # Python SDK (fluxis)
-│   └── sdk-go/               # Go SDK (github.com/fluxisus/fluxis-sdk/packages/sdk-go)
+│   ├── backend/
+│   │   ├── sdk/              # TypeScript SDK (@fluxisus/sdk)
+│   │   ├── sdk-csharp/       # C# SDK (Fluxis.Sdk)
+│   │   ├── sdk-python/       # Python SDK (fluxis)
+│   │   └── sdk-go/           # Go SDK (github.com/fluxisus/fluxis-sdk/packages/sdk-go)
+│   └── frontend/             # Frontend SDKs (@fluxisus/react, …)
+│       ├── README.md
+│       ├── CLAUDE.md
+│       └── <framework>/    # One npm package per subdirectory
 ├── spec/
 │   └── swagger.yaml          # OpenAPI spec — source of truth
 ├── examples/
@@ -34,6 +38,7 @@ fluxis-sdks/
     ├── sdk-csharp.yml
     ├── sdk-python.yml
     ├── sdk-go.yml
+    ├── sdk-frontend.yml
     └── validate-spec.yml
 ```
 
@@ -44,7 +49,7 @@ fluxis-sdks/
 - SDKs are **hand-written** for idiomatic ergonomics — NOT auto-generated from the spec.
 - Tests run against the **Fluxis staging sandbox**, not mocks.
 - Non-JS packages (C#, Python, Go) live alongside JS workspaces without interference.
-  The root `package.json` uses npm workspaces only for JS packages.
+  The root `package.json` uses npm workspaces for backend (`packages/backend/sdk`) and frontend (`packages/frontend/*`) packages.
 
 ## Architecture: Key Concepts
 

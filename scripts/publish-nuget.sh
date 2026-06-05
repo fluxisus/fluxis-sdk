@@ -8,7 +8,7 @@ set -euo pipefail
 # Use this script only for manual/fallback publishes.
 # Requires: NUGET_API_KEY env var
 
-PACKAGE_DIR="packages/sdk-csharp"
+PACKAGE_DIR="packages/backend/sdk-csharp"
 DRY_RUN=""
 
 if [[ "${1:-}" == "--dry-run" ]]; then

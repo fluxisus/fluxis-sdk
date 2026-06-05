@@ -11,18 +11,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/sdk-go/**'
+      - 'packages/backend/sdk-go/**'
       - 'spec/**'
     tags:
       - 'sdk-go/v*'
   pull_request:
     paths:
-      - 'packages/sdk-go/**'
+      - 'packages/backend/sdk-go/**'
       - 'spec/**'
 
 defaults:
   run:
-    working-directory: packages/sdk-go
+    working-directory: packages/backend/sdk-go
 
 jobs:
   build-and-test:

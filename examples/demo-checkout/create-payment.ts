@@ -1,4 +1,4 @@
-import { FluxisClient } from '@fluxisus/sdk';
+import { FluxisClient } from '@fluxisus/sdk-typescript';
 
 async function main() {
   const fluxis = new FluxisClient({

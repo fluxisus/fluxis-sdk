@@ -6,8 +6,12 @@ Official SDKs for the [Fluxis](https://fluxis.us) crypto payment processing API.
 
 | Language | Package | Install |
 |----------|---------|---------|
-| TypeScript / Node.js | [`@fluxisus/sdk`](packages/sdk/README.md) | `npm install @fluxisus/sdk` |
-| C# / .NET | [`Fluxis.Sdk`](packages/sdk-csharp/README.md) | `dotnet add package Fluxis.Sdk` |
+| TypeScript / Node.js | [`@fluxisus/sdk`](packages/backend/sdk/README.md) | `npm install @fluxisus/sdk` |
+| C# / .NET | [`Fluxis.Sdk`](packages/backend/sdk-csharp/README.md) | `dotnet add package Fluxis.Sdk` |
+
+### Frontend (in development)
+
+Browser/UI packages live under [`packages/frontend/`](packages/frontend/README.md). They will be published under the `@fluxisus/*` scope (e.g. `@fluxisus/react`).
 
 ---
 
@@ -51,17 +55,17 @@ This repo follows the [llms.txt standard](https://llmstxt.org/) — structured d
 | File | Contents |
 |------|----------|
 | [`llms.txt`](llms.txt) | Index of all SDKs + shared concepts (quick overview) |
-| [`packages/sdk/llms-full.txt`](packages/sdk/llms-full.txt) | Complete TypeScript SDK guide |
-| [`packages/sdk-csharp/llms-full.txt`](packages/sdk-csharp/llms-full.txt) | Complete C# SDK guide |
+| [`packages/backend/sdk/llms-full.txt`](packages/backend/sdk/llms-full.txt) | Complete TypeScript SDK guide |
+| [`packages/backend/sdk-csharp/llms-full.txt`](packages/backend/sdk-csharp/llms-full.txt) | Complete C# SDK guide |
 
 You can feed these files directly into any LLM (ChatGPT, Claude, etc.):
 
 ```bash
 # Copy the TypeScript guide to clipboard (macOS)
-cat packages/sdk/llms-full.txt | pbcopy
+cat packages/backend/sdk/llms-full.txt | pbcopy
 
 # Or fetch the raw file from GitHub
-curl -s https://raw.githubusercontent.com/fluxisus/fluxis-sdk/main/packages/sdk/llms-full.txt
+curl -s https://raw.githubusercontent.com/fluxisus/fluxis-sdk/main/packages/backend/sdk/llms-full.txt
 ```
 
 ### CLAUDE.md — For Cursor & Claude Code
@@ -120,8 +124,9 @@ Console.WriteLine(payment.Status); // "created"
 
 Full documentation, API reference, and examples are in each SDK's README:
 
-- [TypeScript SDK →](packages/sdk/README.md)
-- [C# SDK →](packages/sdk-csharp/README.md)
+- [TypeScript SDK →](packages/backend/sdk/README.md)
+- [C# SDK →](packages/backend/sdk-csharp/README.md)
+- [Frontend SDKs →](packages/frontend/README.md) *(in development)*
 
 ---
 

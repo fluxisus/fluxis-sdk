@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Requires: TWINE_USERNAME + TWINE_PASSWORD env vars (or __token__ + API token)
 
-PACKAGE_DIR="packages/sdk-python"
+PACKAGE_DIR="packages/backend/sdk-python"
 DRY_RUN=""
 REPOSITORY="pypi"
 

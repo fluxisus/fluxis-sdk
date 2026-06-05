@@ -6,8 +6,12 @@
 
 ## Available SDKs
 
-- [TypeScript SDK](packages/sdk/llms-full.txt): `@fluxisus/sdk` — Node.js 18+, zero dependencies, native fetch
-- [C# SDK](packages/sdk-csharp/llms-full.txt): `Fluxis.Sdk` — .NET 6/8, async/await, System.Text.Json
+- [TypeScript SDK](packages/backend/sdk/llms-full.txt): `@fluxisus/sdk` — Node.js 18+, zero dependencies, native fetch
+- [C# SDK](packages/backend/sdk-csharp/llms-full.txt): `Fluxis.Sdk` — .NET 6/8, async/await, System.Text.Json
+
+## Frontend SDKs (in development)
+
+Browser/UI packages under `packages/frontend/` — see [`packages/frontend/README.md`](packages/frontend/README.md). No `llms-full.txt` yet.
 
 ## Common Concepts (all SDKs)
 

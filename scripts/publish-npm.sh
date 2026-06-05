@@ -8,7 +8,7 @@ set -euo pipefail
 # Use this script only for manual/fallback publishes.
 # Requires: NPM_TOKEN env var (or npm login)
 
-PACKAGE_DIR="packages/sdk"
+PACKAGE_DIR="packages/backend/sdk"
 DRY_RUN=""
 
 if [[ "${1:-}" == "--dry-run" ]]; then
