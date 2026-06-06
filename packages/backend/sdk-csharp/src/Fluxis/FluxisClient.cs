@@ -51,14 +51,14 @@ public sealed class FluxisClient : IDisposable
     /// <summary>Organization-level operations.</summary>
     public OrganizationResource Organization { get; }
 
-    /// <summary>Point of Sale operations (PoS, notifications, payment requests).</summary>
+    /// <summary>Point of Sale operations (PoS, payment requests, payment intentions).</summary>
     public PointOfSaleResource PointOfSale { get; }
 
     /// <summary>NASPIP token operations (create and read/verify).</summary>
     public NaspipResource Naspip { get; }
 
-    /// <summary>Refund operations.</summary>
-    public RefundsResource Refunds { get; }
+    /// <summary>Account-scoped webhook operations.</summary>
+    public WebhooksResource Webhooks { get; }
 
     /// <summary>Transaction listing and querying.</summary>
     public TransactionsResource Transactions { get; }
@@ -103,7 +103,7 @@ public sealed class FluxisClient : IDisposable
         Organization = new OrganizationResource(this);
         PointOfSale = new PointOfSaleResource(this);
         Naspip = new NaspipResource(this);
-        Refunds = new RefundsResource(this);
+        Webhooks = new WebhooksResource(this);
         Transactions = new TransactionsResource(this);
     }
 

@@ -78,7 +78,61 @@ public sealed class AccountsResource
     /// <returns>The account's settlement addresses.</returns>
     public async Task<AccountSettlementAddresses> GetSettlementAddressesAsync(string accountId, CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<AccountSettlementAddresses>(HttpMethod.Get, $"/account/{accountId}/settlement-addresses", cancellationToken: cancellationToken)
+        return await _client.RequestAsync<AccountSettlementAddresses>(
+            HttpMethod.Get, $"/account/{accountId}/settlement-addresses", cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sets a settlement address for an account.
+    /// </summary>
+    /// <param name="accountId">The account ID.</param>
+    /// <param name="request">Settlement address data.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The configured settlement address.</returns>
+    public async Task<SettlementAddressResponse> SetSettlementAddressAsync(
+        string accountId,
+        SettlementAddressRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await _client.RequestAsync<SettlementAddressResponse>(
+            HttpMethod.Post, $"/account/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Updates a settlement address for an account.
+    /// </summary>
+    /// <param name="accountId">The account ID.</param>
+    /// <param name="request">Updated settlement address data.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated settlement address.</returns>
+    public async Task<SettlementAddressResponse> UpdateSettlementAddressAsync(
+        string accountId,
+        SettlementAddressRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await _client.RequestAsync<SettlementAddressResponse>(
+            HttpMethod.Put, $"/account/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Deletes a settlement address for an account by network.
+    /// </summary>
+    /// <param name="accountId">The account ID.</param>
+    /// <param name="network">Blockchain network identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task DeleteSettlementAddressAsync(
+        string accountId,
+        string network,
+        CancellationToken cancellationToken = default)
+    {
+        await _client.RequestAsync(
+            HttpMethod.Delete,
+            $"/account/{accountId}/settlement-addresses",
+            query: new Dictionary<string, string> { ["network"] = network },
+            cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 }

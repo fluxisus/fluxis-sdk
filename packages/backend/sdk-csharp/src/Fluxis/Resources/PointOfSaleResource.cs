@@ -3,7 +3,7 @@ using Fluxis.Models;
 namespace Fluxis.Resources;
 
 /// <summary>
-/// Operations for managing Points of Sale, notification settings, and payment requests.
+/// Operations for managing Points of Sale and payment requests.
 /// </summary>
 public sealed class PointOfSaleResource
 {
@@ -12,13 +12,31 @@ public sealed class PointOfSaleResource
     internal PointOfSaleResource(FluxisClient client) => _client = client;
 
     /// <summary>
-    /// Lists all Points of Sale in your organization.
+    /// Lists Points of Sale with optional pagination and filtering.
     /// </summary>
+    /// <param name="options">Query options (page, pageSize, accountId).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of PoS entities.</returns>
-    public async Task<List<PointOfSale>> ListAsync(CancellationToken cancellationToken = default)
+    /// <returns>Paginated list of PoS entities.</returns>
+    public async Task<PaginatedResponse<PointOfSale>> ListAsync(
+        ListPointOfSaleOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<List<PointOfSale>>(HttpMethod.Get, "/pos", cancellationToken: cancellationToken)
+        Dictionary<string, string>? query = null;
+
+        if (options != null)
+        {
+            query = new Dictionary<string, string>();
+
+            if (options.Page.HasValue)
+                query["page"] = options.Page.Value.ToString();
+            if (options.PageSize.HasValue)
+                query["page_size"] = options.PageSize.Value.ToString();
+            if (options.AccountId != null)
+                query["accountID"] = options.AccountId;
+        }
+
+        return await _client.RequestAsync<PaginatedResponse<PointOfSale>>(
+            HttpMethod.Get, "/pos", query: query, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -60,49 +78,70 @@ public sealed class PointOfSaleResource
     }
 
     /// <summary>
-    /// Gets webhook notification settings for a PoS.
+    /// Deletes a Point of Sale.
     /// </summary>
-    /// <param name="posId">The PoS ID.</param>
+    /// <param name="posId">The PoS ID to delete.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Current notification settings.</returns>
-    public async Task<NotificationSettings> GetNotificationsAsync(string posId, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(string posId, CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<NotificationSettings>(HttpMethod.Get, $"/pos/{posId}/notifications", cancellationToken: cancellationToken)
+        await _client.RequestAsync(HttpMethod.Delete, $"/pos/{posId}", cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Creates webhook notification settings for a PoS.
-    /// The response includes a <c>Secret</c> that you must store — it's used to verify webhook signatures.
+    /// Gets the current payment intention for an open PoS.
     /// </summary>
     /// <param name="posId">The PoS ID.</param>
-    /// <param name="request">Notification settings.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The created notification settings (includes webhook secret).</returns>
-    public async Task<CreateNotificationSettingsResponse> CreateNotificationsAsync(
+    /// <returns>The current payment intention.</returns>
+    public async Task<PaymentIntentionResponse> GetPaymentIntentionAsync(
         string posId,
-        CreateNotificationSettingsRequest request,
         CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<CreateNotificationSettingsResponse>(
-            HttpMethod.Post, $"/pos/{posId}/notifications", request, cancellationToken: cancellationToken)
+        return await _client.RequestAsync<PaymentIntentionResponse>(
+            HttpMethod.Get, $"/pos/{posId}/payment-intention", cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Updates the webhook URL for a PoS.
+    /// Creates a payment intention for an open PoS.
     /// </summary>
     /// <param name="posId">The PoS ID.</param>
-    /// <param name="request">Updated notification settings.</param>
+    /// <param name="request">Payment intention data.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The updated notification settings.</returns>
-    public async Task<UpdateNotificationSettingsResponse> UpdateNotificationsAsync(
+    /// <returns>The created payment intention.</returns>
+    public async Task<CreatePaymentIntentionResponse> CreatePaymentIntentionAsync(
         string posId,
-        UpdateNotificationSettingsRequest request,
+        CreatePaymentIntentionRequest request,
         CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<UpdateNotificationSettingsResponse>(
-            HttpMethod.Put, $"/pos/{posId}/notifications", request, cancellationToken: cancellationToken)
+        return await _client.RequestAsync<CreatePaymentIntentionResponse>(
+            HttpMethod.Post, $"/pos/{posId}/payment-intention", request, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Closes the current payment intention for an open PoS.
+    /// </summary>
+    /// <param name="posId">The PoS ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task ClosePaymentIntentionAsync(string posId, CancellationToken cancellationToken = default)
+    {
+        await _client.RequestAsync(
+            HttpMethod.Post, $"/pos/{posId}/payment-intention/close", cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Gets the QR code for a PoS.
+    /// </summary>
+    /// <param name="posId">The PoS ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>QR code data.</returns>
+    public async Task<GetQrResponse> GetQrAsync(string posId, CancellationToken cancellationToken = default)
+    {
+        return await _client.RequestAsync<GetQrResponse>(
+            HttpMethod.Get, $"/pos/{posId}/qr", cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 

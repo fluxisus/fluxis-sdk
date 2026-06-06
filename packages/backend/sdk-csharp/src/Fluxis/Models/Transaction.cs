@@ -7,23 +7,11 @@ namespace Fluxis.Models;
 /// </summary>
 public sealed class ListTransactionsOptions
 {
-    /// <summary>Maximum number of results to return.</summary>
-    public int? Limit { get; set; }
+    /// <summary>Page number (1-based).</summary>
+    public int? Page { get; set; }
 
-    /// <summary>Number of results to skip.</summary>
-    public int? Offset { get; set; }
-
-    /// <summary>Filter by transaction status.</summary>
-    public string? Status { get; set; }
-
-    /// <summary>Field to sort by.</summary>
-    public string? Sort { get; set; }
-
-    /// <summary>Sort direction ("asc" or "desc").</summary>
-    public string? Order { get; set; }
-
-    /// <summary>Filter by account ID.</summary>
-    public string? AccountId { get; set; }
+    /// <summary>Number of items per page.</summary>
+    public int? PageSize { get; set; }
 }
 
 /// <summary>
@@ -102,26 +90,4 @@ public sealed class Transaction
     /// <summary>Last update timestamp.</summary>
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; set; }
-}
-
-/// <summary>
-/// Paginated response from listing transactions.
-/// </summary>
-public sealed class TransactionListResponse
-{
-    /// <summary>List of transactions.</summary>
-    [JsonPropertyName("data")]
-    public List<Transaction> Data { get; set; } = new();
-
-    /// <summary>Total number of matching transactions.</summary>
-    [JsonPropertyName("total")]
-    public int Total { get; set; }
-
-    /// <summary>Limit used in the query.</summary>
-    [JsonPropertyName("limit")]
-    public int Limit { get; set; }
-
-    /// <summary>Offset used in the query.</summary>
-    [JsonPropertyName("offset")]
-    public int Offset { get; set; }
 }

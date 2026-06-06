@@ -79,7 +79,6 @@ public class ModelSerializationTests
         {
             "status": "success",
             "data": {
-                "id": "acc_123",
                 "name": "Test Account",
                 "external_id": "ext_456"
             }
@@ -91,8 +90,7 @@ public class ModelSerializationTests
         result.Should().NotBeNull();
         result!.Status.Should().Be("success");
         result.Data.Should().NotBeNull();
-        result.Data!.Id.Should().Be("acc_123");
-        result.Data.Name.Should().Be("Test Account");
+        result.Data!.Name.Should().Be("Test Account");
         result.Data.ExternalId.Should().Be("ext_456");
     }
 
@@ -118,7 +116,7 @@ public class ModelSerializationTests
     }
 
     [Fact]
-    public void TransactionListResponse_DeserializesPaginatedResponse()
+    public void PaginatedResponse_DeserializesFromSnakeCase()
     {
         var json = """
         {
@@ -132,12 +130,13 @@ public class ModelSerializationTests
                 }
             ],
             "total": 42,
-            "limit": 10,
-            "offset": 0
+            "page": 1,
+            "page_size": 10,
+            "total_pages": 5
         }
         """;
 
-        var result = JsonSerializer.Deserialize<TransactionListResponse>(json, Options);
+        var result = JsonSerializer.Deserialize<PaginatedResponse<Transaction>>(json, Options);
 
         result.Should().NotBeNull();
         result!.Data.Should().HaveCount(1);
@@ -145,6 +144,8 @@ public class ModelSerializationTests
         result.Data[0].Type.Should().Be("deposit");
         result.Data[0].GrossAmount.Should().Be(100.5);
         result.Total.Should().Be(42);
-        result.Limit.Should().Be(10);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(10);
+        result.TotalPages.Should().Be(5);
     }
 }

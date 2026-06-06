@@ -89,6 +89,8 @@ var fluxis = new FluxisClient(new FluxisClientOptions
 var pos = await fluxis.PointOfSale.CreateAsync(new CreatePointOfSaleRequest
 {
     Name = "Online Store",
+    ReferenceCurrency = "USD",
+    Type = PointOfSaleTypes.OnlineFixed,
     Merchant = new Merchant { Name = "My Shop", Description = "E-commerce store" },
     PaymentOptions = new List<string> { "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
 });
@@ -125,7 +127,7 @@ Use this for e-commerce where you specify an amount in a reference currency (e.g
 ```csharp
 var checkout = await fluxis.PointOfSale.CreatePaymentRequestCheckoutAsync(pos.Id, new CreatePaymentRequestCheckoutRequest
 {
-    Amount = "49.99",
+    Amount = 49.99,
     CoinCode = "USD",
     ReferenceId = "order-002",
     Order = new Order
@@ -160,12 +162,13 @@ Console.WriteLine(checkout.CheckoutUrl); // Hosted checkout page URL
 
 Fluxis sends payment status updates via webhooks. This is the primary mechanism for knowing when a payment is completed.
 
-### Step 1: Configure webhook on your PoS
+### Step 1: Configure account-scoped webhook
 
 ```csharp
-var webhook = await fluxis.PointOfSale.CreateNotificationsAsync(pos.Id, new CreateNotificationSettingsRequest
+var webhook = await fluxis.Webhooks.CreateAsync(accountId, new WebhookCreateRequest
 {
-    WebhookUrl = "https://yourserver.com/webhooks/fluxis",
+    Url = "https://yourserver.com/webhooks/fluxis",
+    EventType = WebhookEventTypes.PaymentRequest,
 });
 
 // IMPORTANT: Save this secret securely — it's only returned once
@@ -234,37 +237,37 @@ public class FluxisWebhookController : ControllerBase
 ### Step 3: Update webhook URL (if needed)
 
 ```csharp
-await fluxis.PointOfSale.UpdateNotificationsAsync(pos.Id, new UpdateNotificationSettingsRequest
+await fluxis.Webhooks.UpdateUrlAsync(accountId, webhookId, new WebhookUpdateUrlRequest
 {
-    WebhookUrl = "https://newserver.com/webhooks/fluxis",
+    Url = "https://newserver.com/webhooks/fluxis",
 });
 ```
 
 ---
 
-## Flow 4: Refunds
+## Flow 4: Payment Intentions (Open PoS)
 
-Refunds can be issued for completed or overpaid payments.
+For `cashier_open` PoS types, use payment intentions to accept dynamic amounts.
 
 ```csharp
-// Full refund
-var refund = await fluxis.Refunds.CreateAsync(paymentRequestId, new CreateRefundRequest
+// Create a payment intention
+var intention = await fluxis.PointOfSale.CreatePaymentIntentionAsync(posId, new CreatePaymentIntentionRequest
 {
-    RefundToAddress = "0x1234567890abcdef1234567890abcdef12345678",
-    Reason = "Customer requested",
+    Amount = 25.00,
+    CoinCode = "USD",
+    ExternalId = "order-003",
 });
 
-// Partial refund
-var partialRefund = await fluxis.Refunds.CreateAsync(paymentRequestId, new CreateRefundRequest
-{
-    RefundToAddress = "0x1234567890abcdef1234567890abcdef12345678",
-    Amount = "10.00",
-    Reason = "Partial refund for returned item",
-});
+Console.WriteLine(intention.Token);
 
-// Check refund status
-var detail = await fluxis.Refunds.GetAsync(refund.Id);
-Console.WriteLine(detail.Status); // "processing" | "completed" | "failed"
+// Get current intention
+var current = await fluxis.PointOfSale.GetPaymentIntentionAsync(posId);
+
+// Get QR code for the PoS
+var qr = await fluxis.PointOfSale.GetQrAsync(posId);
+
+// Close the intention when done
+await fluxis.PointOfSale.ClosePaymentIntentionAsync(posId);
 ```
 
 ---
@@ -281,13 +284,19 @@ Console.WriteLine(detail.Status); // "processing" | "completed" | "failed"
 | `UpdateAsync(accountId, request, ct)` | Update account |
 | `DeleteAsync(accountId, ct)` | Delete account |
 | `GetSettlementAddressesAsync(accountId, ct)` | Get settlement addresses |
+| `SetSettlementAddressAsync(accountId, request, ct)` | Set settlement address |
+| `UpdateSettlementAddressAsync(accountId, request, ct)` | Update settlement address |
+| `DeleteSettlementAddressAsync(accountId, network, ct)` | Delete settlement address |
 
 ### fluxis.Organization
 
 | Method | Description |
 |--------|-------------|
-| `SetSettlementAddressesAsync(addresses, ct)` | Set settlement addresses |
-| `UpdateSettlementAddressesAsync(addresses, ct)` | Update settlement addresses |
+| `GetAsync(ct)` | Get organization |
+| `SetSettlementAddressAsync(request, ct)` | Set settlement address |
+| `UpdateSettlementAddressAsync(request, ct)` | Update settlement address |
+| `GetSettlementAddressesAsync(ct)` | Get settlement addresses |
+| `DeleteSettlementAddressAsync(network, ct)` | Delete settlement address |
 
 Each address: `new SettlementAddressRequest { Address = "0x...", Network = "polygon", AddressTag = null }`
 
@@ -295,16 +304,31 @@ Each address: `new SettlementAddressRequest { Address = "0x...", Network = "poly
 
 | Method | Description |
 |--------|-------------|
-| `ListAsync(ct)` | List all PoS |
+| `ListAsync(options?, ct)` | List PoS (paginated) |
 | `GetAsync(posId, ct)` | Get PoS by ID |
 | `CreateAsync(request, ct)` | Create PoS |
 | `UpdateAsync(posId, request, ct)` | Update PoS |
-| `GetNotificationsAsync(posId, ct)` | Get webhook settings |
-| `CreateNotificationsAsync(posId, request, ct)` | Create webhook (returns secret) |
-| `UpdateNotificationsAsync(posId, request, ct)` | Update webhook URL |
+| `DeleteAsync(posId, ct)` | Delete PoS |
+| `GetPaymentIntentionAsync(posId, ct)` | Get current payment intention |
+| `CreatePaymentIntentionAsync(posId, request, ct)` | Create payment intention |
+| `ClosePaymentIntentionAsync(posId, ct)` | Close payment intention |
+| `GetQrAsync(posId, ct)` | Get PoS QR code |
 | `CreatePaymentRequestAsync(posId, request, ct)` | Create payment request → `PaymentRequestResponse` |
 | `GetPaymentRequestAsync(posId, paymentRequestId, ct)` | Get payment request status |
 | `CreatePaymentRequestCheckoutAsync(posId, request, ct)` | Create checkout → `PaymentRequestCheckoutResponse` (includes `CheckoutUrl`) |
+
+### fluxis.Webhooks
+
+| Method | Description |
+|--------|-------------|
+| `CreateAsync(accountId, request, ct)` | Create webhook (returns secret) |
+| `ListAsync(accountId, ct)` | List webhooks |
+| `GetLogsAsync(accountId, page?, pageSize?, ct)` | Get delivery logs (paginated) |
+| `ActivateAsync(accountId, webhookId, ct)` | Activate webhook |
+| `DeactivateAsync(accountId, webhookId, ct)` | Deactivate webhook |
+| `DeleteAsync(accountId, webhookId, ct)` | Delete webhook |
+| `TestAsync(accountId, webhookId, ct)` | Send test event |
+| `UpdateUrlAsync(accountId, webhookId, request, ct)` | Update webhook URL |
 
 ### fluxis.Naspip
 
@@ -314,18 +338,11 @@ Each address: `new SettlementAddressRequest { Address = "0x...", Network = "poly
 | `ReadAsync(token, ct)` | Decode and verify a NASPIP token |
 | `NaspipResource.IsValidTokenFormat(token)` | Static: check if string starts with `v4.local.` |
 
-### fluxis.Refunds
-
-| Method | Description |
-|--------|-------------|
-| `CreateAsync(paymentRequestId, request, ct)` | Create refund |
-| `GetAsync(refundId, ct)` | Get refund details |
-
 ### fluxis.Transactions
 
 | Method | Description |
 |--------|-------------|
-| `ListAsync(options?, ct)` | List transactions (paginated, filterable) |
+| `ListAsync(options?, ct)` | List transactions (paginated with page/pageSize) |
 
 `ct` = optional `CancellationToken` parameter on all async methods.
 
@@ -338,12 +355,26 @@ Each address: `new SettlementAddressRequest { Address = "0x...", Network = "poly
 | Constant | Value |
 |----------|-------|
 | `PaymentRequestStatus.Created` | `"created"` — awaiting payment |
+| `PaymentRequestStatus.Pending` | `"pending"` — awaiting payment confirmation |
 | `PaymentRequestStatus.Processing` | `"processing"` — deposit detected, confirming |
+| `PaymentRequestStatus.Confirmed` | `"confirmed"` — payment confirmed on-chain |
 | `PaymentRequestStatus.Completed` | `"completed"` — fully paid |
 | `PaymentRequestStatus.Overpaid` | `"overpaid"` — received more than requested |
 | `PaymentRequestStatus.Underpaid` | `"underpaid"` — received less than requested |
 | `PaymentRequestStatus.Expired` | `"expired"` — NASPIP token expired |
 | `PaymentRequestStatus.Failed` | `"failed"` — payment processing failed |
+
+### PointOfSaleTypes (static class)
+
+`CashierFixed`, `OnlineFixed`, `CashierOpen`
+
+### PaymentRequestTypes (static class)
+
+`Fixed`, `Dynamic`, `PreLoaded`, `Open`
+
+### WebhookEventTypes (static class)
+
+`PaymentRequest`, `IncomingTransfer`, `Refund`
 
 ### TransactionTypes (static class)
 
@@ -495,7 +526,7 @@ record CreatePaymentDto(string Amount, string OrderId);
 1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
 2. Update your deployed configuration to use your production `fxs.prd.*` key
 3. Update webhook URLs to your production server
-4. Re-create notification settings on production PoS (webhook secrets are per-environment)
+4. Re-create webhooks on production accounts (webhook secrets are per-environment)
 
 ```csharp
 var fluxis = new FluxisClient(new FluxisClientOptions

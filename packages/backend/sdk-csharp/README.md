@@ -83,7 +83,7 @@ var payment = await client.PointOfSale.CreatePaymentRequestAsync(posId,
 var checkout = await client.PointOfSale.CreatePaymentRequestCheckoutAsync(posId,
     new CreatePaymentRequestCheckoutRequest
     {
-        Amount = "50.00",
+        Amount = 50.00,
         CoinCode = "USD",
         ReferenceId = "order-001",
     });
@@ -92,17 +92,18 @@ var checkout = await client.PointOfSale.CreatePaymentRequestCheckoutAsync(posId,
 
 ## Webhook Handling in ASP.NET Core
 
-### 1. Set up webhook notifications
+### 1. Set up account-scoped webhooks
 
 ```csharp
-var notifications = await client.PointOfSale.CreateNotificationsAsync(posId,
-    new CreateNotificationSettingsRequest
+var webhook = await client.Webhooks.CreateAsync(accountId,
+    new WebhookCreateRequest
     {
-        WebhookUrl = "https://yourapp.com/api/webhooks/fluxis",
+        Url = "https://yourapp.com/api/webhooks/fluxis",
+        EventType = WebhookEventTypes.PaymentRequest,
     });
 
 // IMPORTANT: Store this secret securely (e.g. in Azure Key Vault)
-var webhookSecret = notifications.Secret;
+var webhookSecret = webhook.Secret;
 ```
 
 ### 2. Create a webhook controller
@@ -174,7 +175,7 @@ var status = await client.PointOfSale.GetPaymentRequestAsync(posId, paymentReque
 Console.WriteLine($"Current status: {status.Status}");
 ```
 
-Payment statuses: `created` → `processing` → `completed` | `overpaid` | `underpaid` | `expired` | `failed`
+Payment statuses: `created` → `pending` → `processing` → `confirmed` → `completed` | `overpaid` | `underpaid` | `expired` | `failed`
 
 ## Other API Operations
 
@@ -183,8 +184,31 @@ Payment statuses: `created` → `processing` → `completed` | `overpaid` | `und
 ```csharp
 var accounts = await client.Accounts.ListAsync();
 var account = await client.Accounts.CreateAsync(new CreateAccountRequest { Name = "Buenos Aires Branch" });
-var updated = await client.Accounts.UpdateAsync(account.Id, new UpdateAccountRequest { Name = "BA Branch" });
-await client.Accounts.DeleteAsync(account.Id);
+var updated = await client.Accounts.UpdateAsync(accountId, new UpdateAccountRequest { Name = "BA Branch" });
+await client.Accounts.DeleteAsync(accountId);
+await client.Accounts.SetSettlementAddressAsync(accountId, new SettlementAddressRequest
+{
+    Address = "0x...",
+    Network = "polygon",
+});
+```
+
+### Organization
+
+```csharp
+var org = await client.Organization.GetAsync();
+var addresses = await client.Organization.GetSettlementAddressesAsync();
+```
+
+### Webhooks
+
+```csharp
+var webhooks = await client.Webhooks.ListAsync(accountId);
+var logs = await client.Webhooks.GetLogsAsync(accountId, page: 1, pageSize: 20);
+await client.Webhooks.UpdateUrlAsync(accountId, webhookId, new WebhookUpdateUrlRequest
+{
+    Url = "https://newserver.com/webhooks/fluxis",
+});
 ```
 
 ### Transactions
@@ -192,23 +216,9 @@ await client.Accounts.DeleteAsync(account.Id);
 ```csharp
 var transactions = await client.Transactions.ListAsync(new ListTransactionsOptions
 {
-    Limit = 20,
-    Status = TransactionStatuses.Completed,
-    Order = "desc",
+    Page = 1,
+    PageSize = 20,
 });
-```
-
-### Refunds
-
-```csharp
-var refund = await client.Refunds.CreateAsync(paymentRequestId, new CreateRefundRequest
-{
-    RefundToAddress = "0x1234...",
-    Amount = "50.00",
-    Reason = "Customer requested",
-});
-
-var refundDetail = await client.Refunds.GetAsync(refund.Id);
 ```
 
 ### NASPIP Token Verification

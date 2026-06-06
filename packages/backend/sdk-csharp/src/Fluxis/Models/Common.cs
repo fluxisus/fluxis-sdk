@@ -44,8 +44,12 @@ public static class PaymentRequestStatus
 {
     /// <summary>Just created, awaiting payment.</summary>
     public const string Created = "created";
+    /// <summary>Awaiting payment confirmation.</summary>
+    public const string Pending = "pending";
     /// <summary>Deposit detected, confirming.</summary>
     public const string Processing = "processing";
+    /// <summary>Payment confirmed on-chain.</summary>
+    public const string Confirmed = "confirmed";
     /// <summary>NASPIP token expired, no payment received.</summary>
     public const string Expired = "expired";
     /// <summary>Fully paid.</summary>
@@ -56,6 +60,30 @@ public static class PaymentRequestStatus
     public const string Underpaid = "underpaid";
     /// <summary>Payment processing failed.</summary>
     public const string Failed = "failed";
+}
+
+/// <summary>Point of Sale type values.</summary>
+public static class PointOfSaleTypes
+{
+    /// <summary>Fixed-amount cashier PoS.</summary>
+    public const string CashierFixed = "cashier_fixed";
+    /// <summary>Fixed-amount online PoS.</summary>
+    public const string OnlineFixed = "online_fixed";
+    /// <summary>Open-amount cashier PoS (payment intentions).</summary>
+    public const string CashierOpen = "cashier_open";
+}
+
+/// <summary>Payment request type values.</summary>
+public static class PaymentRequestTypes
+{
+    /// <summary>Fixed amount payment.</summary>
+    public const string Fixed = "fixed";
+    /// <summary>Dynamic amount payment.</summary>
+    public const string Dynamic = "dynamic";
+    /// <summary>Pre-loaded amount payment.</summary>
+    public const string PreLoaded = "pre_loaded";
+    /// <summary>Open amount payment.</summary>
+    public const string Open = "open";
 }
 
 /// <summary>Transaction type values.</summary>

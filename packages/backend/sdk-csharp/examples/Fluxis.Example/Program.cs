@@ -30,7 +30,7 @@ try
     // 2. List existing Points of Sale
     Console.WriteLine("=== Listing Points of Sale ===");
     var posList = await client.PointOfSale.ListAsync();
-    foreach (var pos in posList)
+    foreach (var pos in posList.Data)
     {
         Console.WriteLine($"  PoS: {pos.Name} (ID: {pos.Id})");
     }
@@ -86,8 +86,7 @@ try
     Console.WriteLine("\n=== Recent Transactions ===");
     var transactions = await client.Transactions.ListAsync(new ListTransactionsOptions
     {
-        Limit = 5,
-        Order = "desc",
+        PageSize = 5,
     });
     Console.WriteLine($"  Total transactions: {transactions.Total}");
     foreach (var tx in transactions.Data)

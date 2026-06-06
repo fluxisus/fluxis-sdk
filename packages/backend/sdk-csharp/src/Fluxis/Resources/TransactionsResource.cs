@@ -7,41 +7,30 @@ namespace Fluxis.Resources;
 /// </summary>
 public sealed class TransactionsResource
 {
+    private const int DefaultPage = 1;
+    private const int DefaultPageSize = 50;
+
     private readonly FluxisClient _client;
 
     internal TransactionsResource(FluxisClient client) => _client = client;
 
     /// <summary>
-    /// Lists transactions with optional filtering and pagination.
+    /// Lists transactions with pagination.
     /// </summary>
-    /// <param name="options">Query options (limit, offset, status, sort, order, accountId).</param>
+    /// <param name="options">Query options (page, pageSize).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Paginated list of transactions.</returns>
-    public async Task<TransactionListResponse> ListAsync(
+    public async Task<PaginatedResponse<Transaction>> ListAsync(
         ListTransactionsOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        Dictionary<string, string>? query = null;
-
-        if (options != null)
+        var query = new Dictionary<string, string>
         {
-            query = new Dictionary<string, string>();
+            ["page"] = (options?.Page ?? DefaultPage).ToString(),
+            ["page_size"] = (options?.PageSize ?? DefaultPageSize).ToString(),
+        };
 
-            if (options.Limit.HasValue)
-                query["limit"] = options.Limit.Value.ToString();
-            if (options.Offset.HasValue)
-                query["offset"] = options.Offset.Value.ToString();
-            if (options.Status != null)
-                query["status"] = options.Status;
-            if (options.Sort != null)
-                query["sort"] = options.Sort;
-            if (options.Order != null)
-                query["order"] = options.Order;
-            if (options.AccountId != null)
-                query["accountID"] = options.AccountId;
-        }
-
-        return await _client.RequestAsync<TransactionListResponse>(
+        return await _client.RequestAsync<PaginatedResponse<Transaction>>(
             HttpMethod.Get, "/transactions", query: query, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }

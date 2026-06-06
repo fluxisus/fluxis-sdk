@@ -11,6 +11,14 @@ public sealed class CreatePointOfSaleRequest
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Reference currency code (e.g. "USD").</summary>
+    [JsonPropertyName("reference_currency")]
+    public string ReferenceCurrency { get; set; } = string.Empty;
+
+    /// <summary>PoS type (cashier_fixed, online_fixed, cashier_open).</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
     /// <summary>Account ID to associate with this PoS.</summary>
     [JsonPropertyName("account_id")]
     public string? AccountId { get; set; }
@@ -29,6 +37,10 @@ public sealed class CreatePointOfSaleRequest
 /// </summary>
 public sealed class UpdatePointOfSaleRequest
 {
+    /// <summary>Reference currency code (e.g. "USD").</summary>
+    [JsonPropertyName("reference_currency")]
+    public string ReferenceCurrency { get; set; } = string.Empty;
+
     /// <summary>Updated PoS name.</summary>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
@@ -47,6 +59,10 @@ public sealed class UpdatePointOfSaleRequest
 /// </summary>
 public sealed class PointOfSaleConfig
 {
+    /// <summary>Reference currency code (e.g. "USD").</summary>
+    [JsonPropertyName("reference_currency")]
+    public string? ReferenceCurrency { get; set; }
+
     /// <summary>Merchant information.</summary>
     [JsonPropertyName("merchant")]
     public Merchant? Merchant { get; set; }
@@ -68,6 +84,10 @@ public sealed class PointOfSale
     /// <summary>PoS name.</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>PoS type (cashier_fixed, online_fixed, cashier_open).</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
 
     /// <summary>Organization ID.</summary>
     [JsonPropertyName("organization_id")]
@@ -99,57 +119,18 @@ public sealed class PointOfSale
 }
 
 /// <summary>
-/// Request to create webhook notification settings.
+/// Query options for listing Points of Sale.
 /// </summary>
-public sealed class CreateNotificationSettingsRequest
+public sealed class ListPointOfSaleOptions
 {
-    /// <summary>URL to receive webhook notifications.</summary>
-    [JsonPropertyName("webhook_url")]
-    public string WebhookUrl { get; set; } = string.Empty;
-}
+    /// <summary>Page number (1-based).</summary>
+    public int? Page { get; set; }
 
-/// <summary>
-/// Current notification settings for a PoS.
-/// </summary>
-public sealed class NotificationSettings
-{
-    /// <summary>Configured webhook URL.</summary>
-    [JsonPropertyName("webhook_url")]
-    public string WebhookUrl { get; set; } = string.Empty;
-}
+    /// <summary>Number of items per page.</summary>
+    public int? PageSize { get; set; }
 
-/// <summary>
-/// Response from creating notification settings (includes secret).
-/// </summary>
-public sealed class CreateNotificationSettingsResponse
-{
-    /// <summary>Configured webhook URL.</summary>
-    [JsonPropertyName("webhook_url")]
-    public string WebhookUrl { get; set; } = string.Empty;
-
-    /// <summary>HMAC secret for verifying webhook signatures. Store this securely.</summary>
-    [JsonPropertyName("secret")]
-    public string Secret { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Request to update webhook notification settings.
-/// </summary>
-public sealed class UpdateNotificationSettingsRequest
-{
-    /// <summary>New webhook URL.</summary>
-    [JsonPropertyName("webhook_url")]
-    public string WebhookUrl { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Response from updating notification settings.
-/// </summary>
-public sealed class UpdateNotificationSettingsResponse
-{
-    /// <summary>Updated webhook URL.</summary>
-    [JsonPropertyName("webhook_url")]
-    public string WebhookUrl { get; set; } = string.Empty;
+    /// <summary>Filter by account ID.</summary>
+    public string? AccountId { get; set; }
 }
 
 /// <summary>
@@ -179,9 +160,9 @@ public sealed class CreatePaymentRequestRequest
 /// </summary>
 public sealed class CreatePaymentRequestCheckoutRequest
 {
-    /// <summary>Payment amount as a string (e.g. "1234.99").</summary>
+    /// <summary>Payment amount.</summary>
     [JsonPropertyName("amount")]
-    public string Amount { get; set; } = string.Empty;
+    public double Amount { get; set; }
 
     /// <summary>Fiat currency code (e.g. "USD").</summary>
     [JsonPropertyName("coin_code")]

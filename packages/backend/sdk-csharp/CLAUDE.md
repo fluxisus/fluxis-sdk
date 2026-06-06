@@ -15,18 +15,19 @@ packages/backend/sdk-csharp/
 │   │   ├── AccountsResource.cs
 │   │   ├── OrganizationResource.cs
 │   │   ├── PointOfSaleResource.cs
+│   │   ├── WebhooksResource.cs
 │   │   ├── NaspipResource.cs
-│   │   ├── RefundsResource.cs
 │   │   └── TransactionsResource.cs
 │   ├── Models/               # Request/response DTOs
 │   │   ├── Auth.cs
 │   │   ├── Account.cs
+│   │   ├── Organization.cs
 │   │   ├── PointOfSale.cs
-│   │   ├── PaymentRequest.cs
+│   │   ├── PaymentIntention.cs
+│   │   ├── Webhook.cs
 │   │   ├── Naspip.cs
-│   │   ├── Refund.cs
 │   │   ├── Transaction.cs
-│   │   └── Common.cs         # ApiResponse<T>, enums
+│   │   └── Common.cs         # ApiResponse<T>, enums, PaginatedResponse<T>
 │   ├── Errors/
 │   │   ├── FluxisException.cs
 │   │   └── FluxisAuthException.cs

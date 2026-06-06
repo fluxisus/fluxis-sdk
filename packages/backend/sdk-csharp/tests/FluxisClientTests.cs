@@ -20,7 +20,7 @@ public class FluxisClientTests
         client.Organization.Should().NotBeNull();
         client.PointOfSale.Should().NotBeNull();
         client.Naspip.Should().NotBeNull();
-        client.Refunds.Should().NotBeNull();
+        client.Webhooks.Should().NotBeNull();
         client.Transactions.Should().NotBeNull();
 
         client.Dispose();

@@ -35,10 +35,6 @@ public sealed class UpdateAccountRequest
 /// </summary>
 public sealed class Account
 {
-    /// <summary>Unique account ID.</summary>
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-
     /// <summary>Account name.</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
@@ -46,18 +42,6 @@ public sealed class Account
     /// <summary>External identifier.</summary>
     [JsonPropertyName("external_id")]
     public string? ExternalId { get; set; }
-
-    /// <summary>Creation timestamp.</summary>
-    [JsonPropertyName("created_at")]
-    public string? CreatedAt { get; set; }
-
-    /// <summary>Last update timestamp.</summary>
-    [JsonPropertyName("updated_at")]
-    public string? UpdatedAt { get; set; }
-
-    /// <summary>Deletion timestamp (if soft-deleted).</summary>
-    [JsonPropertyName("deleted_at")]
-    public string? DeletedAt { get; set; }
 }
 
 /// <summary>
