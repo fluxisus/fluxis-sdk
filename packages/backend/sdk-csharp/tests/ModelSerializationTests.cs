@@ -148,4 +148,26 @@ public class ModelSerializationTests
         result.PageSize.Should().Be(10);
         result.TotalPages.Should().Be(5);
     }
+
+    [Fact]
+    public void Transaction_DeserializesStringAmounts()
+    {
+        var json = """
+        {
+            "id": "tx_002",
+            "type": "deposit",
+            "status": "completed",
+            "gross_amount": "123.45",
+            "net_amount": "120.00",
+            "expected_amount": 123.45
+        }
+        """;
+
+        var result = JsonSerializer.Deserialize<Transaction>(json, Options);
+
+        result.Should().NotBeNull();
+        result!.GrossAmount.Should().Be(123.45);
+        result.NetAmount.Should().Be(120.0);
+        result.ExpectedAmount.Should().Be(123.45);
+    }
 }

@@ -12,6 +12,8 @@ packages/backend/sdk-csharp/artifacts/
 *.nupkg
 
 # Build outputs — Python
+.venv/
+packages/backend/sdk-python/.venv/
 packages/sdk-python/dist/
 packages/sdk-python/build/
 packages/sdk-python/*.egg-info/

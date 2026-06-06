@@ -35,6 +35,10 @@ public sealed class UpdateAccountRequest
 /// </summary>
 public sealed class Account
 {
+    /// <summary>Account ID.</summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
     /// <summary>Account name.</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;

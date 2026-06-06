@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Fluxis.Utilities;
 
 namespace Fluxis.Models;
 
@@ -45,14 +46,17 @@ public sealed class Transaction
 
     /// <summary>Gross amount.</summary>
     [JsonPropertyName("gross_amount")]
+    [JsonConverter(typeof(FlexibleDoubleConverter))]
     public double? GrossAmount { get; set; }
 
     /// <summary>Net amount (after fees).</summary>
     [JsonPropertyName("net_amount")]
+    [JsonConverter(typeof(FlexibleDoubleConverter))]
     public double? NetAmount { get; set; }
 
     /// <summary>Expected amount.</summary>
     [JsonPropertyName("expected_amount")]
+    [JsonConverter(typeof(FlexibleDoubleConverter))]
     public double? ExpectedAmount { get; set; }
 
     /// <summary>Source entity/address.</summary>
