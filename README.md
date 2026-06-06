@@ -176,19 +176,25 @@ Crypto assets are identified with the format `n{network}_t{tokenAddress}`:
 
 ### Webhooks
 
-Webhooks are the primary mechanism for receiving payment status updates. The SDK provides a `verifyWebhookSignature` utility (HMAC-SHA256) to authenticate incoming events. The webhook secret is returned once when creating notification settings on a Point of Sale.
+Webhooks are the primary mechanism for receiving payment and transfer events. They are configured per **account** (not per PoS). Event types: `payment_request`, `incoming_transfer`, `refund`. The SDK provides `verifyWebhookSignature` (HMAC-SHA256). The webhook `secret` is returned once when creating a webhook via `POST /account/{accountId}/webhook`.
 
 ### Payment Request Statuses
 
 ```
-created ──→ processing ──→ completed
-               │
-               ├──→ overpaid   (received more than requested)
-               └──→ underpaid  (received less than requested)
-
-created ──→ expired  (token expired, no payment received)
-          └──→ failed   (processing error)
+pending ──→ created ──→ processing ──→ completed ──→ confirmed
+              │              │
+              ├──→ overpaid  ├──→ underpaid
+              ├──→ expired   └──→ failed
+              └──→ failed
 ```
+
+### Payment Intention (open PoS)
+
+For `cashier_open` PoS types, use `createPaymentIntention` — the merchant sets the amount and the payer selects the payment currency.
+
+### Pagination
+
+`/transactions` and `/pos` use `page` + `page_size`. Responses include `page`, `page_size`, `total`, `total_pages`.
 
 ---
 

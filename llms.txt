@@ -26,21 +26,29 @@ Two-step auth — all SDKs handle this automatically:
 | Staging | `https://api.stgfluxis.us/v1` | `fxs.stg.*` |
 | Production | `https://api.fluxis.us/v1` | `fxs.prd.*` |
 
-### Two Payment Flows
+### Payment Flows
 1. **Direct crypto** (`createPaymentRequest`): You specify a `unique_asset_id`. Returns a NASPIP token (render as QR).
 2. **Hosted checkout** (`createPaymentRequestCheckout`): You specify a `coin_code` (fiat for display). Returns a checkout URL.
+3. **Payment intention** (`createPaymentIntention`): For `cashier_open` PoS — merchant sets amount, payer selects currency.
 
 ### Unique Asset IDs
 Format: `n{network}_t{tokenAddress}`. Example: `npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` = USDC on Polygon.
 
-### Webhooks
-HMAC-SHA256 signature verification. The webhook secret is returned once when creating notification settings on a PoS.
+### Webhooks (account-scoped)
+Webhooks are configured per account (not per PoS). Event types: `payment_request`, `incoming_transfer`, `refund`.
+HMAC-SHA256 signature verification via `verifyWebhookSignature()`. The webhook `secret` is returned once when creating a webhook.
 
 ### Payment Request Statuses
-`created`, `processing`, `completed`, `overpaid`, `underpaid`, `expired`, `failed`
+`pending`, `created`, `processing`, `completed`, `confirmed`, `overpaid`, `underpaid`, `expired`, `failed`
+
+### Point of Sale Types
+`cashier_fixed`, `online_fixed`, `cashier_open`
 
 ### Transaction Types
 `deposit`, `withdraw`, `refund`, `adjustment`, `swap`, `payment_in`, `payment_out`, `dry_run`
+
+### Pagination
+`/transactions` and `/pos` use `page` + `page_size`. Responses include `page`, `page_size`, `total`, `total_pages`.
 
 ### API Response Envelope
 ```json
