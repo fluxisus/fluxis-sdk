@@ -14,7 +14,7 @@ on:
       - 'packages/backend/sdk-go/**'
       - 'spec/**'
     tags:
-      - 'sdk-go/v*'
+      - 'packages/backend/sdk-go/v*'
   pull_request:
     paths:
       - 'packages/backend/sdk-go/**'
@@ -51,7 +51,7 @@ jobs:
 
   publish:
     needs: build-and-test
-    if: startsWith(github.ref, 'refs/tags/sdk-go/v')
+    if: startsWith(github.ref, 'refs/tags/packages/backend/sdk-go/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -62,7 +62,7 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#sdk-go/v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${GITHUB_REF_NAME#packages/backend/sdk-go/v}" >> "$GITHUB_OUTPUT"
 
       - name: Request pkg.go.dev indexing
         # The Go module proxy indexes the tag automatically within minutes.

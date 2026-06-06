@@ -29,7 +29,7 @@
     "packages/backend/sdk-go": {
       "release-type": "go",
       "package-name": "fluxis-sdk-go",
-      "tag-name": "sdk-go/v${version}"
+      "tag-name": "packages/backend/sdk-go/v${version}"
     }
   }
 }

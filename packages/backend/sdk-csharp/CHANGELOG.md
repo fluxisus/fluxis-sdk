@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0](https://github.com/fluxisus/fluxis-sdk/compare/csharp-sdk-v0.2.0...csharp-sdk-v1.0.0) (2026-06-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk-csharp:** Removed RefundsResource and PoS notification methods. ListAsync returns PaginatedResponse. Settlement address methods use single-object requests.
+
+### Features
+
+* Core API v1.0 SDKs with Go, Python, and expanded test coverage ([14e8c83](https://github.com/fluxisus/fluxis-sdk/commit/14e8c83807f861934f3518ade73e8594047e47a5))
+* **sdk-csharp:** sync C# SDK to Core API v1.0 ([17aaf07](https://github.com/fluxisus/fluxis-sdk/commit/17aaf071b523c94c3eeb3d19ebc381fab7159784))
+* **sdk:** add Go and Python SDKs with cross-SDK test coverage ([c5b9065](https://github.com/fluxisus/fluxis-sdk/commit/c5b90655daa8153310d567ba831bcc63bb2952f1))
+
 ## [0.2.0](https://github.com/fluxisus/fluxis-sdk/compare/csharp-sdk-v0.1.0...csharp-sdk-v0.2.0) (2026-03-17)
 
 
