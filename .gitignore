@@ -6,8 +6,9 @@ dist/
 *.tsbuildinfo
 
 # Build outputs — C#
-packages/sdk-csharp/**/bin/
-packages/sdk-csharp/**/obj/
+packages/backend/sdk-csharp/**/bin/
+packages/backend/sdk-csharp/**/obj/
+packages/backend/sdk-csharp/artifacts/
 *.nupkg
 
 # Build outputs — Python
@@ -42,3 +43,4 @@ TestResults/
 .claude/worktrees/
 SESSION_START.md
 sdk-improvements-plan.md
+
