@@ -4,8 +4,8 @@ import { AccountsResource } from '../src/resources/accounts.js';
 import { OrganizationResource } from '../src/resources/organization.js';
 import { PointOfSaleResource } from '../src/resources/pointOfSale.js';
 import { NaspipResource } from '../src/resources/naspip.js';
-import { RefundsResource } from '../src/resources/refunds.js';
 import { TransactionsResource } from '../src/resources/transactions.js';
+import { WebhooksResource } from '../src/resources/webhooks.js';
 
 type RequestSpy = ReturnType<typeof vi.fn>;
 
@@ -54,6 +54,28 @@ describe('AccountsResource', () => {
     await accounts.getSettlementAddresses('acc-1');
     expect(client.request).toHaveBeenCalledWith('GET', '/account/acc-1/settlement-addresses');
   });
+
+  it('setSettlementAddress() calls POST /account/:id/settlement-addresses', async () => {
+    const data = { address: '0x1', network: 'polygon' };
+    await accounts.setSettlementAddress('acc-1', data);
+    expect(client.request).toHaveBeenCalledWith('POST', '/account/acc-1/settlement-addresses', data);
+  });
+
+  it('updateSettlementAddress() calls PUT /account/:id/settlement-addresses', async () => {
+    const data = { address: '0x2', network: 'ethereum' };
+    await accounts.updateSettlementAddress('acc-1', data);
+    expect(client.request).toHaveBeenCalledWith('PUT', '/account/acc-1/settlement-addresses', data);
+  });
+
+  it('deleteSettlementAddress() calls DELETE with network query param', async () => {
+    await accounts.deleteSettlementAddress('acc-1', 'polygon');
+    expect(client.request).toHaveBeenCalledWith(
+      'DELETE',
+      '/account/acc-1/settlement-addresses',
+      undefined,
+      { network: 'polygon' },
+    );
+  });
 });
 
 describe('OrganizationResource', () => {
@@ -65,16 +87,36 @@ describe('OrganizationResource', () => {
     org = new OrganizationResource(client);
   });
 
-  it('setSettlementAddresses() calls POST /organization/settlement-addresses', async () => {
-    const data = [{ address: '0x1', network: 'polygon' }];
-    await org.setSettlementAddresses(data);
+  it('get() calls GET /organization', async () => {
+    await org.get();
+    expect(client.request).toHaveBeenCalledWith('GET', '/organization');
+  });
+
+  it('setSettlementAddress() calls POST /organization/settlement-addresses', async () => {
+    const data = { address: '0x1', network: 'polygon' };
+    await org.setSettlementAddress(data);
     expect(client.request).toHaveBeenCalledWith('POST', '/organization/settlement-addresses', data);
   });
 
-  it('updateSettlementAddresses() calls PUT /organization/settlement-addresses', async () => {
-    const data = [{ address: '0x2', network: 'ethereum' }];
-    await org.updateSettlementAddresses(data);
+  it('updateSettlementAddress() calls PUT /organization/settlement-addresses', async () => {
+    const data = { address: '0x2', network: 'ethereum' };
+    await org.updateSettlementAddress(data);
     expect(client.request).toHaveBeenCalledWith('PUT', '/organization/settlement-addresses', data);
+  });
+
+  it('getSettlementAddresses() calls GET /organization/settlement-addresses', async () => {
+    await org.getSettlementAddresses();
+    expect(client.request).toHaveBeenCalledWith('GET', '/organization/settlement-addresses');
+  });
+
+  it('deleteSettlementAddress() calls DELETE with network query param', async () => {
+    await org.deleteSettlementAddress('polygon');
+    expect(client.request).toHaveBeenCalledWith(
+      'DELETE',
+      '/organization/settlement-addresses',
+      undefined,
+      { network: 'polygon' },
+    );
   });
 });
 
@@ -87,9 +129,15 @@ describe('PointOfSaleResource', () => {
     pos = new PointOfSaleResource(client);
   });
 
-  it('list() calls GET /pos', async () => {
+  it('list() calls GET /pos with no query when no options', async () => {
     await pos.list();
-    expect(client.request).toHaveBeenCalledWith('GET', '/pos');
+    expect(client.request).toHaveBeenCalledWith('GET', '/pos', undefined, {});
+  });
+
+  it('list() passes pagination and accountId query params', async () => {
+    await pos.list({ page: 2, pageSize: 25, accountId: 'acc-1' });
+    const query = client.request.mock.calls[0]![3] as Record<string, unknown>;
+    expect(query).toEqual({ page: 2, page_size: 25, accountID: 'acc-1' });
   });
 
   it('get() calls GET /pos/:id', async () => {
@@ -98,35 +146,45 @@ describe('PointOfSaleResource', () => {
   });
 
   it('create() calls POST /pos with body', async () => {
-    const data = { name: 'Store' };
+    const data = {
+      name: 'Store',
+      referenceCurrency: 'USD',
+      type: 'online_fixed' as const,
+    };
     await pos.create(data);
     expect(client.request).toHaveBeenCalledWith('POST', '/pos', data);
   });
 
   it('update() calls PUT /pos/:id with body', async () => {
-    const data = { name: 'Updated' };
+    const data = { referenceCurrency: 'USD', name: 'Updated' };
     await pos.update('pos-1', data);
     expect(client.request).toHaveBeenCalledWith('PUT', '/pos/pos-1', data);
   });
 
-  it('getNotifications() calls GET /pos/:id/notifications', async () => {
-    await pos.getNotifications('pos-1');
-    expect(client.request).toHaveBeenCalledWith('GET', '/pos/pos-1/notifications');
+  it('delete() calls DELETE /pos/:id', async () => {
+    await pos.delete('pos-1');
+    expect(client.request).toHaveBeenCalledWith('DELETE', '/pos/pos-1');
   });
 
-  it('createNotifications() calls POST /pos/:id/notifications', async () => {
-    const data = { webhookUrl: 'https://example.com/hook' };
-    await pos.createNotifications('pos-1', data);
-    expect(client.request).toHaveBeenCalledWith('POST', '/pos/pos-1/notifications', data);
+  it('getPaymentIntention() calls GET /pos/:id/payment-intention', async () => {
+    await pos.getPaymentIntention('pos-1');
+    expect(client.request).toHaveBeenCalledWith('GET', '/pos/pos-1/payment-intention');
   });
 
-  it('updateNotifications() sends webhookUrl (not url)', async () => {
-    const data = { webhookUrl: 'https://example.com/hook-v2' };
-    await pos.updateNotifications('pos-1', data);
-    expect(client.request).toHaveBeenCalledWith('PUT', '/pos/pos-1/notifications', data);
-    const body = client.request.mock.calls[0]![2] as Record<string, unknown>;
-    expect(body).toHaveProperty('webhookUrl');
-    expect(body).not.toHaveProperty('url');
+  it('createPaymentIntention() calls POST /pos/:id/payment-intention', async () => {
+    const data = { amount: 25, coinCode: 'USD' };
+    await pos.createPaymentIntention('pos-1', data);
+    expect(client.request).toHaveBeenCalledWith('POST', '/pos/pos-1/payment-intention', data);
+  });
+
+  it('closePaymentIntention() calls POST /pos/:id/payment-intention/close', async () => {
+    await pos.closePaymentIntention('pos-1');
+    expect(client.request).toHaveBeenCalledWith('POST', '/pos/pos-1/payment-intention/close');
+  });
+
+  it('getQr() calls GET /pos/:id/qr', async () => {
+    await pos.getQr('pos-1');
+    expect(client.request).toHaveBeenCalledWith('GET', '/pos/pos-1/qr');
   });
 
   it('createPaymentRequest() calls POST /pos/:id/payment-request', async () => {
@@ -141,7 +199,7 @@ describe('PointOfSaleResource', () => {
   });
 
   it('createPaymentRequestCheckout() calls POST /pos/:id/payment-request-checkout', async () => {
-    const data = { amount: '49.99', coinCode: 'USD' };
+    const data = { amount: 49.99, coinCode: 'USD' };
     await pos.createPaymentRequestCheckout('pos-1', data);
     expect(client.request).toHaveBeenCalledWith('POST', '/pos/pos-1/payment-request-checkout', data);
   });
@@ -168,24 +226,60 @@ describe('NaspipResource', () => {
   });
 });
 
-describe('RefundsResource', () => {
+describe('WebhooksResource', () => {
   let client: ReturnType<typeof createMockClient>;
-  let refunds: RefundsResource;
+  let webhooks: WebhooksResource;
 
   beforeEach(() => {
     client = createMockClient();
-    refunds = new RefundsResource(client);
+    webhooks = new WebhooksResource(client);
   });
 
-  it('create() calls POST /refunds/payment-request/:id', async () => {
-    const data = { refundToAddress: '0x123' };
-    await refunds.create('pr-1', data);
-    expect(client.request).toHaveBeenCalledWith('POST', '/refunds/payment-request/pr-1', data);
+  it('create() calls POST /account/:id/webhook', async () => {
+    const data = { url: 'https://example.com/hook', eventTypes: ['payment_request'] as const };
+    await webhooks.create('acc-1', data);
+    expect(client.request).toHaveBeenCalledWith('POST', '/account/acc-1/webhook', data);
   });
 
-  it('get() calls GET /refunds/:id', async () => {
-    await refunds.get('ref-1');
-    expect(client.request).toHaveBeenCalledWith('GET', '/refunds/ref-1');
+  it('list() calls GET /account/:id/webhook/list', async () => {
+    await webhooks.list('acc-1');
+    expect(client.request).toHaveBeenCalledWith('GET', '/account/acc-1/webhook/list');
+  });
+
+  it('logs() calls GET /account/:id/webhook/logs with pagination', async () => {
+    await webhooks.logs('acc-1', { page: 1, pageSize: 20 });
+    expect(client.request).toHaveBeenCalledWith(
+      'GET',
+      '/account/acc-1/webhook/logs',
+      undefined,
+      { page: 1, page_size: 20 },
+    );
+  });
+
+  it('activate() calls PATCH /account/:id/webhook/:webhookId/activate', async () => {
+    await webhooks.activate('acc-1', 'wh-1');
+    expect(client.request).toHaveBeenCalledWith('PATCH', '/account/acc-1/webhook/wh-1/activate');
+  });
+
+  it('deactivate() calls PATCH /account/:id/webhook/:webhookId/deactivate', async () => {
+    await webhooks.deactivate('acc-1', 'wh-1');
+    expect(client.request).toHaveBeenCalledWith('PATCH', '/account/acc-1/webhook/wh-1/deactivate');
+  });
+
+  it('delete() calls DELETE /account/:id/webhook/:webhookId/delete', async () => {
+    await webhooks.delete('acc-1', 'wh-1');
+    expect(client.request).toHaveBeenCalledWith('DELETE', '/account/acc-1/webhook/wh-1/delete');
+  });
+
+  it('test() calls POST /account/:id/webhook/:webhookId/test', async () => {
+    await webhooks.test('acc-1', 'wh-1');
+    expect(client.request).toHaveBeenCalledWith('POST', '/account/acc-1/webhook/wh-1/test');
+  });
+
+  it('updateUrl() calls PUT /account/:id/webhook/:webhookId/url', async () => {
+    const data = { url: 'https://example.com/hook-v2' };
+    await webhooks.updateUrl('acc-1', 'wh-1', data);
+    expect(client.request).toHaveBeenCalledWith('PUT', '/account/acc-1/webhook/wh-1/url', data);
   });
 });
 
@@ -198,17 +292,21 @@ describe('TransactionsResource', () => {
     txns = new TransactionsResource(client);
   });
 
-  it('list() calls GET /transactions with no query when no options', async () => {
+  it('list() applies default page and pageSize when no options', async () => {
     await txns.list();
-    expect(client.request).toHaveBeenCalledWith('GET', '/transactions', undefined, {});
+    expect(client.request).toHaveBeenCalledWith('GET', '/transactions', undefined, {
+      page: 1,
+      page_size: 50,
+    });
   });
 
   it('list() maps accountId to accountID query param', async () => {
-    await txns.list({ accountId: 'acc-1', limit: 10 });
+    await txns.list({ accountId: 'acc-1', page: 2, pageSize: 10 });
     const query = client.request.mock.calls[0]![3] as Record<string, unknown>;
     expect(query).toHaveProperty('accountID', 'acc-1');
     expect(query).not.toHaveProperty('account_id');
-    expect(query).toHaveProperty('limit', 10);
+    expect(query).toHaveProperty('page', 2);
+    expect(query).toHaveProperty('page_size', 10);
   });
 
   it('list() converts other options to snake_case', async () => {
@@ -217,5 +315,7 @@ describe('TransactionsResource', () => {
     expect(query).toHaveProperty('status', 'completed');
     expect(query).toHaveProperty('sort', 'created_at');
     expect(query).toHaveProperty('order', 'desc');
+    expect(query).toHaveProperty('page', 1);
+    expect(query).toHaveProperty('page_size', 50);
   });
 });

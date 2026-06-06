@@ -1,8 +1,8 @@
-import type { TransactionStatus, TransactionType } from './common.js';
+import type { Paginated, TransactionStatus, TransactionType } from './common.js';
 
 export interface ListTransactionsOptions {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
   status?: TransactionStatus;
   sort?: string;
   order?: 'asc' | 'desc';
@@ -30,9 +30,4 @@ export interface Transaction {
   updatedAt?: string;
 }
 
-export interface TransactionListResponse {
-  data: Transaction[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type TransactionListResponse = Paginated<Transaction>;

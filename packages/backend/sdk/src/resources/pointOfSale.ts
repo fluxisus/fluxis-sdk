@@ -1,24 +1,40 @@
 import type { FluxisClient } from '../client.js';
 import type {
-  CreateNotificationSettingsRequest,
-  CreateNotificationSettingsResponse,
+  CreatePaymentIntentionRequest,
+  CreatePaymentIntentionResponse,
+  GetQrResponse,
+  PaymentIntentionResponse,
+} from '../types/paymentIntention.js';
+import type {
   CreatePaymentRequestCheckoutRequest,
   CreatePaymentRequestRequest,
   CreatePointOfSaleRequest,
-  NotificationSettings,
+  ListPointOfSaleOptions,
+  ListPointOfSaleResponse,
   PaymentRequestCheckoutResponse,
   PaymentRequestResponse,
   PointOfSale,
-  UpdateNotificationSettingsRequest,
-  UpdateNotificationSettingsResponse,
   UpdatePointOfSaleRequest,
 } from '../types/pointOfSale.js';
+import { toSnakeCase } from '../utils.js';
+
+const QUERY_KEY_OVERRIDES: Record<string, string> = {
+  accountId: 'accountID',
+};
 
 export class PointOfSaleResource {
   constructor(private readonly client: FluxisClient) {}
 
-  async list(): Promise<PointOfSale[]> {
-    return this.client.request<PointOfSale[]>('GET', '/pos');
+  async list(options?: ListPointOfSaleOptions): Promise<ListPointOfSaleResponse> {
+    const query: Record<string, string | number | undefined> = {};
+    if (options) {
+      for (const [key, value] of Object.entries(options)) {
+        if (value !== undefined) {
+          query[QUERY_KEY_OVERRIDES[key] ?? toSnakeCase(key)] = value;
+        }
+      }
+    }
+    return this.client.request<ListPointOfSaleResponse>('GET', '/pos', undefined, query);
   }
 
   async get(posId: string): Promise<PointOfSale> {
@@ -33,16 +49,31 @@ export class PointOfSaleResource {
     return this.client.request<PointOfSale>('PUT', `/pos/${posId}`, data);
   }
 
-  async getNotifications(posId: string): Promise<NotificationSettings> {
-    return this.client.request<NotificationSettings>('GET', `/pos/${posId}/notifications`);
+  async delete(posId: string): Promise<void> {
+    await this.client.request<void>('DELETE', `/pos/${posId}`);
   }
 
-  async createNotifications(posId: string, data: CreateNotificationSettingsRequest): Promise<CreateNotificationSettingsResponse> {
-    return this.client.request<CreateNotificationSettingsResponse>('POST', `/pos/${posId}/notifications`, data);
+  async getPaymentIntention(posId: string): Promise<PaymentIntentionResponse> {
+    return this.client.request<PaymentIntentionResponse>('GET', `/pos/${posId}/payment-intention`);
   }
 
-  async updateNotifications(posId: string, data: UpdateNotificationSettingsRequest): Promise<UpdateNotificationSettingsResponse> {
-    return this.client.request<UpdateNotificationSettingsResponse>('PUT', `/pos/${posId}/notifications`, data);
+  async createPaymentIntention(
+    posId: string,
+    data: CreatePaymentIntentionRequest,
+  ): Promise<CreatePaymentIntentionResponse> {
+    return this.client.request<CreatePaymentIntentionResponse>(
+      'POST',
+      `/pos/${posId}/payment-intention`,
+      data,
+    );
+  }
+
+  async closePaymentIntention(posId: string): Promise<void> {
+    await this.client.request<void>('POST', `/pos/${posId}/payment-intention/close`);
+  }
+
+  async getQr(posId: string): Promise<GetQrResponse> {
+    return this.client.request<GetQrResponse>('GET', `/pos/${posId}/qr`);
   }
 
   async createPaymentRequest(posId: string, data: CreatePaymentRequestRequest): Promise<PaymentRequestResponse> {
@@ -53,7 +84,14 @@ export class PointOfSaleResource {
     return this.client.request<PaymentRequestResponse>('GET', `/pos/${posId}/payment-request/${paymentRequestId}`);
   }
 
-  async createPaymentRequestCheckout(posId: string, data: CreatePaymentRequestCheckoutRequest): Promise<PaymentRequestCheckoutResponse> {
-    return this.client.request<PaymentRequestCheckoutResponse>('POST', `/pos/${posId}/payment-request-checkout`, data);
+  async createPaymentRequestCheckout(
+    posId: string,
+    data: CreatePaymentRequestCheckoutRequest,
+  ): Promise<PaymentRequestCheckoutResponse> {
+    return this.client.request<PaymentRequestCheckoutResponse>(
+      'POST',
+      `/pos/${posId}/payment-request-checkout`,
+      data,
+    );
   }
 }

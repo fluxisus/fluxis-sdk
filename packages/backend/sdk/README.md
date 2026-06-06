@@ -40,7 +40,7 @@ console.log(payment.status); // "created"
 
 ```typescript
 const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(posId, {
-  amount: '49.99',
+  amount: 49.99,
   coinCode: 'USD',
   referenceId: 'order-002',
 });
@@ -51,18 +51,30 @@ console.log(checkout.checkoutUrl); // redirect customer here
 ## Webhooks
 
 ```typescript
+// Configure account-scoped webhooks
+const webhook = await fluxis.webhooks.create(accountId, {
+  url: 'https://yourserver.com/webhooks/fluxis',
+  eventTypes: ['payment_request', 'incoming_transfer', 'refund'],
+});
+
+// IMPORTANT: Save webhook.secret securely — it is only returned once
+const webhookSecret = webhook.secret;
+```
+
+```typescript
 import { verifyWebhookSignature } from '@fluxisus/sdk';
 
 // Express
-app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
-  const isValid = await verifyWebhookSignature(
-    req.body.toString(),
+app.post('/webhooks/fluxis', express.json(), async (req, res) => {
+  const isValid = verifyWebhookSignature(
+    req.body,
     req.headers['x-fluxis-signature'] as string,
+    req.headers['x-fluxis-timestamp'] as string,
     WEBHOOK_SECRET,
   );
   if (!isValid) return res.status(401).send('Invalid signature');
 
-  const event = JSON.parse(req.body.toString());
+  const event = req.body;
   if (event.status === 'completed') {
     // fulfill order
   }
@@ -90,11 +102,11 @@ try {
 
 | Resource | Methods |
 |----------|---------|
-| `fluxis.accounts` | `list`, `get`, `create`, `update`, `delete`, `getSettlementAddresses` |
-| `fluxis.organization` | `setSettlementAddresses`, `updateSettlementAddresses` |
-| `fluxis.pointOfSale` | `list`, `get`, `create`, `update`, `getNotifications`, `createNotifications`, `updateNotifications`, `createPaymentRequest`, `getPaymentRequest`, `createPaymentRequestCheckout` |
+| `fluxis.accounts` | `list`, `get`, `create`, `update`, `delete`, `getSettlementAddresses`, `setSettlementAddress`, `updateSettlementAddress`, `deleteSettlementAddress` |
+| `fluxis.organization` | `get`, `setSettlementAddress`, `updateSettlementAddress`, `getSettlementAddresses`, `deleteSettlementAddress` |
+| `fluxis.pointOfSale` | `list`, `get`, `create`, `update`, `delete`, `getPaymentIntention`, `createPaymentIntention`, `closePaymentIntention`, `getQr`, `createPaymentRequest`, `getPaymentRequest`, `createPaymentRequestCheckout` |
+| `fluxis.webhooks` | `create`, `list`, `logs`, `activate`, `deactivate`, `delete`, `test`, `updateUrl` |
 | `fluxis.naspip` | `create`, `read`, `isValidTokenFormat` |
-| `fluxis.refunds` | `create`, `get` |
 | `fluxis.transactions` | `list` |
 
 ## Environments

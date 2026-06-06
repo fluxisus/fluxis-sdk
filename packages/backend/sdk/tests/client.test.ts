@@ -259,13 +259,13 @@ describe('FluxisClient', () => {
     it('filters out undefined query params', async () => {
       fetchSpy
         .mockResolvedValueOnce(authSuccessResponse())
-        .mockResolvedValueOnce(apiSuccessResponse({ data: [], total: 0, limit: 50, offset: 0 }));
+        .mockResolvedValueOnce(apiSuccessResponse({ data: [], total: 0, page: 1, page_size: 50, total_pages: 0 }));
 
       const client = createClient();
-      await client.transactions.list({ limit: 10, status: undefined });
+      await client.transactions.list({ pageSize: 10, status: undefined });
 
       const callUrl = fetchSpy.mock.calls[1]![0] as string;
-      expect(callUrl).toContain('limit=10');
+      expect(callUrl).toContain('page_size=10');
       expect(callUrl).not.toContain('status');
     });
   });

@@ -1,4 +1,5 @@
 import type { SettlementAddress } from './common.js';
+import type { SettlementAddressRequest } from './organization.js';
 
 export interface CreateAccountRequest {
   name: string;
@@ -11,9 +12,9 @@ export interface UpdateAccountRequest {
 }
 
 export interface Account {
-  id: string;
   name: string;
   externalId?: string;
+  id?: string;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string;
@@ -22,3 +23,5 @@ export interface Account {
 export interface AccountSettlementAddresses {
   addresses: SettlementAddress[];
 }
+
+export type { SettlementAddressRequest };

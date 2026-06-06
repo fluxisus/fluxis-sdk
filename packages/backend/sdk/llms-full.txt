@@ -9,7 +9,7 @@ Fluxis is a crypto payment processing platform. Merchants use Fluxis to accept c
 The SDK wraps the Fluxis REST API and handles authentication, token refresh, and type conversion automatically.
 
 - Package: `@fluxisus/sdk`
-- Runtime: Node.js 18+ (uses native `fetch`, `AbortSignal.timeout()`, and `crypto.subtle`)
+- Runtime: Node.js 18+ (uses native `fetch`, `AbortSignal.timeout()`, and `node:crypto`)
 - Types: Full TypeScript support, strict mode
 - Zero dependencies
 
@@ -62,6 +62,8 @@ const fluxis = new FluxisClient({
 // Step 1: Create a Point of Sale (do this once, reuse the ID)
 const pos = await fluxis.pointOfSale.create({
   name: 'Online Store',
+  referenceCurrency: 'USD',
+  type: 'online_fixed',
   merchant: { name: 'My Shop', description: 'E-commerce store' },
   paymentOptions: ['npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'], // USDC on Polygon
 });
@@ -96,7 +98,7 @@ Use this for e-commerce where you specify an amount in a reference currency (e.g
 
 ```typescript
 const checkout = await fluxis.pointOfSale.createPaymentRequestCheckout(pos.id, {
-  amount: '49.99',
+  amount: 49.99,
   coinCode: 'USD', // reference currency for display (payment is always in crypto)
   referenceId: 'order-002',
   order: {
@@ -124,15 +126,40 @@ console.log(checkout.checkoutUrl); // Hosted checkout page URL
 
 ---
 
-## Flow 3: Webhooks
+## Flow 3: Payment Intentions (Open PoS)
 
-Fluxis sends payment status updates via webhooks. This is the primary mechanism for knowing when a payment is completed.
-
-### Step 1: Configure webhook on your PoS
+For `cashier_open` PoS types, use payment intentions to manage open-amount checkout sessions.
 
 ```typescript
-const webhook = await fluxis.pointOfSale.createNotifications(pos.id, {
-  webhookUrl: 'https://yourserver.com/webhooks/fluxis',
+// Create an open payment intention
+const intention = await fluxis.pointOfSale.createPaymentIntention(pos.id, {
+  amount: 50,
+  coinCode: 'USD',
+  externalId: 'session-001',
+});
+
+// Get QR code for display
+const qr = await fluxis.pointOfSale.getQr(pos.id);
+
+// Check current intention status
+const current = await fluxis.pointOfSale.getPaymentIntention(pos.id);
+
+// Close the intention when done
+await fluxis.pointOfSale.closePaymentIntention(pos.id);
+```
+
+---
+
+## Flow 4: Webhooks
+
+Fluxis sends payment status updates via account-scoped webhooks. This is the primary mechanism for knowing when a payment is completed.
+
+### Step 1: Configure webhook on your account
+
+```typescript
+const webhook = await fluxis.webhooks.create(accountId, {
+  url: 'https://yourserver.com/webhooks/fluxis',
+  eventTypes: ['payment_request', 'incoming_transfer', 'refund'],
 });
 
 // IMPORTANT: Save this secret securely — it's only returned once
@@ -147,40 +174,33 @@ import { verifyWebhookSignature } from '@fluxisus/sdk';
 
 const app = express();
 
-// IMPORTANT: Use raw body for signature verification
-app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/webhooks/fluxis', express.json(), async (req, res) => {
   const signature = req.headers['x-fluxis-signature'] as string;
-  const rawBody = req.body.toString();
+  const timestamp = req.headers['x-fluxis-timestamp'] as string;
+  const payload = req.body;
 
-  const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+  const isValid = verifyWebhookSignature(payload, signature, timestamp, webhookSecret);
 
   if (!isValid) {
     return res.status(401).send('Invalid signature');
   }
 
-  const event = JSON.parse(rawBody);
-
   // Process the payment status update
-  switch (event.status) {
+  switch (payload.status) {
     case 'completed':
-      // Payment received in full — fulfill the order
-      console.log('Payment completed:', event.id);
+      console.log('Payment completed:', payload.id);
       break;
     case 'overpaid':
-      // Customer sent more than requested — fulfill + consider refund
-      console.log('Payment overpaid:', event.id);
+      console.log('Payment overpaid:', payload.id);
       break;
     case 'underpaid':
-      // Customer sent less than requested
-      console.log('Payment underpaid:', event.id);
+      console.log('Payment underpaid:', payload.id);
       break;
     case 'expired':
-      // Payment window expired with no payment
-      console.log('Payment expired:', event.id);
+      console.log('Payment expired:', payload.id);
       break;
     case 'failed':
-      // Payment processing failed
-      console.log('Payment failed:', event.id);
+      console.log('Payment failed:', payload.id);
       break;
   }
 
@@ -196,51 +216,38 @@ app.listen(3000);
 import { verifyWebhookSignature } from '@fluxisus/sdk';
 
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  const payload = await request.json();
   const signature = request.headers.get('x-fluxis-signature') || '';
+  const timestamp = request.headers.get('x-fluxis-timestamp') || '';
 
-  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  const isValid = verifyWebhookSignature(payload, signature, timestamp, WEBHOOK_SECRET);
   if (!isValid) return new Response('Invalid signature', { status: 401 });
 
-  const event = JSON.parse(rawBody);
   // Handle event...
   return new Response('OK', { status: 200 });
 }
 ```
 
-**Important:** Signature verification requires the raw request body as a string. If your framework auto-parses JSON, preserve the raw body (use `express.raw()` in Express, `request.text()` in Next.js).
-
-### Step 3: Update webhook URL (if needed)
+### Step 3: Manage webhooks
 
 ```typescript
-await fluxis.pointOfSale.updateNotifications(pos.id, {
-  webhookUrl: 'https://newserver.com/webhooks/fluxis',
-});
-```
+// List all webhooks for an account
+const webhooks = await fluxis.webhooks.list(accountId);
 
----
-
-## Flow 4: Refunds
-
-Refunds can be issued for completed or overpaid payments.
-
-```typescript
-// Full refund
-const refund = await fluxis.refunds.create(paymentRequestId, {
-  refundToAddress: '0x1234567890abcdef1234567890abcdef12345678',
-  reason: 'Customer requested',
+// Update webhook URL
+await fluxis.webhooks.updateUrl(accountId, webhookId, {
+  url: 'https://newserver.com/webhooks/fluxis',
 });
 
-// Partial refund
-const partialRefund = await fluxis.refunds.create(paymentRequestId, {
-  refundToAddress: '0x1234567890abcdef1234567890abcdef12345678',
-  amount: '10.00',
-  reason: 'Partial refund for returned item',
-});
+// Activate / deactivate
+await fluxis.webhooks.deactivate(accountId, webhookId);
+await fluxis.webhooks.activate(accountId, webhookId);
 
-// Check refund status
-const detail = await fluxis.refunds.get(refund.id);
-console.log(detail.status); // "processing" | "completed" | "failed"
+// Send a test event
+await fluxis.webhooks.test(accountId, webhookId);
+
+// View delivery logs
+const logs = await fluxis.webhooks.logs(accountId, { page: 1, pageSize: 20 });
 ```
 
 ---
@@ -257,30 +264,53 @@ console.log(detail.status); // "processing" | "completed" | "failed"
 | `update(accountId, { name?, externalId? })` | Update account |
 | `delete(accountId)` | Delete account |
 | `getSettlementAddresses(accountId)` | Get settlement addresses |
+| `setSettlementAddress(accountId, { address, network, addressTag? })` | Set settlement address |
+| `updateSettlementAddress(accountId, { address, network, addressTag? })` | Update settlement address |
+| `deleteSettlementAddress(accountId, network)` | Delete settlement address by network |
 
 ### fluxis.organization
 
 | Method | Description |
 |--------|-------------|
-| `setSettlementAddresses(addresses[])` | Set settlement addresses |
-| `updateSettlementAddresses(addresses[])` | Update settlement addresses |
-
-Each address: `{ address: string, network: string, addressTag?: string }`
+| `get()` | Get organization details |
+| `setSettlementAddress({ address, network, addressTag? })` | Set settlement address |
+| `updateSettlementAddress({ address, network, addressTag? })` | Update settlement address |
+| `getSettlementAddresses()` | List settlement addresses |
+| `deleteSettlementAddress(network)` | Delete settlement address by network |
 
 ### fluxis.pointOfSale
 
 | Method | Description |
 |--------|-------------|
-| `list()` | List all PoS |
+| `list({ page?, pageSize?, accountId? })` | List PoS (paginated) |
 | `get(posId)` | Get PoS by ID |
-| `create({ name, accountId?, merchant?, paymentOptions? })` | Create PoS |
-| `update(posId, { name?, merchant?, paymentOptions? })` | Update PoS |
-| `getNotifications(posId)` | Get webhook settings |
-| `createNotifications(posId, { webhookUrl })` | Create webhook (returns secret) |
-| `updateNotifications(posId, { webhookUrl })` | Update webhook URL |
+| `create({ name, referenceCurrency, type, accountId?, merchant?, paymentOptions? })` | Create PoS |
+| `update(posId, { referenceCurrency, name?, merchant?, paymentOptions? })` | Update PoS |
+| `delete(posId)` | Delete PoS |
+| `getPaymentIntention(posId)` | Get current payment intention |
+| `createPaymentIntention(posId, { amount, coinCode, externalId? })` | Create payment intention |
+| `closePaymentIntention(posId)` | Close payment intention |
+| `getQr(posId)` | Get QR code for PoS |
 | `createPaymentRequest(posId, { amount, uniqueAssetId, referenceId?, order? })` | Create payment request → `PaymentRequestResponse` |
 | `getPaymentRequest(posId, paymentRequestId)` | Get payment request status → `PaymentRequestResponse` |
 | `createPaymentRequestCheckout(posId, { amount, coinCode, referenceId?, order? })` | Create checkout → `PaymentRequestCheckoutResponse` (includes `checkoutUrl`) |
+
+PoS types: `cashier_fixed`, `online_fixed`, `cashier_open`
+
+### fluxis.webhooks
+
+| Method | Description |
+|--------|-------------|
+| `create(accountId, { url, eventTypes })` | Create webhook (returns secret) |
+| `list(accountId)` | List webhooks |
+| `logs(accountId, { page?, pageSize? })` | List webhook delivery logs (paginated) |
+| `activate(accountId, webhookId)` | Activate webhook |
+| `deactivate(accountId, webhookId)` | Deactivate webhook |
+| `delete(accountId, webhookId)` | Delete webhook |
+| `test(accountId, webhookId)` | Send test event |
+| `updateUrl(accountId, webhookId, { url })` | Update webhook URL |
+
+Webhook event types: `payment_request`, `incoming_transfer`, `refund`
 
 ### fluxis.naspip
 
@@ -290,18 +320,11 @@ Each address: `{ address: string, network: string, addressTag?: string }`
 | `read(token)` | Decode and verify a NASPIP token |
 | `isValidTokenFormat(token)` | Check if string starts with `v4.local.` |
 
-### fluxis.refunds
-
-| Method | Description |
-|--------|-------------|
-| `create(paymentRequestId, { refundToAddress, amount?, reason? })` | Create refund |
-| `get(refundId)` | Get refund details |
-
 ### fluxis.transactions
 
 | Method | Description |
 |--------|-------------|
-| `list({ limit?, offset?, status?, sort?, order?, accountId? })` | List transactions |
+| `list({ page?, pageSize?, status?, sort?, order?, accountId? })` | List transactions (paginated, defaults: page=1, pageSize=50) |
 
 ---
 
@@ -312,7 +335,9 @@ Each address: `{ address: string, network: string, addressTag?: string }`
 | Status | Meaning |
 |--------|---------|
 | `created` | Just created, awaiting payment |
+| `pending` | Payment initiated, awaiting confirmation |
 | `processing` | Deposit detected, confirming on-chain |
+| `confirmed` | Payment confirmed on-chain |
 | `completed` | Fully paid |
 | `overpaid` | Received more than requested |
 | `underpaid` | Received less than requested |
@@ -326,6 +351,20 @@ Each address: `{ address: string, network: string, addressTag?: string }`
 ### Transaction Statuses
 
 `preview`, `pending`, `created`, `processing`, `error`, `expired`, `failed`, `completed`
+
+### Pagination
+
+List endpoints return `Paginated<T>`:
+
+```typescript
+interface Paginated<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+```
 
 ---
 
@@ -420,20 +459,18 @@ app.post('/api/payments', express.json(), async (req, res) => {
 });
 
 // Receive webhook
-app.post('/webhooks/fluxis', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/webhooks/fluxis', express.json(), async (req, res) => {
   const signature = req.headers['x-fluxis-signature'] as string;
-  const rawBody = req.body.toString();
+  const timestamp = req.headers['x-fluxis-timestamp'] as string;
+  const payload = req.body;
 
-  const isValid = await verifyWebhookSignature(rawBody, signature, WEBHOOK_SECRET);
+  const isValid = verifyWebhookSignature(payload, signature, timestamp, WEBHOOK_SECRET);
   if (!isValid) {
     return res.status(401).send('Invalid signature');
   }
 
-  const event = JSON.parse(rawBody);
-
-  if (event.status === 'completed' || event.status === 'overpaid') {
-    // Mark order as paid in your database
-    console.log(`Payment ${event.id} completed for reference ${event.reference_id}`);
+  if (payload.status === 'completed' || payload.status === 'overpaid') {
+    console.log(`Payment ${payload.id} completed for reference ${payload.referenceId}`);
   }
 
   res.status(200).send('OK');
@@ -463,7 +500,7 @@ app.listen(3000, () => console.log('Server running on port 3000'));
 1. Get production API keys from the Fluxis dashboard (prefix: `fxs.prd.*`)
 2. Update your deployed configuration to use your production `fxs.prd.*` key
 3. Update webhook URLs to your production server
-4. Re-create notification settings on production PoS (webhook secrets are per-environment)
+4. Re-create webhooks on production accounts (webhook secrets are per-environment)
 
 ```typescript
 const fluxis = new FluxisClient({
@@ -492,4 +529,4 @@ const fluxis = new FluxisClient({
 - **401 auto-retry**: If a request gets a 401, the SDK invalidates the token, re-authenticates, and retries once (prevents infinite loops).
 - **Safe response parsing**: 204 No Content and empty bodies are handled gracefully. Non-JSON responses (e.g. HTML from a reverse proxy) throw `FluxisResponseParseError` with the raw body preserved.
 - **`AbortSignal.timeout()`**: All requests use the configured timeout (default 30s) via `AbortSignal.timeout()`.
-- **`crypto.subtle`**: Webhook signature verification uses `crypto.subtle.importKey` + `HMAC-SHA256` (available in Node.js 18+ and all modern browsers).
+- **Webhook verification**: `verifyWebhookSignature` uses HMAC-SHA256 over `"<timestamp>.<canonical_json>"` where canonical JSON has recursively sorted object keys. Pass the parsed payload, signature from `x-fluxis-signature`, timestamp from `x-fluxis-timestamp`, and the webhook secret.

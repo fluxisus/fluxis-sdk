@@ -5,8 +5,8 @@ import { AccountsResource } from './resources/accounts.js';
 import { OrganizationResource } from './resources/organization.js';
 import { PointOfSaleResource } from './resources/pointOfSale.js';
 import { NaspipResource } from './resources/naspip.js';
-import { RefundsResource } from './resources/refunds.js';
 import { TransactionsResource } from './resources/transactions.js';
+import { WebhooksResource } from './resources/webhooks.js';
 
 const STAGING_BASE_URL = 'https://api.stgfluxis.us/v1';
 const PRODUCTION_BASE_URL = 'https://api.fluxis.us/v1';
@@ -36,8 +36,8 @@ export class FluxisClient {
   readonly organization: OrganizationResource;
   readonly pointOfSale: PointOfSaleResource;
   readonly naspip: NaspipResource;
-  readonly refunds: RefundsResource;
   readonly transactions: TransactionsResource;
+  readonly webhooks: WebhooksResource;
 
   constructor(options: FluxisClientOptions) {
     this.apiKey = options.apiKey ?? process.env.FLUXIS_API_KEY;
@@ -49,8 +49,8 @@ export class FluxisClient {
     this.organization = new OrganizationResource(this);
     this.pointOfSale = new PointOfSaleResource(this);
     this.naspip = new NaspipResource(this);
-    this.refunds = new RefundsResource(this);
     this.transactions = new TransactionsResource(this);
+    this.webhooks = new WebhooksResource(this);
   }
 
   private isTokenExpired(): boolean {

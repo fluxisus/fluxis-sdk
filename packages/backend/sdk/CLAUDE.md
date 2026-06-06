@@ -11,18 +11,20 @@ packages/backend/sdk/
 │   ├── client.ts              # FluxisClient class — auth, config, HTTP, token refresh
 │   ├── resources/
 │   │   ├── accounts.ts        # /account CRUD + settlement addresses
-│   │   ├── organization.ts    # /organization/settlement-addresses
-│   │   ├── pointOfSale.ts     # /pos CRUD + notifications + payment requests
+│   │   ├── organization.ts    # /organization + settlement addresses
+│   │   ├── pointOfSale.ts     # /pos CRUD + payment intentions + payment requests
+│   │   ├── webhooks.ts        # /account/{id}/webhook/*
 │   │   ├── naspip.ts          # /naspip/create and /naspip/read
-│   │   ├── refunds.ts         # /refunds/*
-│   │   └── transactions.ts    # /transactions (list with pagination)
+│   │   └── transactions.ts    # /transactions (paginated list)
 │   ├── types/
-│   │   ├── common.ts          # APIResponse, APIError, enums
+│   │   ├── common.ts          # APIResponse, APIError, enums, Paginated<T>
 │   │   ├── auth.ts            # Auth request/response types
 │   │   ├── accounts.ts        # Account types
-│   │   ├── pointOfSale.ts     # PoS, PaymentRequest, Notification types
+│   │   ├── organization.ts    # Organization + settlement address types
+│   │   ├── pointOfSale.ts     # PoS, PaymentRequest types
+│   │   ├── paymentIntention.ts # Payment intention types
+│   │   ├── webhooks.ts        # Webhook types
 │   │   ├── naspip.ts          # NASPIP create/read types
-│   │   ├── refunds.ts         # Refund types
 │   │   └── transactions.ts    # Transaction types
 │   ├── errors.ts              # FluxisError, FluxisAuthError, etc.
 │   ├── utils.ts               # Case conversion helpers

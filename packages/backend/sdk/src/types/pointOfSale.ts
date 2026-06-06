@@ -1,19 +1,25 @@
-import type { Merchant, Order, PaymentRequestStatus } from './common.js';
+import type { Merchant, Order, Paginated, PaymentRequestStatus, PointOfSaleType } from './common.js';
+
+export type { PointOfSaleType };
 
 export interface CreatePointOfSaleRequest {
   name: string;
+  referenceCurrency: string;
+  type: PointOfSaleType;
   accountId?: string;
   merchant?: Merchant;
   paymentOptions?: string[];
 }
 
 export interface UpdatePointOfSaleRequest {
+  referenceCurrency: string;
   name?: string;
   merchant?: Merchant;
   paymentOptions?: string[];
 }
 
 export interface PointOfSaleConfig {
+  referenceCurrency?: string;
   merchant?: Merchant;
   paymentOptions?: string[];
 }
@@ -21,6 +27,7 @@ export interface PointOfSaleConfig {
 export interface PointOfSale {
   id: string;
   name: string;
+  type?: PointOfSaleType;
   organizationId?: string;
   organizationName?: string;
   accountId?: string;
@@ -30,26 +37,13 @@ export interface PointOfSale {
   updatedAt?: string;
 }
 
-export interface CreateNotificationSettingsRequest {
-  webhookUrl: string;
+export interface ListPointOfSaleOptions {
+  page?: number;
+  pageSize?: number;
+  accountId?: string;
 }
 
-export interface NotificationSettings {
-  webhookUrl: string;
-}
-
-export interface CreateNotificationSettingsResponse {
-  webhookUrl: string;
-  secret: string;
-}
-
-export interface UpdateNotificationSettingsRequest {
-  webhookUrl: string;
-}
-
-export interface UpdateNotificationSettingsResponse {
-  webhookUrl: string;
-}
+export type ListPointOfSaleResponse = Paginated<PointOfSale>;
 
 export interface CreatePaymentRequestRequest {
   amount: string;
@@ -59,7 +53,7 @@ export interface CreatePaymentRequestRequest {
 }
 
 export interface CreatePaymentRequestCheckoutRequest {
-  amount: string;
+  amount: number;
   coinCode: string;
   referenceId?: string;
   order?: Order;
