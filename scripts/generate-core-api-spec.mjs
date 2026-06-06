@@ -1,0 +1,735 @@
+#!/usr/bin/env node
+/**
+ * Generates spec/openapi.json and spec/swagger.yaml from the Fluxis Core API OpenAPI 3.1 definition.
+ */
+import { writeFileSync } from 'node:fs';
+import { stringify } from 'yaml';
+
+const ResponseStatus = { type: 'string', enum: ['success', 'error'] };
+const APIErrorSchema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string', example: 'AK0001' },
+    message: { type: 'string', example: 'Invalid credentials' },
+    details: { type: 'string', example: 'The provided API key is invalid' },
+    status: { $ref: '#/components/schemas/ResponseStatus' },
+  },
+};
+const OkResponse = { type: 'object', properties: { ok: { type: 'boolean', example: true } } };
+
+const PaymentRequestStatus = {
+  type: 'string',
+  enum: ['pending', 'created', 'processing', 'expired', 'completed', 'confirmed', 'overpaid', 'underpaid', 'failed'],
+};
+const PointOfSaleType = { type: 'string', enum: ['cashier_fixed', 'online_fixed', 'cashier_open'] };
+const WebhookEventType = { type: 'string', enum: ['payment_request', 'incoming_transfer', 'refund'] };
+const TransactionStatus = {
+  type: 'string',
+  enum: ['preview', 'pending', 'created', 'processing', 'error', 'expired', 'failed', 'completed'],
+};
+const TransactionType = {
+  type: 'string',
+  enum: ['deposit', 'withdraw', 'refund', 'adjustment', 'swap', 'payment_in', 'payment_out', 'dry_run'],
+};
+
+const security = [{ ApiKeyAuth: [], BearerAuth: [] }];
+const errorResponses = {
+  400: { description: 'Bad Request', content: { 'application/json': { schema: { $ref: '#/components/schemas/APIErrorSchema' } } } },
+  401: { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/APIErrorSchema' } } } },
+  403: { description: 'Forbidden', content: { 'application/json': { schema: { $ref: '#/components/schemas/APIErrorSchema' } } } },
+};
+
+function apiResponse(ref) {
+  return {
+    type: 'object',
+    properties: {
+      status: { $ref: '#/components/schemas/ResponseStatus' },
+      data: { $ref: ref },
+    },
+  };
+}
+
+function paginated(itemRef) {
+  return {
+    type: 'object',
+    properties: {
+      data: { type: 'array', items: { $ref: itemRef } },
+      page: { type: 'integer' },
+      page_size: { type: 'integer' },
+      total: { type: 'integer' },
+      total_pages: { type: 'integer' },
+    },
+  };
+}
+
+const schemas = {
+  ResponseStatus,
+  APIErrorSchema,
+  OkResponse,
+  AuthTokenRequestSchema: {
+    type: 'object',
+    required: ['api_key', 'api_secret'],
+    properties: {
+      api_key: { type: 'string', example: 'fxs.stg.08ecd032-73ed-4a5a-9ccf-500eb1f9a56f' },
+      api_secret: { type: 'string', example: 'tQd^RW213A3q2ojzvJn' },
+    },
+  },
+  AuthTokenResponseSchema: {
+    type: 'object',
+    properties: {
+      token: { type: 'string', example: 'v4.local.Gx1TZT3STnhzZ-0o' },
+      expired_at: { type: 'string', example: '2025-08-07T10:34:03.000Z' },
+    },
+  },
+  CreateAccountRequestSchema: {
+    type: 'object',
+    required: ['name'],
+    properties: {
+      name: { type: 'string' },
+      external_id: { type: 'string' },
+    },
+  },
+  GetAccountResponseSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      external_id: { type: 'string' },
+    },
+  },
+  AccountSetSettlementAddressRequestSchema: {
+    type: 'object',
+    required: ['address', 'network'],
+    properties: {
+      address: { type: 'string' },
+      network: { type: 'string', example: 'polygon' },
+      address_tag: { type: 'string' },
+    },
+  },
+  AccountSettlementAddressResponseSchema: {
+    type: 'object',
+    required: ['address', 'network'],
+    properties: {
+      address: { type: 'string' },
+      network: { type: 'string' },
+      address_tag: { type: 'string' },
+    },
+  },
+  SettlementAddressSchema: {
+    type: 'object',
+    properties: {
+      settlement_address: { type: 'string' },
+      address_tag: { type: 'string' },
+      address_type: { type: 'string' },
+      owner: { type: 'string', enum: ['organization', 'account', 'financial_provider', 'point_of_sale'] },
+      settlement_type: { type: 'string' },
+    },
+  },
+  GetAccountSettlementAddressesResponseSchema: {
+    type: 'object',
+    properties: {
+      addresses: { type: 'array', items: { $ref: '#/components/schemas/SettlementAddressSchema' } },
+    },
+  },
+  GetOrganizationResponseSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      country: { type: 'string', description: 'ISO 3166-1 alpha-2 country code' },
+      owner_email: { type: 'string' },
+      tax_id: { type: 'string' },
+      created_at: { type: 'string' },
+      updated_at: { type: 'string' },
+    },
+  },
+  GetSettlementAddressesResponseSchema: {
+    type: 'object',
+    properties: {
+      addresses: { type: 'array', items: { $ref: '#/components/schemas/SettlementAddressSchema' } },
+    },
+  },
+  MerchantSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      description: { type: 'string' },
+    },
+  },
+  PointOfSaleConfigSchema: {
+    type: 'object',
+    properties: {
+      merchant: { $ref: '#/components/schemas/MerchantSchema' },
+      payment_options: { type: 'array', items: { type: 'string' } },
+      reference_currency: { type: 'string', example: 'USD' },
+    },
+  },
+  CreatePointOfSaleRequestSchema: {
+    type: 'object',
+    required: ['name', 'reference_currency', 'type'],
+    properties: {
+      name: { type: 'string' },
+      account_id: { type: 'string' },
+      merchant: { $ref: '#/components/schemas/MerchantSchema' },
+      payment_options: { type: 'array', items: { type: 'string' } },
+      reference_currency: { type: 'string' },
+      type: PointOfSaleType,
+    },
+  },
+  UpdatePointOfSaleOptionsRequestSchema: {
+    type: 'object',
+    required: ['reference_currency'],
+    properties: {
+      name: { type: 'string' },
+      merchant: { $ref: '#/components/schemas/MerchantSchema' },
+      payment_options: { type: 'array', items: { type: 'string' } },
+      reference_currency: { type: 'string' },
+    },
+  },
+  PointOfSaleResponseSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      type: PointOfSaleType,
+      organization_id: { type: 'string' },
+      organization_name: { type: 'string' },
+      account_id: { type: 'string' },
+      account_name: { type: 'string' },
+      config: { $ref: '#/components/schemas/PointOfSaleConfigSchema' },
+      created_at: { type: 'string' },
+      updated_at: { type: 'string' },
+    },
+  },
+  PaginatedPointOfSaleResponse: paginated('#/components/schemas/PointOfSaleResponseSchema'),
+  PaymentRequestRequestSchema: {
+    type: 'object',
+    required: ['amount', 'unique_asset_id'],
+    properties: {
+      amount: { type: 'string', example: '1234.99' },
+      unique_asset_id: { type: 'string' },
+      reference_id: { type: 'string' },
+      order: { $ref: '#/components/schemas/PasetoV4OrderData' },
+    },
+  },
+  PaymentRequestResponseSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      status: PaymentRequestStatus,
+      token: { type: 'string' },
+      reference_id: { type: 'string' },
+      expiration: { type: 'integer' },
+    },
+  },
+  PaymentRequestCheckoutRequestSchema: {
+    type: 'object',
+    required: ['amount', 'coin_code'],
+    properties: {
+      amount: { type: 'number', example: 1234.99 },
+      coin_code: { type: 'string', example: 'USD' },
+      reference_id: { type: 'string' },
+      order: { $ref: '#/components/schemas/PasetoV4OrderData' },
+    },
+  },
+  PaymentRequestCheckoutResponseSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      status: PaymentRequestStatus,
+      token: { type: 'string' },
+      reference_id: { type: 'string' },
+      expiration: { type: 'integer' },
+      checkout_url: { type: 'string' },
+    },
+  },
+  CreatePaymentIntentionRequestSchema: {
+    type: 'object',
+    required: ['amount', 'coin_code'],
+    properties: {
+      amount: { type: 'number', example: 1234.99 },
+      coin_code: { type: 'string', example: 'USD' },
+      external_id: { type: 'string' },
+    },
+  },
+  POSPaymentIntention: {
+    type: 'object',
+    properties: {
+      amount: { type: 'number' },
+      expired_at: { type: 'string' },
+      external_id: { type: 'string' },
+      payment_request_id: { type: 'string' },
+      point_of_sale_id: { type: 'string' },
+      reference_currency: { type: 'string' },
+      status: { type: 'string' },
+      token: { type: 'string' },
+    },
+  },
+  CreatePaymentIntentionResponseSchema: {
+    type: 'object',
+    properties: {
+      token: { type: 'string' },
+      expiration: { type: 'string' },
+      payment: { $ref: '#/components/schemas/POSPaymentIntention' },
+    },
+  },
+  PaymentIntentionResponseSchema: {
+    type: 'object',
+    properties: {
+      token: { type: 'string' },
+      payment: { $ref: '#/components/schemas/POSPaymentIntention' },
+      payment_request: { type: 'object' },
+    },
+  },
+  GetQRResponseSchema: {
+    type: 'object',
+    properties: { qr: { type: 'string' } },
+  },
+  CreateNASPIPRequestSchema: {
+    type: 'object',
+    properties: {
+      payment: {
+        type: 'object',
+        required: ['address', 'amount', 'unique_asset_id'],
+        properties: {
+          address: { type: 'string' },
+          amount: { type: 'number' },
+          unique_asset_id: { type: 'string' },
+          expires_at: { type: 'integer' },
+          id: { type: 'string' },
+          is_open: { type: 'boolean' },
+        },
+      },
+    },
+  },
+  CreateNASPIPResponseSchema: { type: 'object', properties: { token: { type: 'string' } } },
+  ReadNASPIPRequestSchema: { type: 'object', properties: { token: { type: 'string' } } },
+  ReadNASPIPResponseData: {
+    type: 'object',
+    properties: {
+      payment: { type: 'object' },
+      order: { $ref: '#/components/schemas/PasetoV4OrderData' },
+      payment_options: { type: 'array', items: { type: 'string' } },
+      url: { type: 'string' },
+    },
+  },
+  PasetoV4OrderData: {
+    type: 'object',
+    properties: {
+      total: { type: 'string' },
+      coin_code: { type: 'string' },
+      description: { type: 'string' },
+      merchant: { $ref: '#/components/schemas/MerchantSchema' },
+      items: { type: 'array', items: { $ref: '#/components/schemas/InstructionItem' } },
+    },
+  },
+  InstructionItem: {
+    type: 'object',
+    properties: {
+      description: { type: 'string' },
+      quantity: { type: 'integer' },
+      unit_price: { type: 'string' },
+      amount: { type: 'string' },
+      coin_code: { type: 'string' },
+    },
+  },
+  GetAllTransactionsResponseSchema: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      type: TransactionType,
+      status: TransactionStatus,
+      currency: { type: 'string' },
+      network: { type: 'string' },
+      unique_asset_id: { type: 'string' },
+      gross_amount: { type: 'number' },
+      net_amount: { type: 'number' },
+      expected_amount: { type: 'number' },
+      from: { type: 'string' },
+      from_type: { type: 'string' },
+      to: { type: 'string' },
+      to_type: { type: 'string' },
+      transaction_hash: { type: 'string' },
+      financial_provider: { type: 'string' },
+      account_external_id: { type: 'string' },
+      created_at: { type: 'string' },
+      updated_at: { type: 'string' },
+    },
+  },
+  PaginatedTransactionsResponse: paginated('#/components/schemas/GetAllTransactionsResponseSchema'),
+  WebhookCreateRequest: {
+    type: 'object',
+    required: ['event_type', 'url'],
+    properties: {
+      event_type: WebhookEventType,
+      url: { type: 'string' },
+      description: { type: 'string' },
+    },
+  },
+  WebhookUpdateURLRequestSchema: {
+    type: 'object',
+    required: ['url'],
+    properties: { url: { type: 'string', example: 'https://example.com/webhook' } },
+  },
+  WebhookResponse: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      account_id: { type: 'string' },
+      event_type: WebhookEventType,
+      url: { type: 'string' },
+      description: { type: 'string' },
+      enabled: { type: 'boolean' },
+      secret: { type: 'string' },
+      created_at: { type: 'string' },
+      updated_at: { type: 'string' },
+    },
+  },
+  WebhookLogModel: {
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      webhook_id: { type: 'string' },
+      account_id: { type: 'string' },
+      event_type: WebhookEventType,
+      response_status: { type: 'integer' },
+      response_body: { type: 'string' },
+      duration_ms: { type: 'integer' },
+      error: { type: 'string' },
+      created_at: { type: 'string' },
+    },
+  },
+  PaginatedWebhookLogsResponse: paginated('#/components/schemas/WebhookLogModel'),
+};
+
+const paths = {
+  '/auth/token': {
+    post: {
+      tags: ['Authentication'],
+      summary: 'Get access token',
+      security: [],
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/AuthTokenRequestSchema' } } },
+      },
+      responses: {
+        200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/AuthTokenResponseSchema') } } },
+        400: errorResponses[400],
+        401: errorResponses[401],
+      },
+    },
+  },
+  '/account': {
+    get: {
+      tags: ['Accounts'], summary: 'Get all accounts', security,
+      responses: {
+        200: { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { status: { $ref: '#/components/schemas/ResponseStatus' }, data: { type: 'array', items: { $ref: '#/components/schemas/GetAccountResponseSchema' } } } } } } },
+        ...errorResponses,
+      },
+    },
+    post: {
+      tags: ['Accounts'], summary: 'Create account', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateAccountRequestSchema' } } } },
+      responses: {
+        201: { description: 'Created', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountResponseSchema') } } },
+        400: errorResponses[400], 403: errorResponses[403],
+      },
+    },
+  },
+  '/account/{accountId}': {
+    get: {
+      tags: ['Accounts'], summary: 'Get account by ID', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountResponseSchema') } } }, ...errorResponses },
+    },
+    put: {
+      tags: ['Accounts'], summary: 'Update account', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateAccountRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountResponseSchema') } } }, ...errorResponses },
+    },
+    delete: {
+      tags: ['Accounts'], summary: 'Delete account', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountId}/settlement-addresses': {
+    get: {
+      tags: ['Accounts'], summary: 'Get settlement addresses', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountSettlementAddressesResponseSchema') } } }, ...errorResponses },
+    },
+    post: {
+      tags: ['Accounts'], summary: 'Set settlement addresses', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
+      responses: { 201: { description: 'Created', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
+    },
+    put: {
+      tags: ['Accounts'], summary: 'Update settlement addresses', security,
+      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
+    },
+    delete: {
+      tags: ['Accounts'], summary: 'Delete settlement addresses', security,
+      parameters: [
+        { name: 'accountId', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'network', in: 'query', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook': {
+    post: {
+      tags: ['Webhooks'], summary: 'Create webhook', security,
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/WebhookCreateRequest' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/WebhookResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/list': {
+    get: {
+      tags: ['Webhooks'], summary: 'List webhooks', security,
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { status: { $ref: '#/components/schemas/ResponseStatus' }, data: { type: 'array', items: { $ref: '#/components/schemas/WebhookResponse' } } } } } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/logs': {
+    get: {
+      tags: ['Webhooks'], summary: 'Get webhook logs', security,
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaginatedWebhookLogsResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/{webhookID}/activate': {
+    patch: {
+      tags: ['Webhooks'], summary: 'Activate webhook', security,
+      parameters: [
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'webhookID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/{webhookID}/deactivate': {
+    patch: {
+      tags: ['Webhooks'], summary: 'Deactivate webhook', security,
+      parameters: [
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'webhookID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/{webhookID}/delete': {
+    delete: {
+      tags: ['Webhooks'], summary: 'Delete webhook', security,
+      parameters: [
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'webhookID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/{webhookID}/test': {
+    post: {
+      tags: ['Webhooks'], summary: 'Test webhook', security,
+      parameters: [
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'webhookID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/account/{accountID}/webhook/{webhookID}/url': {
+    put: {
+      tags: ['Webhooks'], summary: 'Update webhook URL', security,
+      parameters: [
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'webhookID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/WebhookUpdateURLRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/WebhookResponse') } } }, ...errorResponses },
+    },
+  },
+  '/organization': {
+    get: {
+      tags: ['Organization'], summary: 'Get organization', security,
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetOrganizationResponseSchema') } } }, 400: errorResponses[400], 401: errorResponses[401] },
+    },
+  },
+  '/organization/settlement-addresses': {
+    get: {
+      tags: ['Organization'], summary: 'Get settlement addresses', security,
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetSettlementAddressesResponseSchema') } } }, 403: errorResponses[403] },
+    },
+    post: {
+      tags: ['Organization'], summary: 'Set settlement addresses', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
+      responses: { 201: { description: 'Created', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
+    },
+    put: {
+      tags: ['Organization'], summary: 'Update settlement addresses', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
+    },
+    delete: {
+      tags: ['Organization'], summary: 'Delete settlement addresses', security,
+      parameters: [{ name: 'network', in: 'query', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, 400: errorResponses[400], 403: errorResponses[403] },
+    },
+  },
+  '/pos': {
+    get: {
+      tags: ['Point of Sale'], summary: 'Get all point of sales', security,
+      parameters: [
+        { name: 'page', in: 'query', required: true, schema: { type: 'integer' }, example: 1 },
+        { name: 'page_size', in: 'query', required: true, schema: { type: 'integer' }, example: 50 },
+        { name: 'account_id', in: 'query', schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaginatedPointOfSaleResponse') } } }, ...errorResponses },
+    },
+    post: {
+      tags: ['Point of Sale'], summary: 'Create point of sale', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePointOfSaleRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PointOfSaleResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}': {
+    get: {
+      tags: ['Point of Sale'], summary: 'Get point of sale', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PointOfSaleResponseSchema') } } }, ...errorResponses },
+    },
+    put: {
+      tags: ['Point of Sale'], summary: 'Update point of sale payment options', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/UpdatePointOfSaleOptionsRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PointOfSaleResponseSchema') } } }, ...errorResponses },
+    },
+    delete: {
+      tags: ['Point of Sale'], summary: 'Delete point of sale', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/payment-intention': {
+    get: {
+      tags: ['Point of Sale'], summary: 'Get payment intention', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaymentIntentionResponseSchema') } } }, ...errorResponses },
+    },
+    post: {
+      tags: ['Point of Sale'], summary: 'Create payment intention', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePaymentIntentionRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/CreatePaymentIntentionResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/payment-intention/close': {
+    post: {
+      tags: ['Point of Sale'], summary: 'Close payment intention', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/payment-request': {
+    post: {
+      tags: ['Point of Sale'], summary: 'Create payment request', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/PaymentRequestRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaymentRequestResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/payment-request-checkout': {
+    post: {
+      tags: ['Point of Sale'], summary: 'Create payment request checkout', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/PaymentRequestCheckoutRequestSchema' } } } },
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaymentRequestCheckoutResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/payment-request/{paymentRequestID}': {
+    get: {
+      tags: ['Point of Sale'], summary: 'Get payment request', security,
+      parameters: [
+        { name: 'posID', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'paymentRequestID', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaymentRequestResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/pos/{posID}/qr': {
+    get: {
+      tags: ['Point of Sale'], summary: 'Get QR', security,
+      parameters: [{ name: 'posID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetQRResponseSchema') } } }, ...errorResponses },
+    },
+  },
+  '/naspip/create': {
+    post: {
+      tags: ['NASPIP Token'], summary: 'Create NASPIP token', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateNASPIPRequestSchema' } } } },
+      responses: { 201: { description: 'Created', content: { 'application/json': { schema: apiResponse('#/components/schemas/CreateNASPIPResponseSchema') } } }, 400: errorResponses[400], 401: errorResponses[401] },
+    },
+  },
+  '/naspip/read': {
+    post: {
+      tags: ['NASPIP Token'], summary: 'Read NASPIP token', security,
+      requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ReadNASPIPRequestSchema' } } } },
+      responses: {
+        200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/ReadNASPIPResponseData') } } },
+        400: errorResponses[400], 401: errorResponses[401],
+        406: { description: 'Not Acceptable', content: { 'application/json': { schema: { $ref: '#/components/schemas/APIErrorSchema' } } } },
+      },
+    },
+  },
+  '/transactions': {
+    get: {
+      tags: ['Transactions'], summary: 'Get all transactions', security,
+      parameters: [
+        { name: 'page', in: 'query', required: true, schema: { type: 'integer' }, example: 1 },
+        { name: 'page_size', in: 'query', required: true, schema: { type: 'integer' }, example: 50 },
+      ],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/PaginatedTransactionsResponse') } } }, ...errorResponses },
+    },
+  },
+};
+
+const spec = {
+  openapi: '3.1.0',
+  info: {
+    title: 'Fluxis Core API',
+    version: '1.0',
+    description: 'Core API for Fluxis platform with authentication and account management',
+    termsOfService: 'http://swagger.io/terms/',
+    contact: { name: 'API Support', url: 'https://fluxis.us/support', email: 'support@fluxis.us' },
+    license: { name: 'Apache 2.0', url: 'http://www.apache.org/licenses/LICENSE-2.0.html' },
+  },
+  servers: [
+    { url: 'https://api.fluxis.us/v1', description: 'Production' },
+    { url: 'https://api.stgfluxis.us/v1', description: 'Staging' },
+  ],
+  tags: [
+    { name: 'Authentication' },
+    { name: 'Organization' },
+    { name: 'Accounts' },
+    { name: 'Point of Sale' },
+    { name: 'NASPIP Token' },
+    { name: 'Transactions' },
+    { name: 'Webhooks' },
+  ],
+  paths,
+  components: {
+    schemas,
+    securitySchemes: {
+      ApiKeyAuth: { type: 'apiKey', in: 'header', name: 'x-fluxis-api-key', description: 'Fluxis API Key ID' },
+      BearerAuth: { type: 'apiKey', in: 'header', name: 'Authorization', description: 'Type "Bearer <access_token>"' },
+    },
+  },
+};
+
+writeFileSync('spec/openapi.json', JSON.stringify(spec, null, 2));
+writeFileSync('spec/swagger.yaml', stringify(spec, { lineWidth: 0 }));
+console.log('Generated spec/openapi.json and spec/swagger.yaml');
