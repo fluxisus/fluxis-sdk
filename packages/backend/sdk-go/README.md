@@ -5,7 +5,7 @@ Official Go SDK for the [Fluxis](https://fluxis.us) crypto payment processing AP
 ## Installation
 
 ```bash
-go get github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go
+go get github.com/fluxisus/fluxis-go-sdk
 ```
 
 ## Quick Start
@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go/fluxis"
+	"github.com/fluxisus/fluxis-go-sdk/fluxis"
 )
 
 func main() {

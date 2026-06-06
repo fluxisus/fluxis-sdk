@@ -27,7 +27,7 @@ packages/backend/sdk-go/
 
 ## Naming Conventions
 
-- **Module path**: `github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go`
+- **Module path**: `github.com/fluxisus/fluxis-go-sdk`
 - **Package name**: `fluxis`
 - **Exported types**: PascalCase (`FluxisClient`, `PointOfSale`, `CreatePaymentRequest`)
 - **Unexported helpers**: camelCase (`doRequest`, `refreshToken`)
