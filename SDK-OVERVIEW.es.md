@@ -14,7 +14,7 @@ Referencia técnica para desarrolladores: qué está implementado en el monorepo
 | **TypeScript / Node.js** | `@fluxisus/sdk` | `0.1.0` | ✅ Implementado | 100% de endpoints públicos |
 | **C# / .NET** | `Fluxis.Sdk` | `0.2.0` | ✅ Implementado | 100% de endpoints públicos |
 | **Python** | `fluxis` | `0.1.0` | 🚧 Scaffold | Solo estructura de paquete |
-| **Go** | `github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go` | — | 🚧 Scaffold | Solo `go.mod` + docs |
+| **Go** | `github.com/fluxisus/fluxis-go-sdk` | — | ✅ Public mirror | Repo público `fluxis-go-sdk` |
 | **React** | — | — | 📋 Planeado | Workspace declarado, sin código |
 
 Los SDKs implementados son **hand-written** (no auto-generados desde el spec), con auth automática, tipos estrictos y tests.

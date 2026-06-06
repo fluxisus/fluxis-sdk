@@ -1,4 +1,4 @@
-module github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go
+module github.com/fluxisus/fluxis-go-sdk
 
 go 1.22
 
