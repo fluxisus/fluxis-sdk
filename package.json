@@ -3,13 +3,16 @@
   "private": true,
   "description": "Fluxis SDK monorepo — multi-language SDKs for the Fluxis crypto payment API",
   "workspaces": [
-    "packages/sdk",
-    "packages/react"
+    "packages/backend/sdk",
+    "packages/frontend/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "build:frontend": "./scripts/frontend.sh build",
     "test": "npm run test --workspaces --if-present",
+    "test:frontend": "./scripts/frontend.sh test",
     "lint": "npm run lint --workspaces --if-present",
+    "lint:frontend": "./scripts/frontend.sh lint",
     "validate-spec": "./scripts/validate-spec.sh"
   },
   "engines": {

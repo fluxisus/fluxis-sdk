@@ -6,8 +6,12 @@ Official SDKs for the [Fluxis](https://fluxis.us) crypto payment processing API.
 
 | Language | Package | Install |
 |----------|---------|---------|
-| TypeScript / Node.js | [`@fluxisus/sdk`](packages/sdk/README.md) | `npm install @fluxisus/sdk` |
-| C# / .NET | [`Fluxis.Sdk`](packages/sdk-csharp/README.md) | `dotnet add package Fluxis.Sdk` |
+| TypeScript / Node.js | [`@fluxisus/sdk`](packages/backend/sdk/README.md) | `npm install @fluxisus/sdk` |
+| C# / .NET | [`Fluxis.Sdk`](packages/backend/sdk-csharp/README.md) | `dotnet add package Fluxis.Sdk` |
+
+### Frontend (in development)
+
+Browser/UI packages live under [`packages/frontend/`](packages/frontend/README.md). They will be published under the `@fluxisus/*` scope (e.g. `@fluxisus/react`).
 
 ---
 
@@ -51,17 +55,17 @@ This repo follows the [llms.txt standard](https://llmstxt.org/) — structured d
 | File | Contents |
 |------|----------|
 | [`llms.txt`](llms.txt) | Index of all SDKs + shared concepts (quick overview) |
-| [`packages/sdk/llms-full.txt`](packages/sdk/llms-full.txt) | Complete TypeScript SDK guide |
-| [`packages/sdk-csharp/llms-full.txt`](packages/sdk-csharp/llms-full.txt) | Complete C# SDK guide |
+| [`packages/backend/sdk/llms-full.txt`](packages/backend/sdk/llms-full.txt) | Complete TypeScript SDK guide |
+| [`packages/backend/sdk-csharp/llms-full.txt`](packages/backend/sdk-csharp/llms-full.txt) | Complete C# SDK guide |
 
 You can feed these files directly into any LLM (ChatGPT, Claude, etc.):
 
 ```bash
 # Copy the TypeScript guide to clipboard (macOS)
-cat packages/sdk/llms-full.txt | pbcopy
+cat packages/backend/sdk/llms-full.txt | pbcopy
 
 # Or fetch the raw file from GitHub
-curl -s https://raw.githubusercontent.com/fluxisus/fluxis-sdk/main/packages/sdk/llms-full.txt
+curl -s https://raw.githubusercontent.com/fluxisus/fluxis-sdk/main/packages/backend/sdk/llms-full.txt
 ```
 
 ### CLAUDE.md — For Cursor & Claude Code
@@ -120,8 +124,9 @@ Console.WriteLine(payment.Status); // "created"
 
 Full documentation, API reference, and examples are in each SDK's README:
 
-- [TypeScript SDK →](packages/sdk/README.md)
-- [C# SDK →](packages/sdk-csharp/README.md)
+- [TypeScript SDK →](packages/backend/sdk/README.md)
+- [C# SDK →](packages/backend/sdk-csharp/README.md)
+- [Frontend SDKs →](packages/frontend/README.md) *(in development)*
 
 ---
 
@@ -171,19 +176,25 @@ Crypto assets are identified with the format `n{network}_t{tokenAddress}`:
 
 ### Webhooks
 
-Webhooks are the primary mechanism for receiving payment status updates. The SDK provides a `verifyWebhookSignature` utility (HMAC-SHA256) to authenticate incoming events. The webhook secret is returned once when creating notification settings on a Point of Sale.
+Webhooks are the primary mechanism for receiving payment and transfer events. They are configured per **account** (not per PoS). Event types: `payment_request`, `incoming_transfer`, `refund`. The SDK provides `verifyWebhookSignature` (HMAC-SHA256). The webhook `secret` is returned once when creating a webhook via `POST /account/{accountId}/webhook`.
 
 ### Payment Request Statuses
 
 ```
-created ──→ processing ──→ completed
-               │
-               ├──→ overpaid   (received more than requested)
-               └──→ underpaid  (received less than requested)
-
-created ──→ expired  (token expired, no payment received)
-          └──→ failed   (processing error)
+pending ──→ created ──→ processing ──→ completed ──→ confirmed
+              │              │
+              ├──→ overpaid  ├──→ underpaid
+              ├──→ expired   └──→ failed
+              └──→ failed
 ```
+
+### Payment Intention (open PoS)
+
+For `cashier_open` PoS types, use `createPaymentIntention` — the merchant sets the amount and the payer selects the payment currency.
+
+### Pagination
+
+`/transactions` and `/pos` use `page` + `page_size`. Responses include `page`, `page_size`, `total`, `total_pages`.
 
 ---
 

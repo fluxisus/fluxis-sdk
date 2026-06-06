@@ -8,18 +8,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/sdk-python/**'
+      - 'packages/backend/sdk-python/**'
       - 'spec/**'
     tags:
       - 'sdk-python/v*'
   pull_request:
     paths:
-      - 'packages/sdk-python/**'
+      - 'packages/backend/sdk-python/**'
       - 'spec/**'
 
 defaults:
   run:
-    working-directory: packages/sdk-python
+    working-directory: packages/backend/sdk-python
 
 jobs:
   build-and-test:
@@ -85,4 +85,4 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: packages/sdk-python/dist/
+          packages-dir: packages/backend/sdk-python/dist/

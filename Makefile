@@ -3,6 +3,7 @@
 # Run `make help` to list all available commands.
 
 .PHONY: help \
+        test test-all \
         build-csharp test-csharp pack-csharp publish-dry-csharp \
         build-ts test-ts publish-dry-ts \
         build-py test-py publish-dry-py \
@@ -21,20 +22,26 @@ help: ## Show this help message
 	@echo "Variables:"
 	@echo "  SDK=<csharp|ts|py|go>   used with: make tag"
 	@echo "  VERSION=<x.y.z>         used with: make tag"
+	@echo "  ARGS=--stop-when-fail   used with: make test"
+
+# ── All SDKs ──────────────────────────────────────────────────────────────────
+
+test test-all: ## Run all backend SDK tests (TypeScript, Go, Python, C#). Use ARGS=--stop-when-fail to stop on first failure
+	./scripts/test-all.sh $(ARGS)
 
 # ── C# ────────────────────────────────────────────────────────────────────────
 
 build-csharp: ## Build the C# SDK (Release mode)
-	cd packages/sdk-csharp && dotnet build -c Release
+	cd packages/backend/sdk-csharp && dotnet build -c Release
 
 test-csharp: ## Run C# tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
-	cd packages/sdk-csharp && dotnet test -c Release
+	cd packages/backend/sdk-csharp && dotnet test tests/Fluxis.Sdk.Tests.csproj -c Release
 
-pack-csharp: ## Pack C# SDK into packages/sdk-csharp/artifacts/
-	cd packages/sdk-csharp && dotnet pack -c Release -o ./artifacts
+pack-csharp: ## Pack C# SDK into packages/backend/sdk-csharp/artifacts/
+	cd packages/backend/sdk-csharp && dotnet pack -c Release -o ./artifacts
 	@echo ""
 	@echo "Package ready:"
-	@ls packages/sdk-csharp/artifacts/*.nupkg 2>/dev/null || true
+	@ls packages/backend/sdk-csharp/artifacts/*.nupkg 2>/dev/null || true
 
 publish-dry-csharp: ## Dry-run NuGet publish — shows what would be pushed without pushing
 	./scripts/publish-nuget.sh --dry-run
@@ -42,32 +49,32 @@ publish-dry-csharp: ## Dry-run NuGet publish — shows what would be pushed with
 # ── TypeScript ────────────────────────────────────────────────────────────────
 
 build-ts: ## Build the TypeScript SDK
-	cd packages/sdk && npm ci && npm run build
+	cd packages/backend/sdk && npm ci && npm run build
 
 test-ts: ## Run TypeScript tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
-	cd packages/sdk && npm ci && npm test
+	cd packages/backend/sdk && npm ci && npm test
 
 publish-dry-ts: ## Dry-run npm publish — shows what would be pushed without pushing
-	cd packages/sdk && npm ci && npm run build && npm publish --dry-run
+	cd packages/backend/sdk && npm ci && npm run build && npm publish --dry-run
 
 # ── Python ────────────────────────────────────────────────────────────────────
 
 build-py: ## Build the Python SDK
-	cd packages/sdk-python && pip install build -q && python -m build
+	cd packages/backend/sdk-python && pip install build -q && python -m build
 
 test-py: ## Run Python tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
-	cd packages/sdk-python && pip install -e ".[dev]" -q && pytest
+	cd packages/backend/sdk-python && pip install -e ".[dev]" -q && pytest
 
 publish-dry-py: ## Dry-run PyPI publish — builds and lists package contents
-	cd packages/sdk-python && pip install build -q && python -m build && ls -lh dist/
+	cd packages/backend/sdk-python && pip install build -q && python -m build && ls -lh dist/
 
 # ── Go ────────────────────────────────────────────────────────────────────────
 
 build-go: ## Build the Go SDK
-	cd packages/sdk-go && go build ./...
+	cd packages/backend/sdk-go && go build ./...
 
 test-go: ## Run Go tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_SECRET)
-	cd packages/sdk-go && go test ./... -v
+	cd packages/backend/sdk-go && go test ./... -v
 
 # ── Release management ────────────────────────────────────────────────────────
 

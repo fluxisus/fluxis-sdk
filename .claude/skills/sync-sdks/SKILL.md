@@ -30,10 +30,10 @@ Check which SDK directories exist and have source code:
 
 | SDK | Directory | Exists? |
 |-----|-----------|---------|
-| TypeScript | `packages/sdk/src/` | Check |
-| C# | `packages/sdk-csharp/src/` | Check |
-| Python | `packages/sdk-python/src/` | Check |
-| Go | `packages/sdk-go/` | Check |
+| TypeScript | `packages/backend/sdk/src/` | Check |
+| C# | `packages/backend/sdk-csharp/src/` | Check |
+| Python | `packages/backend/sdk-python/src/` | Check |
+| Go | `packages/backend/sdk-go/` | Check |
 
 Only update SDKs that have implemented source code (not stubs).
 
@@ -43,12 +43,12 @@ For each active SDK, apply changes following these language-specific patterns:
 
 ---
 
-### TypeScript SDK (`packages/sdk/`)
+### TypeScript SDK (`packages/backend/sdk/`)
 
 **Reference files to read first:**
-- `packages/sdk/CLAUDE.md` — naming conventions, design rules
-- `packages/sdk/src/client.ts` — how resources are registered
-- `packages/sdk/src/index.ts` — what's exported
+- `packages/backend/sdk/CLAUDE.md` — naming conventions, design rules
+- `packages/backend/sdk/src/client.ts` — how resources are registered
+- `packages/backend/sdk/src/index.ts` — what's exported
 
 **Naming**: camelCase for properties and methods. The SDK auto-converts to/from snake_case via `utils.ts`.
 
@@ -73,11 +73,11 @@ async methodName(parentId: string, data: RequestType): Promise<ResponseType> {
 
 ---
 
-### C# SDK (`packages/sdk-csharp/`)
+### C# SDK (`packages/backend/sdk-csharp/`)
 
 **Reference files to read first:**
-- `packages/sdk-csharp/CLAUDE.md` — naming conventions, design rules
-- `packages/sdk-csharp/src/Fluxis/FluxisClient.cs` — how resources are registered
+- `packages/backend/sdk-csharp/CLAUDE.md` — naming conventions, design rules
+- `packages/backend/sdk-csharp/src/Fluxis/FluxisClient.cs` — how resources are registered
 
 **Naming**: PascalCase for everything. Every property needs explicit `[JsonPropertyName("snake_case")]`.
 
@@ -111,11 +111,11 @@ public async Task<ResponseType> MethodNameAsync(string parentId, RequestType req
 
 ---
 
-### Python SDK (`packages/sdk-python/`)
+### Python SDK (`packages/backend/sdk-python/`)
 
 **Reference files to read first:**
-- `packages/sdk-python/CLAUDE.md` — naming conventions
-- `packages/sdk-python/src/fluxis/client.py` — how resources work
+- `packages/backend/sdk-python/CLAUDE.md` — naming conventions
+- `packages/backend/sdk-python/src/fluxis/client.py` — how resources work
 
 **Naming**: snake_case everywhere. Matches API natively — NO case conversion needed.
 
@@ -132,11 +132,11 @@ async def method_name(self, parent_id: str, request: RequestType) -> ResponseTyp
 
 ---
 
-### Go SDK (`packages/sdk-go/`)
+### Go SDK (`packages/backend/sdk-go/`)
 
 **Reference files to read first:**
-- `packages/sdk-go/CLAUDE.md` — naming conventions
-- `packages/sdk-go/fluxis/client.go` — how requests work
+- `packages/backend/sdk-go/CLAUDE.md` — naming conventions
+- `packages/backend/sdk-go/fluxis/client.go` — how requests work
 
 **Naming**: PascalCase exported, with `json:"snake_case"` struct tags.
 
@@ -160,10 +160,10 @@ func (c *Client) MethodName(ctx context.Context, parentID string, req *RequestTy
 
 For each SDK that was modified:
 
-1. **TypeScript**: Add/update tests in `packages/sdk/tests/`
-2. **C#**: Add/update tests in `packages/sdk-csharp/tests/`
-3. **Python**: Add/update tests in `packages/sdk-python/tests/`
-4. **Go**: Add/update tests in `packages/sdk-go/fluxis/*_test.go`
+1. **TypeScript**: Add/update tests in `packages/backend/sdk/tests/`
+2. **C#**: Add/update tests in `packages/backend/sdk-csharp/tests/`
+3. **Python**: Add/update tests in `packages/backend/sdk-python/tests/`
+4. **Go**: Add/update tests in `packages/backend/sdk-go/fluxis/*_test.go`
 
 Test patterns should follow existing test files in each SDK.
 
@@ -185,16 +185,16 @@ Run build and tests for each updated SDK:
 
 ```bash
 # TypeScript
-cd packages/sdk && npm run build && npm test
+cd packages/backend/sdk && npm run build && npm test
 
 # C#
-cd packages/sdk-csharp && dotnet build && dotnet test tests/Fluxis.Sdk.Tests.csproj
+cd packages/backend/csharp && dotnet build && dotnet test tests/Fluxis.Sdk.Tests.csproj
 
 # Python (if active)
-cd packages/sdk-python && pip install -e ".[dev]" -q && pytest
+cd packages/backend/python && pip install -e ".[dev]" -q && pytest
 
 # Go (if active)
-cd packages/sdk-go && go vet ./... && go build ./... && go test ./...
+cd packages/backend/go && go vet ./... && go build ./... && go test ./...
 ```
 
 Fix any compilation or test errors before finishing.

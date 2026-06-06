@@ -1,0 +1,67 @@
+# CLAUDE.md — Fluxis TypeScript SDK
+
+> Language-specific conventions for the TypeScript SDK.
+> For API details, authentication flow, schemas, and endpoints see the root `CLAUDE.md`.
+
+## Project Layout
+
+```
+packages/backend/sdk/
+├── src/
+│   ├── client.ts              # FluxisClient class — auth, config, HTTP, token refresh
+│   ├── resources/
+│   │   ├── accounts.ts        # /account CRUD + settlement addresses
+│   │   ├── organization.ts    # /organization + settlement addresses
+│   │   ├── pointOfSale.ts     # /pos CRUD + payment intentions + payment requests
+│   │   ├── webhooks.ts        # /account/{id}/webhook/*
+│   │   ├── naspip.ts          # /naspip/create and /naspip/read
+│   │   └── transactions.ts    # /transactions (paginated list)
+│   ├── types/
+│   │   ├── common.ts          # APIResponse, APIError, enums, Paginated<T>
+│   │   ├── auth.ts            # Auth request/response types
+│   │   ├── accounts.ts        # Account types
+│   │   ├── organization.ts    # Organization + settlement address types
+│   │   ├── pointOfSale.ts     # PoS, PaymentRequest types
+│   │   ├── paymentIntention.ts # Payment intention types
+│   │   ├── webhooks.ts        # Webhook types
+│   │   ├── naspip.ts          # NASPIP create/read types
+│   │   └── transactions.ts    # Transaction types
+│   ├── errors.ts              # FluxisError, FluxisAuthError, etc.
+│   ├── utils.ts               # Case conversion helpers
+│   ├── webhooks.ts            # verifyWebhookSignature()
+│   └── index.ts               # Main export
+├── tests/
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts
+├── vitest.config.ts
+└── CLAUDE.md                  # This file
+```
+
+## Naming Conventions
+
+- **camelCase** for all method names and properties (SDK auto-converts to/from snake_case for API)
+- Class name: `FluxisClient`
+- Package name: `@fluxisus/sdk`
+
+## Design Rules
+
+1. **Zero external deps**: Uses native `fetch` (Node 22+). No axios.
+2. **Bundling**: `tsup` producing ESM + CJS dual output.
+3. **Testing**: `vitest` against staging sandbox.
+4. **Strict TypeScript**: `strict: true`, no `any`.
+5. **snake_case <-> camelCase**: Automatic conversion in `utils.ts`.
+
+## Build & Test
+
+```bash
+npm run build    # tsup
+npm run test     # vitest
+npm run lint     # tsc --noEmit
+```
+
+## What NOT to Do
+
+- Do NOT use `any` types
+- Do NOT add runtime dependencies
+- Do NOT use axios — native fetch only

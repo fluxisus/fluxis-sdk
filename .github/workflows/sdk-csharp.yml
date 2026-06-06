@@ -4,16 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/sdk-csharp/**'
+      - 'packages/backend/sdk-csharp/**'
       - 'spec/**'
   pull_request:
     paths:
-      - 'packages/sdk-csharp/**'
+      - 'packages/backend/sdk-csharp/**'
       - 'spec/**'
 
 defaults:
   run:
-    working-directory: packages/sdk-csharp
+    working-directory: packages/backend/sdk-csharp
 
 jobs:
   build-and-test:

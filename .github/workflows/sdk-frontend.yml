@@ -1,0 +1,32 @@
+name: SDK — Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/frontend/**'
+  pull_request:
+    paths:
+      - 'packages/frontend/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: ./scripts/frontend.sh lint
+
+      - name: Build
+        run: ./scripts/frontend.sh build
+
+      - name: Test
+        run: ./scripts/frontend.sh test

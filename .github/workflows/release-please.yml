@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
-      ts_release_created: ${{ steps.release.outputs['packages/sdk--release_created'] }}
-      ts_tag_name: ${{ steps.release.outputs['packages/sdk--tag_name'] }}
-      ts_version: ${{ steps.release.outputs['packages/sdk--version'] }}
-      cs_release_created: ${{ steps.release.outputs['packages/sdk-csharp--release_created'] }}
-      cs_tag_name: ${{ steps.release.outputs['packages/sdk-csharp--tag_name'] }}
-      cs_version: ${{ steps.release.outputs['packages/sdk-csharp--version'] }}
+      ts_release_created: ${{ steps.release.outputs['packages/backend/sdk--release_created'] }}
+      ts_tag_name: ${{ steps.release.outputs['packages/backend/sdk--tag_name'] }}
+      ts_version: ${{ steps.release.outputs['packages/backend/sdk--version'] }}
+      cs_release_created: ${{ steps.release.outputs['packages/backend/sdk-csharp--release_created'] }}
+      cs_tag_name: ${{ steps.release.outputs['packages/backend/sdk-csharp--tag_name'] }}
+      cs_version: ${{ steps.release.outputs['packages/backend/sdk-csharp--version'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -36,7 +36,7 @@ jobs:
       id-token: write
     defaults:
       run:
-        working-directory: packages/sdk
+        working-directory: packages/backend/sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/sdk-csharp
+        working-directory: packages/backend/sdk-csharp
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Fluxis.Sdk.${{ needs.release-please.outputs.cs_version }}.nupkg
-          path: packages/sdk-csharp/artifacts/*.nupkg
+          path: packages/backend/sdk-csharp/artifacts/*.nupkg
 
       - name: Publish to NuGet
         run: |

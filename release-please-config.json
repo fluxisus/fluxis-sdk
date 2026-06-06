@@ -4,12 +4,12 @@
   "separate-pull-requests": true,
   "pull-request-title-pattern": "chore${scope}: release ${component} v${version}",
   "packages": {
-    "packages/sdk": {
+    "packages/backend/sdk": {
       "component": "typescript-sdk",
       "release-type": "node",
       "package-name": "@fluxisus/sdk"
     },
-    "packages/sdk-csharp": {
+    "packages/backend/sdk-csharp": {
       "component": "csharp-sdk",
       "release-type": "simple",
       "package-name": "Fluxis.Sdk",
@@ -21,12 +21,12 @@
         }
       ]
     },
-    "packages/sdk-python": {
+    "packages/backend/sdk-python": {
       "release-type": "python",
       "package-name": "fluxis",
       "tag-name": "sdk-python/v${version}"
     },
-    "packages/sdk-go": {
+    "packages/backend/sdk-go": {
       "release-type": "go",
       "package-name": "fluxis-sdk-go",
       "tag-name": "sdk-go/v${version}"

@@ -11,18 +11,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/sdk-go/**'
+      - 'packages/backend/sdk-go/**'
       - 'spec/**'
     tags:
       - 'sdk-go/v*'
   pull_request:
     paths:
-      - 'packages/sdk-go/**'
+      - 'packages/backend/sdk-go/**'
       - 'spec/**'
 
 defaults:
   run:
-    working-directory: packages/sdk-go
+    working-directory: packages/backend/sdk-go
 
 jobs:
   build-and-test:
@@ -68,7 +68,7 @@ jobs:
         # The Go module proxy indexes the tag automatically within minutes.
         # This step explicitly fetches the module to ensure proxy.golang.org sees it immediately.
         run: |
-          MODULE="github.com/fluxisus/fluxis-sdk/packages/sdk-go"
+          MODULE="github.com/fluxisus/fluxis-sdk/packages/backend/sdk-go"
           VERSION="v${{ steps.version.outputs.VERSION }}"
           echo "Requesting proxy index for ${MODULE}@${VERSION}"
           curl -sSf "https://proxy.golang.org/${MODULE}/@v/${VERSION}.info" || true
