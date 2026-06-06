@@ -3,6 +3,12 @@ name: Release Please
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# Avoid collisions when two release PRs merge close together (release-please#2746).
+concurrency:
+  group: release-please
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -27,40 +33,51 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  publish-typescript:
+  # When one component release merges, sibling release-please PRs touch the same
+  # manifest and become conflicting. Close them so the next workflow run recreates
+  # clean PRs against the updated main (release-please#1870).
+  refresh-stale-release-prs:
     needs: release-please
-    if: needs.release-please.outputs.ts_release_created == 'true'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: packages/backend/sdk
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/github-script@v8
         with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org'
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              base: 'main',
+              per_page: 100,
+            });
 
-      - name: Install dependencies
-        run: npm ci
+            for (const pr of prs) {
+              if (!pr.head.ref.startsWith('release-please--')) continue;
 
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
-        env:
-          FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
-          FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
-
-      - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              core.info(`Closing stale release PR #${pr.number}: ${pr.title}`);
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: [
+                  'Auto-closed: another release PR merged and updated `.release-please-manifest.json`.',
+                  '',
+                  'Run **Actions → Release Please → Run workflow** (or push to `main`) to open a fresh release PR for this component.',
+                ].join('\n'),
+              });
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pr.number,
+                state: 'closed',
+              });
+            }
 
   publish-csharp:
     needs: release-please
@@ -70,9 +87,9 @@ jobs:
       run:
         working-directory: packages/backend/sdk-csharp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -92,7 +109,7 @@ jobs:
         run: dotnet pack -c Release --no-restore -o ./artifacts
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Fluxis.Sdk.${{ needs.release-please.outputs.cs_version }}.nupkg
           path: packages/backend/sdk-csharp/artifacts/*.nupkg

@@ -33,11 +33,14 @@ export interface TestCredentials {
   apiSecret: string;
 }
 
-/** Return staging credentials when both env vars are set. */
+/** Return staging credentials when both env vars are set and the key is a staging key. */
 export function getTestCredentials(): TestCredentials | null {
-  const apiKey = process.env.FLUXIS_API_KEY;
-  const apiSecret = process.env.FLUXIS_API_SECRET;
+  const apiKey = process.env.FLUXIS_API_KEY?.trim();
+  const apiSecret = process.env.FLUXIS_API_SECRET?.trim();
   if (!apiKey || !apiSecret) {
+    return null;
+  }
+  if (!apiKey.startsWith('fxs.stg.')) {
     return null;
   }
   return { apiKey, apiSecret };
