@@ -2,5 +2,5 @@
   "packages/backend/sdk": "1.0.0",
   "packages/backend/sdk-csharp": "1.0.0",
   "packages/backend/sdk-python": "0.1.0",
-  "packages/backend/sdk-go": "0.1.0"
+  "packages/backend/sdk-go": "0.2.0"
 }
