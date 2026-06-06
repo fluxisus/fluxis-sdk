@@ -46,7 +46,7 @@ packages/backend/sdk/
 
 ## Design Rules
 
-1. **Zero external deps**: Uses native `fetch` (Node 18+). No axios.
+1. **Zero external deps**: Uses native `fetch` (Node 22+). No axios.
 2. **Bundling**: `tsup` producing ESM + CJS dual output.
 3. **Testing**: `vitest` against staging sandbox.
 4. **Strict TypeScript**: `strict: true`, no `any`.

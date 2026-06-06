@@ -1,6 +1,6 @@
 {
   "name": "@fluxisus/sdk",
-  "version": "0.3.0",
+  "version": "0.2.0",
   "description": "Official TypeScript SDK for the Fluxis crypto payment processing API",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,6 +27,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "test:integration": "vitest run tests/integration.test.ts",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
@@ -49,7 +50,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

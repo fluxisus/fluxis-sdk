@@ -4,7 +4,7 @@ Official TypeScript SDK for the [Fluxis](https://fluxis.us) crypto payment proce
 
 ## Requirements
 
-- Node.js 18+ (uses native `fetch`, `AbortSignal.timeout()`, `crypto.subtle`)
+- Node.js 22+ (uses native `fetch`, `AbortSignal.timeout()`, `crypto.subtle`)
 - Zero runtime dependencies
 
 ## Installation
