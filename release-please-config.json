@@ -30,6 +30,11 @@
       "release-type": "go",
       "package-name": "fluxis-sdk-go",
       "tag-name": "sdk-go/v${version}"
+    },
+    "packages/frontend/react": {
+      "component": "react-sdk",
+      "release-type": "node",
+      "package-name": "@fluxisus/react"
     }
   }
 }
