@@ -50,7 +50,7 @@ export function CompatibleApps({
     );
   }
 
-  if (error) {
+  if (error && filteredApps.length === 0) {
     return (
       <div
         className={className}
