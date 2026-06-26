@@ -13,6 +13,7 @@ export {
   getBundledCompatibleApps,
 } from './hooks/useCompatibleApps.js';
 export { useIsMobile } from './hooks/useIsMobile.js';
+export { usePaymentStatus } from './hooks/usePaymentStatus.js';
 
 // Theme
 export { defaultTheme, mergeTheme, themeToCssVariables } from './theme/theme.js';
@@ -45,3 +46,7 @@ export type {
   CompatibleAppsRemoteOptions,
   QrErrorCorrectionLevel,
 } from './types.js';
+export type {
+  UsePaymentStatusOptions,
+  UsePaymentStatusResult,
+} from './hooks/usePaymentStatus.js';
