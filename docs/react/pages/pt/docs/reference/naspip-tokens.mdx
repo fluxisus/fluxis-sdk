@@ -1,0 +1,149 @@
+---
+title: Tokens NASPIP
+---
+
+Os tokens NASPIP (Native Asset Standard Payment Instruction Protocol) codificam uma instrução de pagamento completa — valor, ativo, endereço de destino, informações do comerciante e expiração — em uma única string portátil. São criados no servidor e passados aos componentes de `@fluxisus/react` para renderização.
+
+## Formato do token
+
+```
+naspip;<domínio>;<protocolo>;<paseto-token>
+```
+
+Exemplo:
+```
+naspip;fluxis.us;fluxis.qr.dyn.1;v4.public.Ihgy...
+```
+
+O payload é um token PASETO v4. **Nunca decodifique tokens NASPIP no cliente** — use o endpoint `/naspip/read` do seu backend (ou `@fluxisus/sdk`) para verificar e extrair os dados.
+
+## Utilitários
+
+### `isValidNaspipToken`
+
+Verificação leve de validade no cliente. Verifica apenas o prefixo `naspip;` — não decodifica o payload PASETO nem faz requisições de rede.
+
+```ts
+import { isValidNaspipToken } from '@fluxisus/react';
+
+isValidNaspipToken('naspip;fluxis.us;...');  // true
+isValidNaspipToken('string-inválida');        // false
+isValidNaspipToken('');                       // false
+```
+
+Usada internamente por `FluxisQrCode` para decidir se renderiza o QR ou um placeholder.
+
+### `buildDeepLink`
+
+Substitui o placeholder `[NASPIP_TOKEN]` no template de deep link de uma carteira pelo token real:
+
+```ts
+import { buildDeepLink } from '@fluxisus/react';
+
+const deepLink = buildDeepLink(
+  'https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=[NASPIP_TOKEN]',
+  token,
+);
+// → 'https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=naspip;fluxis.us;...'
+```
+
+`PayWithAppButton` a usa internamente. Chame-a diretamente apenas se estiver construindo lógica de deep link personalizada.
+
+## Ciclo de vida do token
+
+```
+Backend cria a solicitação de pagamento
+        ↓
+Retorna o token NASPIP (v4.public.…)
+        ↓
+Frontend recebe o token, renderiza o QR com FluxisQrCode
+        ↓
+Pagador escaneia o QR ou toca "Pagar com"
+        ↓
+Carteira lê o token, inicia a transferência on-chain
+        ↓
+usePaymentStatus consulta o backend → status: completed
+```
+
+## Criar tokens
+
+A criação de tokens é exclusiva do servidor, via `@fluxisus/sdk`:
+
+<CodeTabs syncKey="lang">
+  <CodeTabPanel
+    language="ts"
+    title="TypeScript"
+    code={`import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({ apiKey, apiSecret });
+
+const { token } = await fluxis.pointOfSale.createPaymentRequest(posId, {
+  amount: '100.00',
+  unique_asset_id: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+  reference_id: 'order-123',
+});
+
+// Passe \`token\` ao navegador — é seguro expô-lo, não contém segredos`}
+  />
+  <CodeTabPanel
+    language="go"
+    title="Go"
+    code={`// go get github.com/fluxisus/fluxis-go-sdk
+import "github.com/fluxisus/fluxis-go-sdk/fluxis"
+
+payment, err := client.PointOfSale.CreatePaymentRequest(
+    context.Background(),
+    posID,
+    &fluxis.CreatePaymentRequestRequest{
+        Amount:        "100.00",
+        UniqueAssetID: "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        ReferenceID:   "order-123",
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+// Passe payment.Token ao navegador — é seguro expô-lo, não contém segredos`}
+  />
+  <CodeTabPanel
+    language="python"
+    title="Python"
+    code={`# pip install fluxis
+from fluxis import FluxisClient
+from fluxis.models.point_of_sale import CreatePaymentRequestRequest
+
+with FluxisClient(api_key=api_key, api_secret=api_secret) as client:
+    payment = client.point_of_sale.create_payment_request(
+        pos_id=pos_id,
+        data=CreatePaymentRequestRequest(
+            amount="100.00",
+            unique_asset_id="npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            reference_id="order-123",
+        ),
+    )
+    # Passe payment.token ao navegador — é seguro expô-lo, não contém segredos`}
+  />
+  <CodeTabPanel
+    language="csharp"
+    title="C#"
+    code={`// dotnet add package Fluxis.Sdk
+using Fluxis;
+using Fluxis.Models;
+
+var payment = await client.PointOfSale.CreatePaymentRequestAsync(posId,
+    new CreatePaymentRequestRequest
+    {
+        Amount = "100.00",
+        UniqueAssetId = "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        ReferenceId = "order-123",
+    });
+
+// Passe payment.Token ao navegador — é seguro expô-lo, não contém segredos`}
+  />
+</CodeTabs>
+
+## Expiração
+
+Os tokens têm um timestamp de expiração definido pelo servidor embutido no payload PASETO. Os componentes de `@fluxisus/react` não decodificam nem impõem a expiração no cliente automaticamente. Use `usePaymentStatus` para detectar o status `expired` do seu backend, que é a fonte da verdade.
+
+O offset de desvio de relógio que `usePaymentStatus` captura dos cabeçalhos `Date` está destinado a suportar contagens regressivas de expiração precisas no cliente em componentes futuros.

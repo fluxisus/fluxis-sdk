@@ -1,0 +1,109 @@
+---
+title: usePaymentStatus
+---
+
+Polls **your own backend route** for live payment status. The hook never calls the Fluxis API directly and accepts no API credentials — all authentication stays server-side.
+
+## Import
+
+```tsx
+import { usePaymentStatus } from '@fluxisus/react';
+```
+
+## Signature
+
+```ts
+function usePaymentStatus(
+  statusUrl: string,
+  options?: UsePaymentStatusOptions,
+): UsePaymentStatusResult
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `pollInterval` | `number` | `5000` | Milliseconds between polls |
+| `enabled` | `boolean` | `true` | Set to `false` to pause polling without unmounting |
+
+### Return value
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `string \| null` | The `status` field from your route's JSON response. `null` until the first successful response. |
+| `data` | `unknown \| null` | The full JSON response body |
+| `error` | `Error \| null` | The last fetch error. Cleared on the next successful response. |
+| `isPolling` | `boolean` | `true` while a fetch is in flight or the next poll is scheduled |
+| `refetch` | `() => void` | Trigger an immediate fetch, resetting the interval timer |
+
+## Basic usage
+
+```tsx
+function CheckoutStatus({ paymentRequestId }: { paymentRequestId: string }) {
+  const { status, error, isPolling, refetch } = usePaymentStatus(
+    `/api/payment-status/${paymentRequestId}`,
+  );
+
+  if (status === 'completed') return <p>Payment received!</p>;
+  if (status === 'expired') return <p>QR expired — please refresh.</p>;
+  if (error) return <p>Connection error — <button onClick={refetch}>retry</button></p>;
+
+  return <p>{isPolling ? 'Waiting for payment…' : status}</p>;
+}
+```
+
+## Terminal statuses
+
+Polling stops automatically when `status` reaches any of these values:
+
+| Status | Meaning |
+|--------|---------|
+| `completed` | Payment fully received |
+| `expired` | NASPIP token expired before payment |
+| `failed` | Payment processing failed |
+| `overpaid` | More than the requested amount was received |
+| `underpaid` | Less than the requested amount was received |
+
+For all other statuses (`pending`, `processing`, `created`, …) polling continues.
+
+## Manual refetch
+
+Use `refetch()` for an "I already paid — check now" button. It triggers an immediate fetch and resets the poll timer so the next automatic poll is `pollInterval` ms later, not immediately after:
+
+```tsx
+<button onClick={refetch}>I already paid — check now</button>
+```
+
+## Pausing polling
+
+Pass `enabled: false` to pause without unmounting. Useful when the QR is off-screen or the page is hidden:
+
+```tsx
+const [visible, setVisible] = useState(true);
+
+const { status } = usePaymentStatus(url, { enabled: visible });
+```
+
+## Exponential backoff
+
+On network or HTTP error, the interval doubles (capped at 60 seconds). As soon as a request succeeds, the interval resets to the configured `pollInterval`. The error is stored in `error` but polling continues — the hook never gives up unless a terminal status is received.
+
+## Clock-skew offset
+
+On every successful response the hook reads the `Date` response header and writes `serverDate - Date.now()` to `FluxisProvider`'s shared context. Other components can read this offset for accurate expiration countdowns without making their own requests.
+
+**CORS note:** `Date` is not in the browser's CORS safelist. For cross-origin status endpoints, you must add:
+
+```
+Access-Control-Expose-Headers: Date
+```
+
+If the header is absent or blocked, the offset stays `0` silently — nothing breaks.
+
+## Cleanup
+
+The hook cancels in-flight fetches and clears the poll timer on unmount. No orphaned requests or state updates after the component is removed.
+
+## Required backend route
+
+See [Merchant Backend](/docs/guides/merchant-backend) for the server-side route you need to implement. In short, your route calls `fluxis.pointOfSale.getPaymentRequest()` and returns the result as JSON.

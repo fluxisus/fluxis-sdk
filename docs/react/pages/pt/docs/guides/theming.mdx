@@ -1,0 +1,104 @@
+---
+title: Temas
+---
+
+Todos os componentes Fluxis são tematizados via propriedades personalizadas CSS. `FluxisProvider` as injeta em um `<div>` contêiner, então você pode aplicá-las a uma subárvore específica ou globalmente.
+
+## Ordem de prioridade
+
+**Prop do componente** → **Variável CSS do provider** → **Valor padrão integrado**
+
+Uma cor passada diretamente a um componente (`fgColor` em `FluxisQrCode`) sempre tem prioridade. Se omitida, o componente lê a variável CSS definida por `FluxisProvider`. Se não houver provider, o valor padrão integrado é aplicado.
+
+## FluxisProvider
+
+```tsx
+import { FluxisProvider } from '@fluxisus/react';
+
+<FluxisProvider
+  theme={{
+    colorPrimary: '#7c3aed',
+    qrFg: '#1e1b4b',
+    qrBg: '#ffffff',
+    buttonBg: '#ffffff',
+    buttonFg: '#0f172a',
+    buttonHoverBg: '#f5f3ff',
+  }}
+>
+  {children}
+</FluxisProvider>
+```
+
+### Props do tema
+
+| Prop | Variável CSS | Valor padrão | Descrição |
+|------|-------------|--------------|-----------|
+| `colorBg` | `--fluxis-color-bg` | `#ffffff` | Cor de fundo |
+| `colorFg` | `--fluxis-color-fg` | `#0f172a` | Cor de primeiro plano / texto |
+| `colorPrimary` | `--fluxis-color-primary` | `#2563eb` | Cor de destaque da marca |
+| `colorBorder` | `--fluxis-color-border` | `#e2e8f0` | Cor da borda |
+| `colorMuted` | `--fluxis-color-muted` | `#64748b` | Cor de texto secundário / atenuado |
+| `radius` | `--fluxis-radius` | `0.75rem` | Raio de canto padrão |
+| `fontFamily` | `--fluxis-font-family` | `inherit` | Família tipográfica |
+| `qrFg` | `--fluxis-qr-fg` | `#19323a` | Cor dos módulos do código QR |
+| `qrBg` | `--fluxis-qr-bg` | `#ffffff` | Cor de fundo do código QR |
+| `buttonBg` | `--fluxis-button-bg` | `#ffffff` | Fundo do botão de app |
+| `buttonFg` | `--fluxis-button-fg` | `#0f172a` | Cor do texto do botão de app |
+| `buttonHoverBg` | `--fluxis-button-hover-bg` | `#f8fafc` | Fundo do botão ao passar o cursor |
+
+## Usar variáveis CSS diretamente
+
+Você pode definir qualquer variável `--fluxis-*` no seu próprio CSS sem usar `FluxisProvider`:
+
+```css
+:root {
+  --fluxis-color-primary: #7c3aed;
+  --fluxis-radius: 0.5rem;
+  --fluxis-qr-fg: #1e1b4b;
+}
+```
+
+`FluxisProvider` é apenas uma forma conveniente de fazer isso via JavaScript/TypeScript.
+
+## Exemplo de modo escuro
+
+```tsx
+<FluxisProvider
+  theme={{
+    colorBg: '#0f172a',
+    colorFg: '#f8fafc',
+    colorBorder: '#1e293b',
+    colorMuted: '#94a3b8',
+    buttonBg: '#1e293b',
+    buttonFg: '#f8fafc',
+    buttonHoverBg: '#334155',
+    qrFg: '#f8fafc',
+    qrBg: '#0f172a',
+  }}
+>
+  {children}
+</FluxisProvider>
+```
+
+## Substituições parciais
+
+Todas as props do tema são opcionais. Você só precisa passar os valores que deseja alterar:
+
+```tsx
+<FluxisProvider theme={{ colorPrimary: '#e11d48' }}>
+  {children}
+</FluxisProvider>
+```
+
+## Escopo do provider
+
+`FluxisProvider` aplica suas variáveis CSS a um `<div>` contêiner. Você pode aninhar múltiplos providers para diferentes seções da sua UI:
+
+```tsx
+<FluxisProvider theme={{ colorPrimary: '#2563eb' }}>
+  <Header />
+  <FluxisProvider theme={{ colorPrimary: '#7c3aed' }}>
+    <PremiumSection />
+  </FluxisProvider>
+</FluxisProvider>
+```

@@ -1,0 +1,171 @@
+---
+title: Inicio Rápido
+---
+
+Esta guía te lleva de cero a un QR de pago funcional en menos de cinco minutos.
+
+## 1. Crear una solicitud de pago en tu backend
+
+Tu servidor llama a `pointOfSale.createPaymentRequest()` del SDK de Fluxis y devuelve el token NASPIP al navegador. **Nunca generes tokens de pago en el cliente.**
+
+<CodeTabs syncKey="lang">
+  <CodeTabPanel
+    language="ts"
+    title="TypeScript"
+    code={`// app/api/payment-request/route.ts
+import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({ apiKey: process.env.FLUXIS_API_KEY, apiSecret: process.env.FLUXIS_API_SECRET });
+
+export async function POST(req: Request) {
+  const { amount } = await req.json();
+  const payment = await fluxis.pointOfSale.createPaymentRequest(process.env.POS_ID, {
+    amount,
+    unique_asset_id: 'npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+    reference_id: crypto.randomUUID(),
+  });
+  return Response.json({ token: payment.token });
+}`}
+  />
+  <CodeTabPanel
+    language="go"
+    title="Go"
+    code={`// go get github.com/fluxisus/fluxis-go-sdk
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "net/http"
+    "os"
+
+    "github.com/fluxisus/fluxis-go-sdk/fluxis"
+)
+
+var fluxisClient, _ = fluxis.NewClient(
+    fluxis.WithAPIKey(os.Getenv("FLUXIS_API_KEY")),
+    fluxis.WithAPISecret(os.Getenv("FLUXIS_API_SECRET")),
+)
+
+func createPaymentRequest(w http.ResponseWriter, r *http.Request) {
+    payment, err := fluxisClient.PointOfSale.CreatePaymentRequest(
+        context.Background(),
+        os.Getenv("POS_ID"),
+        &fluxis.CreatePaymentRequestRequest{
+            Amount:        "25.00",
+            UniqueAssetID: "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            ReferenceID:   "order-001",
+        },
+    )
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"token": payment.Token})
+}`}
+  />
+  <CodeTabPanel
+    language="python"
+    title="Python"
+    code={`# pip install fluxis fastapi
+import os
+from fastapi import FastAPI
+from fluxis import AsyncFluxisClient
+from fluxis.models.point_of_sale import CreatePaymentRequestRequest
+
+app = FastAPI()
+fluxis_client = AsyncFluxisClient(
+    api_key=os.environ["FLUXIS_API_KEY"],
+    api_secret=os.environ["FLUXIS_API_SECRET"],
+)
+
+@app.post("/api/payment-request")
+async def create_payment_request():
+    payment = await fluxis_client.point_of_sale.create_payment_request(
+        pos_id=os.environ["POS_ID"],
+        data=CreatePaymentRequestRequest(
+            amount="25.00",
+            unique_asset_id="npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            reference_id="order-001",
+        ),
+    )
+    return {"token": payment.token}`}
+  />
+  <CodeTabPanel
+    language="csharp"
+    title="C#"
+    code={`// dotnet add package Fluxis.Sdk
+// Program.cs
+using Fluxis;
+using Fluxis.Models;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton(new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
+    ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
+}));
+
+var app = builder.Build();
+
+app.MapPost("/api/payment-request", async (FluxisClient fluxis) =>
+{
+    var payment = await fluxis.PointOfSale.CreatePaymentRequestAsync(
+        builder.Configuration["Fluxis:PosId"]!,
+        new CreatePaymentRequestRequest
+        {
+            Amount = "25.00",
+            UniqueAssetId = "npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            ReferenceId = Guid.NewGuid().ToString(),
+        });
+    return Results.Ok(new { token = payment.Token });
+});
+
+app.Run();`}
+  />
+</CodeTabs>
+
+## 2. Renderizar el código QR
+
+Pasa el token a `FluxisQrCode` dentro de un `FluxisProvider`:
+
+```tsx
+import { FluxisProvider, FluxisQrCode, CompatibleApps } from '@fluxisus/react';
+
+export function CheckoutPage({ token }: { token: string }) {
+  return (
+    <FluxisProvider theme={{ colorPrimary: '#2563eb' }}>
+      <FluxisQrCode token={token} size={280} />
+      <CompatibleApps token={token} />
+    </FluxisProvider>
+  );
+}
+```
+
+`FluxisProvider` es opcional — los componentes funcionan sin él usando los valores de tema predeterminados. Envuélvelo una vez al nivel del layout para que el tema se propague a todos los componentes Fluxis.
+
+## 3. Monitorear el estado del pago
+
+Una vez mostrado el QR, usa `usePaymentStatus` para detectar cuando llega el pago:
+
+```tsx
+import { usePaymentStatus } from '@fluxisus/react';
+
+function PaymentStatus({ paymentRequestId }: { paymentRequestId: string }) {
+  const { status, isPolling } = usePaymentStatus(`/api/payment-status/${paymentRequestId}`);
+
+  if (status === 'completed') return <p>¡Pago recibido!</p>;
+  if (status === 'expired') return <p>QR expirado — por favor recarga la página.</p>;
+
+  return <p>{isPolling ? 'Esperando pago…' : status ?? 'Cargando…'}</p>;
+}
+```
+
+El hook consulta tu ruta backend cada 5 segundos y se detiene automáticamente en cualquier estado terminal (`completed`, `expired`, `failed`, `overpaid`, `underpaid`). Consulta [Backend del Comerciante](/es/docs/guides/merchant-backend) para implementar la ruta necesaria.
+
+## ¿Qué sigue?
+
+- Aprende sobre [temas](/es/docs/guides/theming) para adaptar los colores a tu marca.
+- Consulta todas las [props de componentes](/es/docs/components/fluxis-qr-code).
+- Entiende el formato del [token NASPIP](/es/docs/reference/naspip-tokens).

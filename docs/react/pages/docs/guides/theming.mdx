@@ -1,0 +1,104 @@
+---
+title: Theming
+---
+
+All Fluxis components are themed via CSS custom properties. `FluxisProvider` injects these into a wrapper `<div>`, so you can scope them to a subtree or apply them globally.
+
+## Override order
+
+**Component prop** → **CSS variable from provider** → **built-in default**
+
+A color passed directly to a component (`fgColor` on `FluxisQrCode`) always wins. If omitted, the component reads the CSS variable set by `FluxisProvider`. If there's no provider, the built-in default applies.
+
+## FluxisProvider
+
+```tsx
+import { FluxisProvider } from '@fluxisus/react';
+
+<FluxisProvider
+  theme={{
+    colorPrimary: '#7c3aed',
+    qrFg: '#1e1b4b',
+    qrBg: '#ffffff',
+    buttonBg: '#ffffff',
+    buttonFg: '#0f172a',
+    buttonHoverBg: '#f5f3ff',
+  }}
+>
+  {children}
+</FluxisProvider>
+```
+
+### Theme props
+
+| Prop | CSS variable | Default | Description |
+|------|-------------|---------|-------------|
+| `colorBg` | `--fluxis-color-bg` | `#ffffff` | Background color |
+| `colorFg` | `--fluxis-color-fg` | `#0f172a` | Foreground / text color |
+| `colorPrimary` | `--fluxis-color-primary` | `#2563eb` | Brand accent color |
+| `colorBorder` | `--fluxis-color-border` | `#e2e8f0` | Border color |
+| `colorMuted` | `--fluxis-color-muted` | `#64748b` | Muted / secondary text color |
+| `radius` | `--fluxis-radius` | `0.75rem` | Default corner radius |
+| `fontFamily` | `--fluxis-font-family` | `inherit` | Font family |
+| `qrFg` | `--fluxis-qr-fg` | `#19323a` | QR code module color |
+| `qrBg` | `--fluxis-qr-bg` | `#ffffff` | QR code background color |
+| `buttonBg` | `--fluxis-button-bg` | `#ffffff` | App button background |
+| `buttonFg` | `--fluxis-button-fg` | `#0f172a` | App button text color |
+| `buttonHoverBg` | `--fluxis-button-hover-bg` | `#f8fafc` | App button hover background |
+
+## Using CSS variables directly
+
+You can set any `--fluxis-*` variable in your own CSS without using `FluxisProvider`:
+
+```css
+:root {
+  --fluxis-color-primary: #7c3aed;
+  --fluxis-radius: 0.5rem;
+  --fluxis-qr-fg: #1e1b4b;
+}
+```
+
+`FluxisProvider` is just a convenient way to do this from JavaScript/TypeScript.
+
+## Dark mode example
+
+```tsx
+<FluxisProvider
+  theme={{
+    colorBg: '#0f172a',
+    colorFg: '#f8fafc',
+    colorBorder: '#1e293b',
+    colorMuted: '#94a3b8',
+    buttonBg: '#1e293b',
+    buttonFg: '#f8fafc',
+    buttonHoverBg: '#334155',
+    qrFg: '#f8fafc',
+    qrBg: '#0f172a',
+  }}
+>
+  {children}
+</FluxisProvider>
+```
+
+## Partial overrides
+
+All theme props are optional. You only need to pass the values you want to change:
+
+```tsx
+<FluxisProvider theme={{ colorPrimary: '#e11d48' }}>
+  {children}
+</FluxisProvider>
+```
+
+## Provider scope
+
+`FluxisProvider` applies its CSS variables to a `<div>` wrapper. You can nest multiple providers for different sections of your UI:
+
+```tsx
+<FluxisProvider theme={{ colorPrimary: '#2563eb' }}>
+  <Header />
+  <FluxisProvider theme={{ colorPrimary: '#7c3aed' }}>
+    <PremiumSection />
+  </FluxisProvider>
+</FluxisProvider>
+```

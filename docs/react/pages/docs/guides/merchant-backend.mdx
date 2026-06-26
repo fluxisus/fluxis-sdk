@@ -1,0 +1,198 @@
+---
+title: Merchant Backend
+---
+
+`usePaymentStatus` polls **your** backend, not the Fluxis API. This keeps your API credentials server-side and gives you full control over what data reaches the browser.
+
+You need to implement one thin route that the hook can poll.
+
+## Required route
+
+The hook calls `GET <statusUrl>` on an interval and reads the `status` field from the JSON response. Any JSON shape with a top-level `"status"` string works.
+
+```
+GET /api/payment-status/:id
+→ { "status": "processing", ... }
+```
+
+## Implementation examples
+
+<CodeTabs syncKey="lang-server">
+  <CodeTabPanel
+    language="ts"
+    title="Next.js"
+    code={`// app/api/payment-status/[id]/route.ts
+import { FluxisClient } from '@fluxisus/sdk';
+import { NextResponse } from 'next/server';
+
+const fluxis = new FluxisClient({
+  apiKey: process.env.FLUXIS_API_KEY!,
+  apiSecret: process.env.FLUXIS_API_SECRET!,
+});
+
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const payment = await fluxis.pointOfSale.getPaymentRequest(
+    process.env.POS_ID!,
+    params.id,
+  );
+  return NextResponse.json(payment);
+}`}
+  />
+  <CodeTabPanel
+    language="ts"
+    title="Express"
+    code={`import express from 'express';
+import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({ apiKey: process.env.FLUXIS_API_KEY, apiSecret: process.env.FLUXIS_API_SECRET });
+const app = express();
+
+app.get('/api/payment-status/:id', async (req, res) => {
+  const payment = await fluxis.pointOfSale.getPaymentRequest(process.env.POS_ID, req.params.id);
+  res.json(payment);
+});`}
+  />
+  <CodeTabPanel
+    language="ts"
+    title="Fastify"
+    code={`fastify.get('/api/payment-status/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const payment = await fluxis.pointOfSale.getPaymentRequest(process.env.POS_ID, id);
+  return payment;
+});`}
+  />
+  <CodeTabPanel
+    language="go"
+    title="Go"
+    code={`// go get github.com/fluxisus/fluxis-go-sdk
+package main
+
+import (
+    "encoding/json"
+    "log"
+    "net/http"
+    "os"
+
+    "github.com/fluxisus/fluxis-go-sdk/fluxis"
+)
+
+var fluxisClient *fluxis.Client
+
+func init() {
+    var err error
+    fluxisClient, err = fluxis.NewClient(
+        fluxis.WithAPIKey(os.Getenv("FLUXIS_API_KEY")),
+        fluxis.WithAPISecret(os.Getenv("FLUXIS_API_SECRET")),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+}
+
+func main() {
+    http.HandleFunc("GET /api/payment-status/{id}", func(w http.ResponseWriter, r *http.Request) {
+        payment, err := fluxisClient.PointOfSale.GetPaymentRequest(
+            r.Context(),
+            os.Getenv("POS_ID"),
+            r.PathValue("id"),
+        )
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(payment)
+    })
+    log.Fatal(http.ListenAndServe(":8080", nil))
+}`}
+  />
+  <CodeTabPanel
+    language="python"
+    title="Python"
+    code={`# pip install fluxis fastapi uvicorn
+import os
+from fastapi import FastAPI
+from fluxis import AsyncFluxisClient
+
+app = FastAPI()
+fluxis_client = AsyncFluxisClient(
+    api_key=os.environ["FLUXIS_API_KEY"],
+    api_secret=os.environ["FLUXIS_API_SECRET"],
+)
+
+@app.get("/api/payment-status/{payment_id}")
+async def payment_status(payment_id: str):
+    payment = await fluxis_client.point_of_sale.get_payment_request(
+        pos_id=os.environ["POS_ID"],
+        payment_request_id=payment_id,
+    )
+    return payment`}
+  />
+  <CodeTabPanel
+    language="csharp"
+    title="C#"
+    code={`// dotnet add package Fluxis.Sdk
+// Program.cs
+using Fluxis;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton(new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
+    ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
+}));
+
+var app = builder.Build();
+
+app.MapGet("/api/payment-status/{id}", async (string id, FluxisClient fluxis) =>
+{
+    var payment = await fluxis.PointOfSale.GetPaymentRequestAsync(
+        builder.Configuration["Fluxis:PosId"]!,
+        id
+    );
+    return Results.Ok(payment);
+});
+
+app.Run();`}
+  />
+</CodeTabs>
+
+## CORS for cross-origin frontends
+
+If your frontend and backend are on different origins (e.g. `app.example.com` calling `api.example.com`), you need standard CORS headers:
+
+```
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET
+```
+
+### Exposing the Date header (clock-skew correction)
+
+`usePaymentStatus` reads the `Date` response header to compute a server/client clock offset used by expiration countdowns. `Date` is not in the browser's CORS safelist, so you must expose it explicitly for cross-origin requests:
+
+```
+Access-Control-Expose-Headers: Date
+```
+
+Without this header the offset stays `0` — nothing breaks, but expiration timers won't be skew-corrected.
+
+## Security notes
+
+- Never return your `api_secret` or auth tokens in the response.
+- `getPaymentRequest` returns only the payment status and metadata — it's safe to forward as-is.
+- Add authentication to the route if needed (e.g. check the logged-in user owns the payment request).
+- Rate-limit the route if you're concerned about excessive polling. The SDK's default poll interval is 5 seconds.
+
+## Statuses returned
+
+| Status | Meaning | Polling |
+|--------|---------|---------|
+| `pending` | Created, awaiting currency selection | continues |
+| `created` | Currency selected, address assigned | continues |
+| `processing` | Deposit detected, confirming | continues |
+| `completed` | Fully paid | **stops** |
+| `confirmed` | Transaction confirmed | continues |
+| `expired` | Token expired, no payment | **stops** |
+| `failed` | Processing failed | **stops** |
+| `overpaid` | Received more than requested | **stops** |
+| `underpaid` | Received less than requested | **stops** |

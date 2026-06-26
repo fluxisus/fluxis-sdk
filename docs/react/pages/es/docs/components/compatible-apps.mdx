@@ -1,0 +1,110 @@
+---
+title: CompatibleApps
+---
+
+Componente adaptable a la plataforma que renderiza la UI correcta según si el usuario está en móvil o escritorio.
+
+- **Móvil**: muestra botones de deep link "Pagar con &lt;app&gt;" que abren la billetera directamente.
+- **Escritorio**: muestra el código QR junto a una lista informativa de apps compatibles.
+
+Los datos de las apps están incluidos en el paquete — no se realiza ninguna solicitud de red al cargar la página por defecto.
+
+## Importar
+
+```tsx
+import { CompatibleApps } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<CompatibleApps token={token} />
+```
+
+## Props
+
+| Prop | Tipo | Valor por defecto | Descripción |
+|------|------|-------------------|-------------|
+| `token` | `string` | **requerido** | Token NASPIP usado para construir los deep links de las billeteras |
+| `forcePlatform` | `'mobile' \| 'desktop'` | detección automática | Sobreescribe la detección de plataforma. Útil para previews o pruebas. |
+| `include` | `string[]` | — | Muestra solo las apps cuyo `name` esté en esta lista |
+| `exclude` | `string[]` | — | Oculta las apps cuyo `name` esté en esta lista |
+| `showDesktopAppList` | `boolean` | `true` | En escritorio, si se renderiza la lista informativa de apps debajo del QR |
+| `apps` | `CompatibleApp[]` | lista incluida | Sobreescribe la lista completa de apps. Desactiva la obtención remota. |
+| `appsUrl` | `string` | URL del CDN | URL para obtener la lista de apps cuando `syncRemote` es `true` |
+| `syncRemote` | `boolean` | `false` | Intenta una actualización en vivo desde `appsUrl`. Desactivado por defecto porque el CDN predeterminado no expone cabeceras CORS. |
+| `onSelectApp` | `(app, deepLink) => void` | — | Se llama cuando se hace clic en un botón "Pagar con" |
+| `renderApp` | `(app, defaultButton) => ReactNode` | — | Función de renderizado personalizada por app en móvil |
+| `className` | `string` | — | Clase CSS en el contenedor |
+| `style` | `CSSProperties` | — | Estilo inline en el contenedor |
+
+## Ejemplos
+
+### Forzar vista de escritorio (útil para pruebas)
+
+```tsx
+<CompatibleApps token={token} forcePlatform="desktop" />
+```
+
+### Filtrar apps
+
+Mostrar solo Belo:
+
+```tsx
+<CompatibleApps token={token} include={['belo']} />
+```
+
+Ocultar MetaMask:
+
+```tsx
+<CompatibleApps token={token} exclude={['metamask']} />
+```
+
+### Rastrear qué app tocó el usuario
+
+```tsx
+<CompatibleApps
+  token={token}
+  onSelectApp={(app, deepLink) => {
+    analytics.track('wallet_selected', { wallet: app.name });
+  }}
+/>
+```
+
+### Renderizado personalizado del botón de app
+
+```tsx
+<CompatibleApps
+  token={token}
+  renderApp={(app, defaultButton) => (
+    <div className="my-custom-card">
+      {defaultButton}
+      <span className="badge">Recomendado</span>
+    </div>
+  )}
+/>
+```
+
+### Solo QR en escritorio (sin lista de apps)
+
+```tsx
+<CompatibleApps token={token} showDesktopAppList={false} />
+```
+
+## Datos de las apps
+
+La lista de apps incluida viene con `@fluxisus/react` y siempre está disponible sin solicitud de red. Si necesitas una actualización en tiempo real (p. ej. una billetera recién agregada), usa `syncRemote: true` y asegúrate de que `appsUrl` sea accesible con CORS.
+
+El tipo `CompatibleApp`:
+
+```ts
+interface CompatibleApp {
+  name: string;
+  displayName: string;
+  imageUrl: string;
+  websiteUrl: string;
+  appStoreUrl: string | null;
+  googlePlayUrl: string | null;
+  deepLink: string; // contiene el placeholder [NASPIP_TOKEN]
+}
+```
