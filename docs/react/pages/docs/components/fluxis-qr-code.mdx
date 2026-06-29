@@ -1,0 +1,81 @@
+---
+title: FluxisQrCode
+---
+
+Renders a NASPIP token as a QR code with the Fluxis logo centered. The logo placement uses high error-correction (`H` level by default) to keep the code scannable even with the logo overlay.
+
+## Import
+
+```tsx
+import { FluxisQrCode } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<FluxisQrCode token={token} size={280} />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `token` | `string` | **required** | NASPIP token returned by your backend |
+| `size` | `number` | `280` | QR code width and height in pixels |
+| `level` | `'L' \| 'M' \| 'Q' \| 'H'` | `'H'` | Reed-Solomon error correction level. `H` is recommended when a logo overlays the center. |
+| `logo` | `string` | Fluxis logo (data URI) | Override the center image. Pass a URL, data URI, or omit to use the default Fluxis logo. |
+| `logoSize` | `number` | `21.4%` of `size` | Logo width/height in pixels |
+| `fgColor` | `string` | theme `qrFg` or `#19323a` | QR module color |
+| `bgColor` | `string` | theme `qrBg` or `#ffffff` | QR background color |
+| `marginSize` | `number` | `0` | Quiet zone size in modules |
+| `className` | `string` | — | CSS class applied to the wrapper `<div>` |
+| `style` | `CSSProperties` | — | Inline style applied to the wrapper `<div>` |
+| `onInvalidToken` | `(token: string) => void` | — | Called when the token fails the NASPIP prefix check |
+
+## Examples
+
+### Custom size
+
+```tsx
+<FluxisQrCode token={token} size={360} />
+```
+
+### Custom colors
+
+Override the foreground and background independently:
+
+```tsx
+<FluxisQrCode token={token} fgColor="#7c3aed" bgColor="#f5f3ff" />
+```
+
+Or set them globally via `FluxisProvider`:
+
+```tsx
+<FluxisProvider theme={{ qrFg: '#7c3aed', qrBg: '#f5f3ff' }}>
+  <FluxisQrCode token={token} />
+</FluxisProvider>
+```
+
+### Custom logo
+
+Replace the Fluxis center logo with your own:
+
+```tsx
+<FluxisQrCode token={token} logo="/your-logo.png" logoSize={48} />
+```
+
+### Invalid token handling
+
+```tsx
+<FluxisQrCode
+  token={token}
+  onInvalidToken={(t) => console.warn('Invalid NASPIP token:', t)}
+/>
+```
+
+When `token` fails the validity check, the component renders an "Invalid NASPIP token" placeholder instead of the QR code. The placeholder respects `size`, `bgColor`, and `fgColor`.
+
+## Notes
+
+- Token validity is checked with a lightweight prefix check (`naspip;`). The component never makes network requests.
+- Color props take priority over theme CSS variables. See [Theming](/docs/guides/theming) for the full override order.

@@ -1,0 +1,110 @@
+---
+title: CompatibleApps
+---
+
+Platform-aware component that renders the right UI based on whether the user is on mobile or desktop.
+
+- **Mobile**: shows "Pay with &lt;app&gt;" deep-link buttons that open the wallet directly.
+- **Desktop**: shows the QR code alongside an informational list of compatible apps.
+
+App data is bundled into the package — no network request is needed on page load by default.
+
+## Import
+
+```tsx
+import { CompatibleApps } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<CompatibleApps token={token} />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `token` | `string` | **required** | NASPIP token used to build wallet deep links |
+| `forcePlatform` | `'mobile' \| 'desktop'` | auto-detect | Override the platform detection. Useful for previews or testing. |
+| `include` | `string[]` | — | Only show apps whose `name` is in this list |
+| `exclude` | `string[]` | — | Hide apps whose `name` is in this list |
+| `showDesktopAppList` | `boolean` | `true` | On desktop, whether to render the informational app list below the QR |
+| `apps` | `CompatibleApp[]` | bundled list | Override the full apps list. Disables remote fetching. |
+| `appsUrl` | `string` | CDN URL | URL to fetch the apps list from when `syncRemote` is `true` |
+| `syncRemote` | `boolean` | `false` | Attempt a live refresh from `appsUrl`. Off by default because the default CDN does not expose CORS headers. |
+| `onSelectApp` | `(app, deepLink) => void` | — | Called when a "Pay with" button is clicked |
+| `renderApp` | `(app, defaultButton) => ReactNode` | — | Custom render function per app on mobile |
+| `className` | `string` | — | CSS class on the wrapper |
+| `style` | `CSSProperties` | — | Inline style on the wrapper |
+
+## Examples
+
+### Force desktop view (useful for testing)
+
+```tsx
+<CompatibleApps token={token} forcePlatform="desktop" />
+```
+
+### Filter apps
+
+Show only Belo:
+
+```tsx
+<CompatibleApps token={token} include={['belo']} />
+```
+
+Hide MetaMask:
+
+```tsx
+<CompatibleApps token={token} exclude={['metamask']} />
+```
+
+### Track which app the user tapped
+
+```tsx
+<CompatibleApps
+  token={token}
+  onSelectApp={(app, deepLink) => {
+    analytics.track('wallet_selected', { wallet: app.name });
+  }}
+/>
+```
+
+### Custom app button render
+
+```tsx
+<CompatibleApps
+  token={token}
+  renderApp={(app, defaultButton) => (
+    <div className="my-custom-card">
+      {defaultButton}
+      <span className="badge">Recommended</span>
+    </div>
+  )}
+/>
+```
+
+### QR only on desktop (no app list)
+
+```tsx
+<CompatibleApps token={token} showDesktopAppList={false} />
+```
+
+## App data
+
+The bundled app list ships with `@fluxisus/react` and is always available without a network request. If you need a live refresh (e.g. a newly added wallet), set `syncRemote: true` and ensure `appsUrl` is CORS-accessible.
+
+The `CompatibleApp` type:
+
+```ts
+interface CompatibleApp {
+  name: string;
+  displayName: string;
+  imageUrl: string;
+  websiteUrl: string;
+  appStoreUrl: string | null;
+  googlePlayUrl: string | null;
+  deepLink: string; // contains [NASPIP_TOKEN] placeholder
+}
+```

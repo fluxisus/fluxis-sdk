@@ -1,0 +1,198 @@
+---
+title: Backend del Comerciante
+---
+
+`usePaymentStatus` consulta **tu** backend, no la API de Fluxis. Esto mantiene tus credenciales de API en el servidor y te da control total sobre qué datos llegan al navegador.
+
+Necesitas implementar una ruta simple que el hook pueda consultar.
+
+## Ruta requerida
+
+El hook llama a `GET <statusUrl>` en un intervalo y lee el campo `status` de la respuesta JSON. Cualquier estructura JSON con un `"status"` de tipo string en el nivel superior funciona.
+
+```
+GET /api/payment-status/:id
+→ { "status": "processing", ... }
+```
+
+## Ejemplos de implementación
+
+<CodeTabs syncKey="lang-server">
+  <CodeTabPanel
+    language="ts"
+    title="Next.js"
+    code={`// app/api/payment-status/[id]/route.ts
+import { FluxisClient } from '@fluxisus/sdk';
+import { NextResponse } from 'next/server';
+
+const fluxis = new FluxisClient({
+  apiKey: process.env.FLUXIS_API_KEY!,
+  apiSecret: process.env.FLUXIS_API_SECRET!,
+});
+
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const payment = await fluxis.pointOfSale.getPaymentRequest(
+    process.env.POS_ID!,
+    params.id,
+  );
+  return NextResponse.json(payment);
+}`}
+  />
+  <CodeTabPanel
+    language="ts"
+    title="Express"
+    code={`import express from 'express';
+import { FluxisClient } from '@fluxisus/sdk';
+
+const fluxis = new FluxisClient({ apiKey: process.env.FLUXIS_API_KEY, apiSecret: process.env.FLUXIS_API_SECRET });
+const app = express();
+
+app.get('/api/payment-status/:id', async (req, res) => {
+  const payment = await fluxis.pointOfSale.getPaymentRequest(process.env.POS_ID, req.params.id);
+  res.json(payment);
+});`}
+  />
+  <CodeTabPanel
+    language="ts"
+    title="Fastify"
+    code={`fastify.get('/api/payment-status/:id', async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const payment = await fluxis.pointOfSale.getPaymentRequest(process.env.POS_ID, id);
+  return payment;
+});`}
+  />
+  <CodeTabPanel
+    language="go"
+    title="Go"
+    code={`// go get github.com/fluxisus/fluxis-go-sdk
+package main
+
+import (
+    "encoding/json"
+    "log"
+    "net/http"
+    "os"
+
+    "github.com/fluxisus/fluxis-go-sdk/fluxis"
+)
+
+var fluxisClient *fluxis.Client
+
+func init() {
+    var err error
+    fluxisClient, err = fluxis.NewClient(
+        fluxis.WithAPIKey(os.Getenv("FLUXIS_API_KEY")),
+        fluxis.WithAPISecret(os.Getenv("FLUXIS_API_SECRET")),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+}
+
+func main() {
+    http.HandleFunc("GET /api/payment-status/{id}", func(w http.ResponseWriter, r *http.Request) {
+        payment, err := fluxisClient.PointOfSale.GetPaymentRequest(
+            r.Context(),
+            os.Getenv("POS_ID"),
+            r.PathValue("id"),
+        )
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(payment)
+    })
+    log.Fatal(http.ListenAndServe(":8080", nil))
+}`}
+  />
+  <CodeTabPanel
+    language="python"
+    title="Python"
+    code={`# pip install fluxis fastapi uvicorn
+import os
+from fastapi import FastAPI
+from fluxis import AsyncFluxisClient
+
+app = FastAPI()
+fluxis_client = AsyncFluxisClient(
+    api_key=os.environ["FLUXIS_API_KEY"],
+    api_secret=os.environ["FLUXIS_API_SECRET"],
+)
+
+@app.get("/api/payment-status/{payment_id}")
+async def payment_status(payment_id: str):
+    payment = await fluxis_client.point_of_sale.get_payment_request(
+        pos_id=os.environ["POS_ID"],
+        payment_request_id=payment_id,
+    )
+    return payment`}
+  />
+  <CodeTabPanel
+    language="csharp"
+    title="C#"
+    code={`// dotnet add package Fluxis.Sdk
+// Program.cs
+using Fluxis;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton(new FluxisClient(new FluxisClientOptions
+{
+    ApiKey = builder.Configuration["Fluxis:ApiKey"]!,
+    ApiSecret = builder.Configuration["Fluxis:ApiSecret"]!,
+}));
+
+var app = builder.Build();
+
+app.MapGet("/api/payment-status/{id}", async (string id, FluxisClient fluxis) =>
+{
+    var payment = await fluxis.PointOfSale.GetPaymentRequestAsync(
+        builder.Configuration["Fluxis:PosId"]!,
+        id
+    );
+    return Results.Ok(payment);
+});
+
+app.Run();`}
+  />
+</CodeTabs>
+
+## CORS para frontends en origen cruzado
+
+Si tu frontend y backend están en orígenes distintos (p. ej. `app.example.com` llamando a `api.example.com`), necesitas las cabeceras CORS estándar:
+
+```
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET
+```
+
+### Exponer la cabecera Date (corrección de sesgo de reloj)
+
+`usePaymentStatus` lee la cabecera de respuesta `Date` para calcular un offset de reloj servidor/cliente usado por los conteos regresivos de expiración. `Date` no está en la lista segura CORS del navegador, por lo que debes exponerla explícitamente para solicitudes en origen cruzado:
+
+```
+Access-Control-Expose-Headers: Date
+```
+
+Sin esta cabecera el offset permanece en `0` — nada falla, pero los temporizadores de expiración no tendrán corrección de sesgo.
+
+## Notas de seguridad
+
+- Nunca devuelvas tu `api_secret` ni tokens de autenticación en la respuesta.
+- `getPaymentRequest` devuelve solo el estado y los metadatos del pago — es seguro reenviarlo tal cual.
+- Agrega autenticación a la ruta si es necesario (p. ej. verifica que el usuario autenticado sea propietario de la solicitud de pago).
+- Aplica limitación de tasa a la ruta si te preocupa el polling excesivo. El intervalo de polling predeterminado del SDK es de 5 segundos.
+
+## Estados devueltos
+
+| Estado | Significado | Polling |
+|--------|-------------|---------|
+| `pending` | Creado, esperando selección de moneda | continúa |
+| `created` | Moneda seleccionada, dirección asignada | continúa |
+| `processing` | Depósito detectado, confirmando | continúa |
+| `completed` | Pagado completamente | **se detiene** |
+| `confirmed` | Transacción confirmada | continúa |
+| `expired` | Token expirado, sin pago | **se detiene** |
+| `failed` | Fallo en el procesamiento | **se detiene** |
+| `overpaid` | Se recibió más de lo solicitado | **se detiene** |
+| `underpaid` | Se recibió menos de lo solicitado | **se detiene** |

@@ -1,0 +1,65 @@
+---
+title: CompatibleAppsMarquee
+---
+
+Horizontal auto-scrolling showcase of compatible app logos. Scrolls continuously right-to-left and pauses on hover. Good for landing pages and checkout sidebars where you want to signal broad wallet compatibility without listing individual buttons.
+
+App data comes from the same bundled list used by `CompatibleApps` — no extra network request.
+
+## Import
+
+```tsx
+import { CompatibleAppsMarquee } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<CompatibleAppsMarquee width="100%" height={56} speed={24} />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `width` | `number \| string` | `'100%'` | Viewport width of the marquee container |
+| `height` | `number` | `56` | Viewport height in pixels |
+| `speed` | `number` | `24` | Seconds for the strip to complete one full scroll loop. Lower = faster. |
+| `gap` | `number` | `12` | Gap between app cards in pixels |
+| `showAppName` | `boolean` | `true` | Whether to show the app display name next to the logo |
+| `include` | `string[]` | — | Only include apps with these `name` values |
+| `exclude` | `string[]` | — | Exclude apps with these `name` values |
+| `onAppClick` | `(app: CompatibleApp) => void` | — | Click handler called when an app card is clicked |
+| `apps` | `CompatibleApp[]` | bundled list | Override the full apps list |
+| `appsUrl` | `string` | CDN URL | URL for remote refresh (requires `syncRemote: true`) |
+| `syncRemote` | `boolean` | `false` | Attempt a live refresh from `appsUrl` |
+| `className` | `string` | — | CSS class on the wrapper |
+| `style` | `CSSProperties` | — | Inline style on the wrapper |
+
+## Examples
+
+### Compact logos-only strip
+
+```tsx
+<CompatibleAppsMarquee showAppName={false} height={48} />
+```
+
+### Slow decorative banner
+
+```tsx
+<CompatibleAppsMarquee speed={60} width={600} />
+```
+
+### With click tracking
+
+```tsx
+<CompatibleAppsMarquee
+  onAppClick={(app) => {
+    analytics.track('marquee_app_click', { wallet: app.name });
+  }}
+/>
+```
+
+## Performance note
+
+The marquee duplicates the app strip to create a seamless infinite loop using a CSS animation. It does not virtualize — avoid setting `gap` to 0 on very long lists.

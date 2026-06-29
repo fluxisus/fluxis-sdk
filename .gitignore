@@ -46,3 +46,6 @@ TestResults/
 SESSION_START.md
 sdk-improvements-plan.md
 
+# Internal design docs
+docs/sdd/
+

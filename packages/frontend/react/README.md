@@ -110,6 +110,48 @@ Available CSS variables:
 - `--fluxis-qr-fg`, `--fluxis-qr-bg`
 - `--fluxis-button-bg`, `--fluxis-button-fg`, `--fluxis-button-hover-bg`
 
+## Hooks
+
+### `usePaymentStatus`
+
+Polls **your own backend route** for live payment status — it never calls the Fluxis API directly and accepts no credentials. Your backend is expected to proxy `pointOfSale.getPaymentRequest()` from `@fluxisus/sdk`.
+
+```tsx
+import { usePaymentStatus } from '@fluxisus/react';
+
+function CheckoutStatus({ paymentRequestId }: { paymentRequestId: string }) {
+  const { status, data, error, isPolling, refetch } = usePaymentStatus(
+    `/api/payment-status/${paymentRequestId}`,
+  );
+
+  if (status === 'completed') return <p>Payment received!</p>;
+  return (
+    <div>
+      <p>Status: {status ?? 'loading…'}</p>
+      <button onClick={refetch}>I already paid — check now</button>
+    </div>
+  );
+}
+```
+
+Your route (e.g. `GET /api/payment-status/:id`) should call `fluxis.pointOfSale.getPaymentRequest(posId, id)` server-side and return the result as JSON — `usePaymentStatus` reads the `status` field from whatever your route returns.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `statusUrl` | `string` | required | Your backend route to poll |
+| `pollInterval` | `number` | `5000` | Poll cadence in ms |
+| `enabled` | `boolean` | `true` | Pause/resume polling without unmounting |
+
+Returns `{ status, data, error, isPolling, refetch }`. Polling stops automatically once `status` reaches a terminal state (`completed`, `expired`, `failed`, `overpaid`, `underpaid`). On fetch errors, polling backs off exponentially (capped) and resets once a request succeeds again. Call `refetch()` for an on-demand check (e.g. an "I already paid" button) — it fetches immediately and resets the poll timer so it doesn't double-fire right after.
+
+**Clock-skew offset.** On every successful response, the hook reads the `Date` response header and stores `serverDate - Date.now()` in `FluxisProvider`'s shared context, for use by other components doing skew-corrected countdowns. This degrades silently: if your route is same-origin, no extra config is needed; if it's cross-origin, the browser hides the `Date` header by default unless you add:
+
+```
+Access-Control-Expose-Headers: Date
+```
+
+Without that header, the offset simply stays `0` — nothing breaks, it's advisory only.
+
 ## Utilities
 
 ```ts

@@ -4,7 +4,71 @@ import {
   CompatibleAppsMarquee,
   FluxisProvider,
   FluxisQrCode,
+  usePaymentStatus,
 } from '@fluxisus/react';
+
+function PaymentStatusWidget() {
+  const [simulateFailure, setSimulateFailure] = useState(false);
+  const [enabled, setEnabled] = useState(true);
+
+  const statusUrl = simulateFailure
+    ? '/api/payment-status/demo?fail=1'
+    : '/api/payment-status/demo';
+
+  const { status, data, error, isPolling, refetch } = usePaymentStatus(statusUrl, {
+    pollInterval: 3000,
+    enabled,
+  });
+
+  return (
+    <section className="preview-block">
+      <h3>usePaymentStatus</h3>
+      <p className="marquee-hint">
+        Polls a mock dev-server route every 3s. Open DevTools → Network and
+        filter on "payment-status" to watch requests fire and stop.
+      </p>
+
+      <dl className="status-grid">
+        <dt>status</dt>
+        <dd>{status ?? '(none yet)'}</dd>
+        <dt>isPolling</dt>
+        <dd>{String(isPolling)}</dd>
+        <dt>error</dt>
+        <dd>{error ? error.message : '(none)'}</dd>
+        <dt>data</dt>
+        <dd>{data ? JSON.stringify(data) : '(none)'}</dd>
+      </dl>
+
+      <div className="status-controls">
+        <button
+          type="button"
+          onClick={() => fetch('/api/payment-status/demo?reset=1').then(refetch)}
+        >
+          Reset demo + refetch
+        </button>
+        <button type="button" onClick={refetch}>
+          Refetch now
+        </button>
+        <label className="field inline">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+          />
+          <span>enabled</span>
+        </label>
+        <label className="field inline">
+          <input
+            type="checkbox"
+            checked={simulateFailure}
+            onChange={(event) => setSimulateFailure(event.target.checked)}
+          />
+          <span>simulate backend error</span>
+        </label>
+      </div>
+    </section>
+  );
+}
 
 const DEMO_TOKEN =
   'naspip;fluxis.us;fluxis.qr.dyn.1;v4.public.IhgyMDI2LTA2LTA3VDE4OjA0OjMwLjc1NVoyGDIwMjYtMDYtMDdUMTc6MDQ6MzAuNzU1WkIPZmx1eGlzLnFyLmR5bi4xShQyMDM2LTA0LTA2VDE3OjMzOjA4WlIJZmx1eGlzLnVzWoICCpABCiVpZC1kZS1wcnVlYmEtcGFyYS1uYXNwaXAtdG9rZW4tZW4tc2RrEioweEI0REIwMmY4YzRiNTE1OWU1MzY4Q0U0NzQ5ZkQ5MzQ0YTMzMzk5OTciMW5iYXNlX3QweGYwMTY0MTM4MzRFNkQxQTE0RjNENjI4QjExRDZFZjcyNWE2YmRiREQyATFIt_KHmuozEm0KATESKjB4ZjAxNjQxMzgzNEU2RDFBMTRGM0Q2MjhCMTFENkVmNzI1YTZiZGJERBoaRXN0ZSBlcyB1biBjb2JybyBkZSBwcnVlYmEiIAoPTmFjaG8gZWNvbW1lcmNlGg0yMC0zOTY0NDUwNy040fSYvAgvch4ogiRkJZJDlVVbBZ7nmw5Muis1UvBkZ6fAP1XjvT7EjjDYHvzpw2Jm0N72bfJsN0AJJGGyHw_CBg';
@@ -17,6 +81,7 @@ export function App() {
   const [primaryColor, setPrimaryColor] = useState('#2563eb');
   const [qrFg, setQrFg] = useState('#0f172a');
   const [qrBg, setQrBg] = useState('#ffffff');
+  const [showStatusWidget, setShowStatusWidget] = useState(true);
 
   const forcePlatform =
     platform === 'auto' ? undefined : platform;
@@ -124,6 +189,17 @@ export function App() {
               </p>
               <CompatibleAppsMarquee width="100%" height={56} speed={18} />
             </section>
+
+            <label className="field inline" style={{ marginTop: '2rem' }}>
+              <input
+                type="checkbox"
+                checked={showStatusWidget}
+                onChange={(event) => setShowStatusWidget(event.target.checked)}
+              />
+              <span>mount usePaymentStatus widget (uncheck to test unmount cleanup)</span>
+            </label>
+
+            {showStatusWidget && <PaymentStatusWidget />}
           </FluxisProvider>
         </main>
       </div>
@@ -234,6 +310,47 @@ export function App() {
           margin: 0 0 0.75rem;
           font-size: 0.8125rem;
           color: #64748b;
+        }
+
+        .field.inline {
+          flex-direction: row;
+          align-items: center;
+          gap: 0.5rem;
+          font-weight: 400;
+        }
+
+        .status-grid {
+          display: grid;
+          grid-template-columns: max-content 1fr;
+          gap: 0.375rem 0.75rem;
+          margin: 0 0 1rem;
+          font-size: 0.875rem;
+        }
+
+        .status-grid dt {
+          font-weight: 600;
+          color: #334155;
+        }
+
+        .status-grid dd {
+          margin: 0;
+          word-break: break-all;
+        }
+
+        .status-controls {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .status-controls button {
+          border: 1px solid #cbd5e1;
+          border-radius: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: #fff;
+          cursor: pointer;
+          font: inherit;
         }
 
         @media (max-width: 800px) {

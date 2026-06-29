@@ -1,0 +1,109 @@
+---
+title: usePaymentStatus
+---
+
+Consulta **sua própria rota backend** para obter o status de pagamento em tempo real. O hook nunca chama a API da Fluxis diretamente e não aceita credenciais — toda a autenticação permanece no servidor.
+
+## Importar
+
+```tsx
+import { usePaymentStatus } from '@fluxisus/react';
+```
+
+## Assinatura
+
+```ts
+function usePaymentStatus(
+  statusUrl: string,
+  options?: UsePaymentStatusOptions,
+): UsePaymentStatusResult
+```
+
+### Opções
+
+| Opção | Tipo | Valor padrão | Descrição |
+|-------|------|--------------|-----------|
+| `pollInterval` | `number` | `5000` | Milissegundos entre consultas |
+| `enabled` | `boolean` | `true` | Defina como `false` para pausar as consultas sem desmontar o componente |
+
+### Valor de retorno
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `status` | `string \| null` | O campo `status` da resposta JSON da sua rota. `null` até a primeira resposta bem-sucedida. |
+| `data` | `unknown \| null` | O corpo completo da resposta JSON |
+| `error` | `Error \| null` | O último erro de fetch. Limpo na próxima resposta bem-sucedida. |
+| `isPolling` | `boolean` | `true` enquanto uma requisição está em andamento ou a próxima consulta está agendada |
+| `refetch` | `() => void` | Dispara uma requisição imediata e reinicia o temporizador do intervalo |
+
+## Uso básico
+
+```tsx
+function CheckoutStatus({ paymentRequestId }: { paymentRequestId: string }) {
+  const { status, error, isPolling, refetch } = usePaymentStatus(
+    `/api/payment-status/${paymentRequestId}`,
+  );
+
+  if (status === 'completed') return <p>Pagamento recebido!</p>;
+  if (status === 'expired') return <p>QR expirado — por favor recarregue a página.</p>;
+  if (error) return <p>Erro de conexão — <button onClick={refetch}>tentar novamente</button></p>;
+
+  return <p>{isPolling ? 'Aguardando pagamento…' : status}</p>;
+}
+```
+
+## Status terminais
+
+As consultas param automaticamente quando `status` atinge qualquer um destes valores:
+
+| Status | Significado |
+|--------|-------------|
+| `completed` | Pagamento totalmente recebido |
+| `expired` | Token NASPIP expirou antes do pagamento |
+| `failed` | Falha no processamento do pagamento |
+| `overpaid` | Recebido mais do que o valor solicitado |
+| `underpaid` | Recebido menos do que o valor solicitado |
+
+Para todos os outros status (`pending`, `processing`, `created`, …) as consultas continuam.
+
+## Reconsulta manual
+
+Use `refetch()` para um botão "Já paguei — verificar agora". Dispara uma requisição imediata e reinicia o temporizador do intervalo para que a próxima consulta automática seja `pollInterval` ms depois:
+
+```tsx
+<button onClick={refetch}>Já paguei — verificar agora</button>
+```
+
+## Pausar as consultas
+
+Passe `enabled: false` para pausar sem desmontar. Útil quando o QR está fora da tela ou a página está oculta:
+
+```tsx
+const [visible, setVisible] = useState(true);
+
+const { status } = usePaymentStatus(url, { enabled: visible });
+```
+
+## Recuo exponencial
+
+Em caso de erro de rede ou HTTP, o intervalo dobra (com máximo de 60 segundos). Assim que uma requisição é bem-sucedida, o intervalo volta ao `pollInterval` configurado. O erro é armazenado em `error`, mas as consultas continuam — o hook nunca desiste, salvo se receber um status terminal.
+
+## Offset de relógio
+
+A cada resposta bem-sucedida, o hook lê o cabeçalho `Date` e escreve `serverDate - Date.now()` no contexto compartilhado de `FluxisProvider`. Outros componentes podem ler esse offset para contagens regressivas de expiração precisas sem fazer suas próprias requisições.
+
+**Nota CORS:** `Date` não está na lista segura CORS do navegador. Para endpoints de status em origens cruzadas, você deve adicionar:
+
+```
+Access-Control-Expose-Headers: Date
+```
+
+Se o cabeçalho estiver ausente ou bloqueado, o offset permanece em `0` silenciosamente — nada quebra.
+
+## Limpeza
+
+O hook cancela requisições em andamento e limpa o temporizador ao desmontar. Não há requisições órfãs nem atualizações de estado após o componente ser removido.
+
+## Rota backend necessária
+
+Consulte [Backend do Comerciante](/pt/docs/guides/merchant-backend) para a rota server-side que você precisa implementar. Em resumo, sua rota chama `fluxis.pointOfSale.getPaymentRequest()` e retorna o resultado como JSON.
