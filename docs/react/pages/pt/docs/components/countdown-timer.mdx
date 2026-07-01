@@ -1,0 +1,58 @@
+---
+title: CountdownTimer
+---
+
+Exibe uma contagem regressiva em tempo real até um timestamp de expiração. A cor muda para âmbar com ≤ 2 minutos restantes e para vermelho com ≤ 1 minuto. Chama `onExpire` exatamente uma vez quando o temporizador chega a zero.
+
+Usa o deslocamento de tempo do servidor do `FluxisProvider` (preenchido por `usePaymentStatus`) para compensar a diferença de relógio entre cliente e servidor.
+
+## Importação
+
+```tsx
+import { CountdownTimer } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<CountdownTimer expiresAt={session.expires_at} />
+```
+
+## Props
+
+| Prop | Tipo | Padrão | Descrição |
+|------|------|--------|-----------|
+| `expiresAt` | `string` | **obrigatório** | Timestamp de expiração em formato ISO 8601 |
+| `onExpire` | `() => void` | — | Chamado exatamente uma vez quando a contagem chega a zero |
+| `className` | `string` | — | Classe CSS no contêiner |
+
+## Limiares de cor
+
+| Tempo restante | Cor |
+|----------------|-----|
+| > 2 minutos | `--fluxis-color-fg` (cor de texto padrão) |
+| ≤ 2 minutos | `#f59e0b` (âmbar) |
+| ≤ 1 minuto | `#ef4444` (vermelho) |
+
+## Exemplos
+
+### Básico
+
+```tsx
+<CountdownTimer expiresAt="2025-12-31T23:59:59Z" />
+```
+
+### Com callback ao expirar
+
+```tsx
+<CountdownTimer
+  expiresAt={session.expires_at}
+  onExpire={() => setExpirado(true)}
+/>
+```
+
+## Correção de desvio de relógio
+
+Quando `CountdownTimer` está dentro de um `<FluxisProvider>` que também envolve um hook `usePaymentStatus`, o hook escreve o deslocamento de tempo do servidor no contexto compartilhado a cada resposta bem-sucedida. `CountdownTimer` lê esse deslocamento para manter a contagem precisa mesmo quando o relógio do dispositivo difere do servidor.
+
+Sem provedor, o deslocamento é `0` e o relógio do dispositivo é usado diretamente.

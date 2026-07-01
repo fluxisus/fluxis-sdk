@@ -1,0 +1,45 @@
+---
+title: AddressCopyButton
+---
+
+Exibe um endereço cripto truncado com um botão para copiar para a área de transferência. Mostra "Copiado!" por 2 segundos após a cópia.
+
+Endereços com mais de 14 caracteres são truncados para o formato `primeiros8…últimos6`. Endereços mais curtos são exibidos completos.
+
+## Importação
+
+```tsx
+import { AddressCopyButton } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<AddressCopyButton address="0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" />
+```
+
+## Props
+
+| Prop | Tipo | Padrão | Descrição |
+|------|------|--------|-----------|
+| `address` | `string` | **obrigatório** | Endereço cripto completo ou token NASPIP para exibir e copiar |
+| `className` | `string` | — | Classe CSS no contêiner |
+
+## Exemplos
+
+### Endereço de carteira
+
+```tsx
+<AddressCopyButton address="0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" />
+// Exibe: 0x3c499c…c3359
+```
+
+### Token NASPIP
+
+```tsx
+<AddressCopyButton address={session.recipient_address} />
+```
+
+## Disponibilidade da área de transferência
+
+`navigator.clipboard` requer um contexto seguro (HTTPS ou `localhost`). Em origens HTTP simples, a ação de copiar falha silenciosamente — o botão ainda é renderizado, mas o estado "Copiado!" não é ativado.

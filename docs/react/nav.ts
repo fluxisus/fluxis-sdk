@@ -35,6 +35,11 @@ export function buildDocsNav(locale: Locale) {
         doc(locale, 'components/compatible-apps', 'smartphone'),
         doc(locale, 'components/compatible-apps-marquee', 'gallery-horizontal-end'),
         doc(locale, 'components/pay-with-app-button', 'mouse-pointer-click'),
+        doc(locale, 'components/checkout-widget', 'layout-panel-top'),
+        doc(locale, 'components/countdown-timer', 'timer'),
+        doc(locale, 'components/address-copy-button', 'copy'),
+        doc(locale, 'components/payment-status-badge', 'badge-check'),
+        doc(locale, 'components/amount-display', 'banknote'),
       ],
     },
     {
@@ -50,6 +55,7 @@ export function buildDocsNav(locale: Locale) {
       items: [
         doc(locale, 'guides/theming', 'palette'),
         doc(locale, 'guides/merchant-backend', 'server'),
+        doc(locale, 'guides/checkout-integration', 'shopping-cart'),
       ],
     },
     {

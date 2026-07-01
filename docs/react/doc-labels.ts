@@ -7,9 +7,15 @@ export type DocPath =
   | 'components/compatible-apps'
   | 'components/compatible-apps-marquee'
   | 'components/pay-with-app-button'
+  | 'components/checkout-widget'
+  | 'components/countdown-timer'
+  | 'components/address-copy-button'
+  | 'components/payment-status-badge'
+  | 'components/amount-display'
   | 'hooks/use-payment-status'
   | 'guides/theming'
   | 'guides/merchant-backend'
+  | 'guides/checkout-integration'
   | 'reference/naspip-tokens';
 
 export type CategoryKey =
@@ -30,9 +36,15 @@ export const DOC_LABELS: Record<Locale, DocLabels> = {
     'components/compatible-apps': 'CompatibleApps',
     'components/compatible-apps-marquee': 'CompatibleAppsMarquee',
     'components/pay-with-app-button': 'PayWithAppButton',
+    'components/checkout-widget': 'CheckoutWidget',
+    'components/countdown-timer': 'CountdownTimer',
+    'components/address-copy-button': 'AddressCopyButton',
+    'components/payment-status-badge': 'PaymentStatusBadge',
+    'components/amount-display': 'AmountDisplay',
     'hooks/use-payment-status': 'usePaymentStatus',
     'guides/theming': 'Theming',
     'guides/merchant-backend': 'Merchant Backend',
+    'guides/checkout-integration': 'Checkout Integration',
     'reference/naspip-tokens': 'NASPIP Tokens',
   },
   es: {
@@ -42,9 +54,15 @@ export const DOC_LABELS: Record<Locale, DocLabels> = {
     'components/compatible-apps': 'CompatibleApps',
     'components/compatible-apps-marquee': 'CompatibleAppsMarquee',
     'components/pay-with-app-button': 'PayWithAppButton',
+    'components/checkout-widget': 'CheckoutWidget',
+    'components/countdown-timer': 'CountdownTimer',
+    'components/address-copy-button': 'AddressCopyButton',
+    'components/payment-status-badge': 'PaymentStatusBadge',
+    'components/amount-display': 'AmountDisplay',
     'hooks/use-payment-status': 'usePaymentStatus',
     'guides/theming': 'Temas',
     'guides/merchant-backend': 'Backend del Comerciante',
+    'guides/checkout-integration': 'Integración de Checkout',
     'reference/naspip-tokens': 'Tokens NASPIP',
   },
   pt: {
@@ -54,9 +72,15 @@ export const DOC_LABELS: Record<Locale, DocLabels> = {
     'components/compatible-apps': 'CompatibleApps',
     'components/compatible-apps-marquee': 'CompatibleAppsMarquee',
     'components/pay-with-app-button': 'PayWithAppButton',
+    'components/checkout-widget': 'CheckoutWidget',
+    'components/countdown-timer': 'CountdownTimer',
+    'components/address-copy-button': 'AddressCopyButton',
+    'components/payment-status-badge': 'PaymentStatusBadge',
+    'components/amount-display': 'AmountDisplay',
     'hooks/use-payment-status': 'usePaymentStatus',
     'guides/theming': 'Temas',
     'guides/merchant-backend': 'Backend do Comerciante',
+    'guides/checkout-integration': 'Integração de Checkout',
     'reference/naspip-tokens': 'Tokens NASPIP',
   },
 };

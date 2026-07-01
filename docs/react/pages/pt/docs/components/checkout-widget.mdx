@@ -1,0 +1,98 @@
+---
+title: CheckoutWidget
+---
+
+Componente de checkout completo que renderiza a UI correta para cada etapa de uma sessão de pagamento.
+
+- **pending** — mostra o valor, o temporizador, o QR code (desktop) ou botões de deep-link para carteiras (mobile), e um botão para copiar o endereço destinatário.
+- **confirming** — mostra um spinner enquanto a transação on-chain é confirmada.
+- **completed** — mostra uma tela de sucesso com um link "Voltar ao comerciante" via `return_url`.
+- **expired** — mostra uma tela de expiração com um botão "Recomeçar" que recarrega a página.
+
+O widget é **puramente apresentacional** — ele não busca dados por conta própria. Seu app busca o `CheckoutSession` e o passa como prop; o widget re-renderiza automaticamente quando o status muda.
+
+## Importação
+
+```tsx
+import { CheckoutWidget } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<FluxisProvider>
+  <CheckoutWidget session={session} />
+</FluxisProvider>
+```
+
+## Props
+
+| Prop | Tipo | Padrão | Descrição |
+|------|------|--------|-----------|
+| `session` | `CheckoutSession` | **obrigatório** | A sessão de checkout atual |
+| `className` | `string` | — | Classe CSS no contêiner |
+| `style` | `CSSProperties` | — | Estilo inline no contêiner |
+
+## Tipo `CheckoutSession`
+
+```ts
+interface CheckoutSession {
+  id: string;
+  amount: string;            // string decimal, ex. "12.50"
+  currency: string;          // código ISO 4217, ex. "USD"
+  recipient_address: string; // token NASPIP para o QR e deep-links
+  expires_at: string;        // timestamp ISO 8601
+  status: 'pending' | 'confirming' | 'completed' | 'expired';
+  return_url: string;        // para onde redirecionar o pagador após conclusão
+}
+```
+
+## Exemplos
+
+### Básico
+
+```tsx
+function PaginaCheckout({ session }: { session: CheckoutSession }) {
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} />
+    </FluxisProvider>
+  );
+}
+```
+
+### Com polling em tempo real
+
+```tsx
+function PaginaCheckout({ sessionId }: { sessionId: string }) {
+  const { data: session, isLoading } = useQuery({
+    queryKey: ['checkout', sessionId],
+    queryFn: () => fetch(`/api/checkout/${sessionId}`).then(r => r.json()),
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      return status === 'pending' || status === 'confirming' ? 3000 : false;
+    },
+  });
+
+  if (isLoading || !session) return <Spinner />;
+
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} style={{ maxWidth: '480px', width: '100%' }} />
+    </FluxisProvider>
+  );
+}
+```
+
+## Referência de status
+
+| Status | O widget renderiza |
+|--------|-------------------|
+| `pending` | Valor · temporizador · QR (desktop) ou botões de carteira (mobile) · botão copiar endereço |
+| `confirming` | Spinner animado + "Confirmando on-chain…" |
+| `completed` | Ícone de sucesso + link "Voltar ao comerciante" |
+| `expired` | Ícone de relógio + botão "Recomeçar" |
+
+## Temas
+
+Todos os tokens visuais usam fallbacks de variáveis CSS compatíveis com `FluxisProvider`. Consulte [Temas](/pt/docs/guides/theming).

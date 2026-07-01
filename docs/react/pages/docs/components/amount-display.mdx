@@ -1,0 +1,47 @@
+---
+title: AmountDisplay
+---
+
+Formats and displays a payment amount using `Intl.NumberFormat`. Renders the amount with the currency's narrow symbol followed by the ISO 4217 code: `$10.00 USD`, `$1,234.99 ARS`.
+
+Falls back to a plain decimal format if the currency code is not recognized by the browser's internationalization API.
+
+## Import
+
+```tsx
+import { AmountDisplay } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<AmountDisplay amount="1234.99" currency="USD" />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `amount` | `string` | **required** | Decimal amount string (e.g. `"12.50"`) |
+| `currency` | `string` | **required** | ISO 4217 currency code (e.g. `"USD"`, `"ARS"`) |
+| `className` | `string` | — | CSS class on the wrapper |
+
+## Examples
+
+### US Dollar
+
+```tsx
+<AmountDisplay amount="10.00" currency="USD" />
+// Renders: $10.00 USD
+```
+
+### Argentine Peso
+
+```tsx
+<AmountDisplay amount="1234.99" currency="ARS" />
+// Renders: $1,234.99 ARS
+```
+
+## Currency formatting
+
+Uses `Intl.NumberFormat` with `style: 'currency'` and `currencyDisplay: 'narrowSymbol'` to pick the shortest available symbol for the locale. The ISO code is always appended so the currency is unambiguous across locales where the same symbol (`$`) represents multiple currencies.

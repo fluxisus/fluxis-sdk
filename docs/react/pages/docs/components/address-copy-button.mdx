@@ -1,0 +1,45 @@
+---
+title: AddressCopyButton
+---
+
+Displays a truncated crypto address with a copy-to-clipboard button. Shows "Copied!" for 2 seconds after the address is copied.
+
+Addresses longer than 14 characters are truncated to `first8…last6`. Shorter addresses are shown in full.
+
+## Import
+
+```tsx
+import { AddressCopyButton } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<AddressCopyButton address="0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `address` | `string` | **required** | Full crypto address or NASPIP token to display and copy |
+| `className` | `string` | — | CSS class on the wrapper |
+
+## Examples
+
+### Wallet address
+
+```tsx
+<AddressCopyButton address="0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" />
+// Displays: 0x3c499c…c3359
+```
+
+### NASPIP token
+
+```tsx
+<AddressCopyButton address={session.recipient_address} />
+```
+
+## Clipboard availability
+
+`navigator.clipboard` requires a secure context (HTTPS or `localhost`). On plain HTTP origins the copy action silently fails — the button still renders, but the "Copied!" state is not triggered.
