@@ -1,5 +1,15 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+export interface CheckoutSession {
+  id: string;
+  amount: string;
+  currency: string;
+  recipient_address: string;
+  expires_at: string;
+  status: 'pending' | 'confirming' | 'completed' | 'expired';
+  return_url: string;
+}
+
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
 
 export interface CompatibleApp {
@@ -85,6 +95,34 @@ export interface CompatibleAppsRemoteOptions {
   appsUrl?: string;
   /** Attempt a remote refresh from `appsUrl`. Off by default (CDN has no CORS). */
   syncRemote?: boolean;
+}
+
+export interface CheckoutWidgetProps {
+  session: CheckoutSession;
+  className?: string;
+  style?: CSSProperties;
+}
+
+export interface CountdownTimerProps {
+  expiresAt: string;
+  onExpire?: () => void;
+  className?: string;
+}
+
+export interface AddressCopyButtonProps {
+  address: string;
+  className?: string;
+}
+
+export interface PaymentStatusBadgeProps {
+  status: CheckoutSession['status'];
+  className?: string;
+}
+
+export interface AmountDisplayProps {
+  amount: string;
+  currency: string;
+  className?: string;
 }
 
 export interface CompatibleAppsMarqueeProps extends CompatibleAppsRemoteOptions {
