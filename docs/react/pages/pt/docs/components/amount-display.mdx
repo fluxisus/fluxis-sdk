@@ -1,0 +1,47 @@
+---
+title: AmountDisplay
+---
+
+Formata e exibe um valor de pagamento usando `Intl.NumberFormat`. Renderiza o valor com o símbolo estreito da moeda seguido do código ISO 4217: `$10.00 USD`, `$1.234,99 ARS`.
+
+Se o código de moeda não for reconhecido pela API de internacionalização do navegador, recorre a um formato decimal simples.
+
+## Importação
+
+```tsx
+import { AmountDisplay } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<AmountDisplay amount="1234.99" currency="USD" />
+```
+
+## Props
+
+| Prop | Tipo | Padrão | Descrição |
+|------|------|--------|-----------|
+| `amount` | `string` | **obrigatório** | String decimal do valor (ex. `"12.50"`) |
+| `currency` | `string` | **obrigatório** | Código de moeda ISO 4217 (ex. `"USD"`, `"ARS"`) |
+| `className` | `string` | — | Classe CSS no contêiner |
+
+## Exemplos
+
+### Dólar americano
+
+```tsx
+<AmountDisplay amount="10.00" currency="USD" />
+// Renderiza: $10.00 USD
+```
+
+### Peso argentino
+
+```tsx
+<AmountDisplay amount="1234.99" currency="ARS" />
+// Renderiza: $1,234.99 ARS
+```
+
+## Formatação de moeda
+
+Usa `Intl.NumberFormat` com `style: 'currency'` e `currencyDisplay: 'narrowSymbol'` para o símbolo mais curto disponível no locale. O código ISO é sempre adicionado ao final para que a moeda seja inequívoca onde o mesmo símbolo (`$`) representa múltiplas moedas.

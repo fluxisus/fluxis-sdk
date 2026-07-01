@@ -1,0 +1,65 @@
+---
+title: CompatibleAppsMarquee
+---
+
+Carrusel horizontal de logos de apps compatibles con desplazamiento automático. Se desplaza continuamente de derecha a izquierda y se detiene al pasar el cursor. Ideal para páginas de inicio y barras laterales de checkout donde quieres señalar amplia compatibilidad con billeteras sin listar botones individuales.
+
+Los datos de las apps provienen de la misma lista incluida que usa `CompatibleApps` — no requiere solicitudes de red adicionales.
+
+## Importar
+
+```tsx
+import { CompatibleAppsMarquee } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<CompatibleAppsMarquee width="100%" height={56} speed={24} />
+```
+
+## Props
+
+| Prop | Tipo | Valor por defecto | Descripción |
+|------|------|-------------------|-------------|
+| `width` | `number \| string` | `'100%'` | Ancho del viewport del contenedor del carrusel |
+| `height` | `number` | `56` | Alto del viewport en píxeles |
+| `speed` | `number` | `24` | Segundos para que la tira complete un ciclo completo. Menor = más rápido. |
+| `gap` | `number` | `12` | Espacio entre tarjetas de apps en píxeles |
+| `showAppName` | `boolean` | `true` | Si se muestra el nombre de la app junto al logo |
+| `include` | `string[]` | — | Incluye solo apps con estos valores de `name` |
+| `exclude` | `string[]` | — | Excluye apps con estos valores de `name` |
+| `onAppClick` | `(app: CompatibleApp) => void` | — | Manejador de click cuando se hace click en una tarjeta de app |
+| `apps` | `CompatibleApp[]` | lista incluida | Sobreescribe la lista completa de apps |
+| `appsUrl` | `string` | URL del CDN | URL para actualización remota (requiere `syncRemote: true`) |
+| `syncRemote` | `boolean` | `false` | Intenta una actualización en vivo desde `appsUrl` |
+| `className` | `string` | — | Clase CSS en el contenedor |
+| `style` | `CSSProperties` | — | Estilo inline en el contenedor |
+
+## Ejemplos
+
+### Tira compacta solo con logos
+
+```tsx
+<CompatibleAppsMarquee showAppName={false} height={48} />
+```
+
+### Banner decorativo lento
+
+```tsx
+<CompatibleAppsMarquee speed={60} width={600} />
+```
+
+### Con rastreo de clicks
+
+```tsx
+<CompatibleAppsMarquee
+  onAppClick={(app) => {
+    analytics.track('marquee_app_click', { wallet: app.name });
+  }}
+/>
+```
+
+## Nota de rendimiento
+
+El carrusel duplica la tira de apps para crear un bucle infinito sin interrupciones usando animación CSS. No virtualiza — evita poner `gap` en 0 con listas muy largas.

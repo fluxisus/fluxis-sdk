@@ -105,7 +105,7 @@ npm install
 npm test
 ```
 
-Unit tests always run. Integration tests in `tests/integration.test.ts` run against staging when credentials are present.
+Unit tests always run. Integration tests in `tests/integration.test.ts` run against staging when valid `fxs.stg.*` credentials are present.
 
 **C#** (`packages/backend/sdk-csharp`):
 
@@ -144,7 +144,11 @@ These secrets are used by:
 
 - [.github/workflows/sdk-go.yml](.github/workflows/sdk-go.yml) — `go test ./...`
 - [.github/workflows/sdk-python.yml](.github/workflows/sdk-python.yml) — `pytest`
-- Other SDK workflows that run integration tests against staging
+- [.github/workflows/sdk-typescript.yml](.github/workflows/sdk-typescript.yml) — `npm test` (unit + staging integration)
+- [.github/workflows/sdk-csharp.yml](.github/workflows/sdk-csharp.yml) — `dotnet test` (unit + staging integration)
+- [.github/workflows/release-please.yml](.github/workflows/release-please.yml) — full test suite before publish
+
+Ensure repository secrets contain valid staging credentials (`fxs.stg.…`).
 
 ### Before pushing
 

@@ -227,23 +227,35 @@ This repo uses [release-please](https://github.com/googleapis/release-please) fo
 ### Release flow
 
 1. Merge changes to `main` using conventional commit messages (`feat:`, `fix:`, `chore:`, etc.).
-2. `release-please` opens or updates a release PR for each affected package.
-3. Review and merge the release PR.
-4. The tag is created automatically and triggers the publish workflow for that package.
+2. `release-please` opens or updates a release PR for each affected package (`separate-pull-requests: true`).
+3. Review and merge release PRs **one at a time** (oldest first if several are open).
+4. Merging a release PR creates a GitHub Release + tag; any other open release PRs are auto-closed and recreated on the next **Release Please** run.
+5. If a release PR shows a manifest conflict, close it and run **Actions → Release Please → Run workflow** instead of resolving manually.
+5. **TypeScript**: [publish-typescript.yml](.github/workflows/publish-typescript.yml) runs on `release: published` and pushes to npm.
+6. **C#**: publish runs in the same [release-please.yml](.github/workflows/release-please.yml) workflow after tagging.
 
 | SDK | Tag format | Publishes to |
 |-----|-----------|-------------|
-| TypeScript | `typescript-sdk/vX.Y.Z` | npm |
-| C# | `csharp-sdk/vX.Y.Z` | NuGet |
+| TypeScript | `typescript-sdk-vX.Y.Z` | npm |
+| C# | `csharp-sdk-vX.Y.Z` | NuGet |
 
 ### Required GitHub secrets
 
 | Secret | Used by |
 |--------|---------|
-| `NPM_TOKEN` | TypeScript publish |
+| `NPM_TOKEN` | TypeScript publish — automation token with **write** access to `@fluxisus` scope |
 | `NUGET_API_KEY` | C# publish |
 | `FLUXIS_API_KEY` | CI integration tests |
 | `FLUXIS_API_SECRET` | CI integration tests |
+
+### npm publish troubleshooting
+
+If `npm publish` fails with `E404 Not Found` on `@fluxisus/sdk`, it is almost always an **auth/permissions** issue (npm returns 404 instead of 403). It is **not** a GitHub tag propagation delay.
+
+1. Confirm `NPM_TOKEN` is a valid [npm automation token](https://docs.npmjs.com/creating-and-viewing-access-tokens) for a user who is a **maintainer** of `@fluxisus/sdk`.
+2. For granular tokens: enable **Read and write** on the `@fluxisus` scope (or this package).
+3. Optional: enable [Trusted publishing](https://docs.npmjs.com/trusted-publishers) on npm, linking package `@fluxisus/sdk` to repo `fluxisus/fluxis-sdk` and workflow `publish-typescript.yml`.
+4. Retry: Actions → **Publish — TypeScript SDK** → **Run workflow** with tag `typescript-sdk-vX.Y.Z`.
 
 ### Manual fallback
 

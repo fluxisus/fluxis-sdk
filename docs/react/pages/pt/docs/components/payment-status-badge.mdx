@@ -1,0 +1,51 @@
+---
+title: PaymentStatusBadge
+---
+
+Badge inline colorido que mapeia o status de uma `CheckoutSession` para um rótulo legível e uma cor de fundo.
+
+| Status | Rótulo | Cor |
+|--------|--------|-----|
+| `pending` | Pending | Azul |
+| `confirming` | Confirming | Âmbar |
+| `completed` | Completed | Verde |
+| `expired` | Expired | Cinza |
+
+## Importação
+
+```tsx
+import { PaymentStatusBadge } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<PaymentStatusBadge status={session.status} />
+```
+
+## Props
+
+| Prop | Tipo | Padrão | Descrição |
+|------|------|--------|-----------|
+| `status` | `'pending' \| 'confirming' \| 'completed' \| 'expired'` | **obrigatório** | O status de pagamento atual |
+| `className` | `string` | — | Classe CSS no contêiner |
+
+## Exemplos
+
+### Junto a um resumo de pagamento
+
+```tsx
+<div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+  <span>Pedido #1234</span>
+  <PaymentStatusBadge status={session.status} />
+</div>
+```
+
+### Todos os status
+
+```tsx
+<PaymentStatusBadge status="pending" />
+<PaymentStatusBadge status="confirming" />
+<PaymentStatusBadge status="completed" />
+<PaymentStatusBadge status="expired" />
+```

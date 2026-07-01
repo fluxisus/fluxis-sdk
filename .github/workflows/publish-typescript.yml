@@ -1,0 +1,63 @@
+name: Publish — TypeScript SDK
+
+# Publishes to npm when a TypeScript SDK GitHub Release is published, or on
+# manual dispatch (e.g. to retry after a failed publish).
+#
+# Requires a valid NPM_TOKEN secret with publish access to @fluxisus/sdk, or
+# npm Trusted Publishing linked to this repo (see README).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. typescript-sdk-v1.0.0)'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.tag_name, 'typescript-sdk-v')
+    concurrency:
+      group: publish-typescript-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/backend/sdk
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify npm authentication
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+        env:
+          FLUXIS_API_KEY: ${{ secrets.FLUXIS_API_KEY }}
+          FLUXIS_API_SECRET: ${{ secrets.FLUXIS_API_SECRET }}
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,29 @@
+[
+  {
+    "name": "belo",
+    "display_name": "Belo App",
+    "image_url": "https://assets.fluxis.us/apps/belo.svg",
+    "website_url": "https://belo.app",
+    "app_store_url": "https://apps.apple.com/bo/app/belo-tu-pasaporte-financiero/id1575614708",
+    "google_play_url": "https://play.google.com/store/apps/details?id=com.belo.android",
+    "deep_link": "https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=[NASPIP_TOKEN]"
+  },
+  {
+    "name": "metamask",
+    "display_name": "Metamask",
+    "image_url": "https://assets.fluxis.us/apps/metamask.png",
+    "website_url": "https://metamask.io",
+    "app_store_url": null,
+    "google_play_url": null,
+    "deep_link": "https://metamask.app.link/dapp/dapp.fluxis.us/pay?token=[NASPIP_TOKEN]"
+  },
+  {
+    "name": "trustwallet",
+    "display_name": "Trust Wallet",
+    "image_url": "https://assets.fluxis.us/apps/trustwallet.png",
+    "website_url": "https://trustwallet.com",
+    "app_store_url": null,
+    "google_play_url": null,
+    "deep_link": "https://link.trustwallet.com/open_url?url=https://dapp.fluxis.us/pay?token=[NASPIP_TOKEN]"
+  }
+]

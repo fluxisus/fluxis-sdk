@@ -1,0 +1,121 @@
+---
+title: Checkout Integration
+---
+
+This guide walks through integrating `CheckoutWidget` into a hosted checkout page with live status polling.
+
+## Overview
+
+1. Your backend creates a payment request via the Fluxis API and returns a `CheckoutSession` to the browser.
+2. The frontend renders `CheckoutWidget` with the session data.
+3. The frontend polls your backend for status updates and passes the updated session back to the widget.
+
+## Backend
+
+Create a route that:
+
+1. Validates the session ID (ensure it belongs to the current user's order).
+2. Fetches the current payment request status from Fluxis.
+3. Returns a `CheckoutSession`-shaped object.
+
+```ts
+// Express / Hono example
+app.get('/api/checkout/:sessionId', async (req, res) => {
+  const pr = await fluxis.pointOfSale.getPaymentRequest(
+    process.env.POS_ID,
+    req.params.sessionId,
+  );
+
+  res.json({
+    id: pr.id,
+    amount: pr.amount,
+    currency: pr.currency,
+    recipient_address: pr.token, // NASPIP token
+    expires_at: new Date(pr.expiration * 1000).toISOString(),
+    status: pr.status,
+    return_url: `https://your-store.com/orders/${pr.reference_id}`,
+  });
+});
+```
+
+See [Merchant Backend](/docs/guides/merchant-backend) for the full backend setup including authentication.
+
+## Frontend
+
+Install the package:
+
+```bash
+npm install @fluxisus/react
+```
+
+Fetch the session and render the widget:
+
+```tsx
+import { FluxisProvider, CheckoutWidget } from '@fluxisus/react';
+import type { CheckoutSession } from '@fluxisus/react';
+import { useQuery } from '@tanstack/react-query';
+
+async function fetchSession(id: string): Promise<CheckoutSession> {
+  const res = await fetch(`/api/checkout/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch session');
+  return res.json();
+}
+
+export function CheckoutPage({ sessionId }: { sessionId: string }) {
+  const { data: session, isLoading } = useQuery({
+    queryKey: ['checkout', sessionId],
+    queryFn: () => fetchSession(sessionId),
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      return status === 'pending' || status === 'confirming' ? 3000 : false;
+    },
+  });
+
+  if (isLoading || !session) {
+    return <div>Loading…</div>;
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <FluxisProvider>
+        <CheckoutWidget
+          session={session}
+          style={{ width: '100%', maxWidth: '480px' }}
+        />
+      </FluxisProvider>
+    </div>
+  );
+}
+```
+
+## Polling strategy
+
+Poll while the payment is active; stop when it reaches a terminal status.
+
+| Status | Recommended interval |
+|--------|---------------------|
+| `pending` | Every 3 seconds — no payment detected yet |
+| `confirming` | Every 3 seconds — deposit seen, waiting for confirmation |
+| `completed` | Stop — widget shows the success screen |
+| `expired` | Stop — widget shows the expired screen |
+
+## What `CheckoutWidget` renders per status
+
+| Status | UI |
+|--------|----|
+| `pending` | Amount · countdown · QR (desktop) or deep-link buttons (mobile) · address copy button |
+| `confirming` | Animated spinner + "Confirming on-chain…" message |
+| `completed` | Success icon + "Return to merchant" link |
+| `expired` | Timeout icon + "Start over" reload button |
+
+## Theming
+
+Apply brand colors by passing a `theme` prop to `FluxisProvider`:
+
+```tsx
+<FluxisProvider theme={{ colorPrimary: '#7c3aed', radius: '0.5rem' }}>
+  <CheckoutWidget session={session} />
+</FluxisProvider>
+```
+
+See [Theming](/docs/guides/theming) for all available theme tokens.

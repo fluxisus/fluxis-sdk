@@ -1,0 +1,65 @@
+---
+title: PayWithAppButton
+---
+
+Um único botão "Pagar com &lt;app&gt;". Ao clicar, constrói o deep link da carteira a partir do token NASPIP e navega até ele via `window.location.assign`.
+
+`CompatibleApps` usa este componente internamente para cada app no celular. Use-o diretamente apenas quando precisar renderizar um botão de carteira específico em vez da lista completa detectada automaticamente.
+
+## Importar
+
+```tsx
+import { PayWithAppButton } from '@fluxisus/react';
+import type { CompatibleApp } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+const beloApp: CompatibleApp = {
+  name: 'belo',
+  displayName: 'Belo App',
+  imageUrl: 'https://assets.fluxis.us/apps/belo.svg',
+  websiteUrl: 'https://belo.app',
+  appStoreUrl: 'https://apps.apple.com/...',
+  googlePlayUrl: 'https://play.google.com/...',
+  deepLink: 'https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=[NASPIP_TOKEN]',
+};
+
+<PayWithAppButton app={beloApp} token={token} />
+```
+
+## Props
+
+| Prop | Tipo | Valor padrão | Descrição |
+|------|------|--------------|-----------|
+| `app` | `CompatibleApp` | **obrigatório** | Metadados do app. Use `getBundledCompatibleApps()` para obter a lista integrada. |
+| `token` | `string` | **obrigatório** | Token NASPIP. O placeholder `[NASPIP_TOKEN]` em `app.deepLink` é substituído por este valor. |
+| `onClick` | `(app: CompatibleApp, deepLink: string) => void` | — | Chamado antes da navegação. Use para analytics ou para cancelar a navegação padrão. |
+| `className` | `string` | — | Classe CSS no `<button>` |
+| `style` | `CSSProperties` | — | Estilo inline no `<button>` |
+
+## Obter um app específico da lista incluída
+
+```tsx
+import { getBundledCompatibleApps } from '@fluxisus/react';
+
+const apps = getBundledCompatibleApps();
+const belo = apps.find((a) => a.name === 'belo');
+
+if (belo) {
+  return <PayWithAppButton app={belo} token={token} />;
+}
+```
+
+## Estilos
+
+O botão usa variáveis CSS de `FluxisProvider` para cores e raio de borda:
+
+- `--fluxis-button-bg` — fundo
+- `--fluxis-button-fg` — cor do texto
+- `--fluxis-button-hover-bg` — fundo ao passar o cursor
+- `--fluxis-color-border` — cor da borda
+- `--fluxis-radius` — raio dos cantos
+
+Substitua qualquer um deles via prop `theme` de `FluxisProvider` ou com seu próprio CSS.

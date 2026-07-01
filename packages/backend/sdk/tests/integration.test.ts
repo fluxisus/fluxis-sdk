@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { FluxisClient } from '../src/client.js';
 import { getTestCredentials, loadTestEnv } from './testenv.js';
@@ -53,7 +54,7 @@ if (!credentials) {
     });
 
     it('creates and deletes a test account', async () => {
-      const name = `sdk-ts-test-${crypto.randomUUID().slice(0, 8)}`;
+      const name = `sdk-ts-test-${randomUUID().slice(0, 8)}`;
       const account = await client.accounts.create({ name });
       expect(account.name).toBe(name);
       expect(account.id).toBeTruthy();

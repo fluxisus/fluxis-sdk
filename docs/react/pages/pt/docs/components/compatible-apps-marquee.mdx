@@ -1,0 +1,65 @@
+---
+title: CompatibleAppsMarquee
+---
+
+Vitrine horizontal com rolagem automática dos logotipos de apps compatíveis. Rola continuamente da direita para a esquerda e pausa ao passar o cursor. Ideal para páginas de destino e barras laterais de checkout onde você quer sinalizar ampla compatibilidade com carteiras sem listar botões individuais.
+
+Os dados dos apps vêm da mesma lista incluída usada por `CompatibleApps` — nenhuma requisição de rede adicional é necessária.
+
+## Importar
+
+```tsx
+import { CompatibleAppsMarquee } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<CompatibleAppsMarquee width="100%" height={56} speed={24} />
+```
+
+## Props
+
+| Prop | Tipo | Valor padrão | Descrição |
+|------|------|--------------|-----------|
+| `width` | `number \| string` | `'100%'` | Largura do viewport do contêiner do carrossel |
+| `height` | `number` | `56` | Altura do viewport em pixels |
+| `speed` | `number` | `24` | Segundos para a faixa completar um ciclo completo. Menor = mais rápido. |
+| `gap` | `number` | `12` | Espaço entre os cartões de apps em pixels |
+| `showAppName` | `boolean` | `true` | Se o nome do app é exibido ao lado do logotipo |
+| `include` | `string[]` | — | Inclui apenas apps com estes valores de `name` |
+| `exclude` | `string[]` | — | Exclui apps com estes valores de `name` |
+| `onAppClick` | `(app: CompatibleApp) => void` | — | Handler de clique chamado quando um cartão de app é clicado |
+| `apps` | `CompatibleApp[]` | lista incluída | Substitui a lista completa de apps |
+| `appsUrl` | `string` | URL do CDN | URL para atualização remota (requer `syncRemote: true`) |
+| `syncRemote` | `boolean` | `false` | Tenta uma atualização ao vivo de `appsUrl` |
+| `className` | `string` | — | Classe CSS no contêiner |
+| `style` | `CSSProperties` | — | Estilo inline no contêiner |
+
+## Exemplos
+
+### Faixa compacta apenas com logotipos
+
+```tsx
+<CompatibleAppsMarquee showAppName={false} height={48} />
+```
+
+### Banner decorativo lento
+
+```tsx
+<CompatibleAppsMarquee speed={60} width={600} />
+```
+
+### Com rastreamento de cliques
+
+```tsx
+<CompatibleAppsMarquee
+  onAppClick={(app) => {
+    analytics.track('marquee_app_click', { wallet: app.name });
+  }}
+/>
+```
+
+## Nota de desempenho
+
+O carrossel duplica a faixa de apps para criar um loop infinito contínuo usando animação CSS. Não virtualiza — evite definir `gap` como 0 em listas muito longas.

@@ -6,7 +6,7 @@ Browser and UI framework bindings for Fluxis. Each package lives in its own subd
 
 | Package | Directory | Status |
 |---------|-----------|--------|
-| `@fluxisus/react` | `react/` | Planned |
+| `@fluxisus/react` | `react/` | Available |
 
 ## Adding a new frontend package
 

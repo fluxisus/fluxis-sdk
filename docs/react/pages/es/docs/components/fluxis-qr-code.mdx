@@ -1,0 +1,81 @@
+---
+title: FluxisQrCode
+---
+
+Renderiza un token NASPIP como código QR con el logo de Fluxis centrado. La colocación del logo usa corrección de errores alta (nivel `H` por defecto) para mantener el código escaneable incluso con el logo superpuesto.
+
+## Importar
+
+```tsx
+import { FluxisQrCode } from '@fluxisus/react';
+```
+
+## Uso
+
+```tsx
+<FluxisQrCode token={token} size={280} />
+```
+
+## Props
+
+| Prop | Tipo | Valor por defecto | Descripción |
+|------|------|-------------------|-------------|
+| `token` | `string` | **requerido** | Token NASPIP devuelto por tu backend |
+| `size` | `number` | `280` | Ancho y alto del QR en píxeles |
+| `level` | `'L' \| 'M' \| 'Q' \| 'H'` | `'H'` | Nivel de corrección de errores Reed-Solomon. Se recomienda `H` cuando un logo cubre el centro. |
+| `logo` | `string` | Logo Fluxis (data URI) | Reemplaza la imagen central. Acepta URL, data URI, u omite para usar el logo Fluxis por defecto. |
+| `logoSize` | `number` | `21.4%` de `size` | Ancho/alto del logo en píxeles |
+| `fgColor` | `string` | `qrFg` del tema o `#19323a` | Color de los módulos del QR |
+| `bgColor` | `string` | `qrBg` del tema o `#ffffff` | Color de fondo del QR |
+| `marginSize` | `number` | `0` | Tamaño de la zona silenciosa en módulos |
+| `className` | `string` | — | Clase CSS aplicada al `<div>` contenedor |
+| `style` | `CSSProperties` | — | Estilo inline aplicado al `<div>` contenedor |
+| `onInvalidToken` | `(token: string) => void` | — | Se llama cuando el token no pasa la verificación del prefijo NASPIP |
+
+## Ejemplos
+
+### Tamaño personalizado
+
+```tsx
+<FluxisQrCode token={token} size={360} />
+```
+
+### Colores personalizados
+
+Sobreescribe el primer plano y el fondo de forma independiente:
+
+```tsx
+<FluxisQrCode token={token} fgColor="#7c3aed" bgColor="#f5f3ff" />
+```
+
+O configúralos globalmente mediante `FluxisProvider`:
+
+```tsx
+<FluxisProvider theme={{ qrFg: '#7c3aed', qrBg: '#f5f3ff' }}>
+  <FluxisQrCode token={token} />
+</FluxisProvider>
+```
+
+### Logo personalizado
+
+Reemplaza el logo central de Fluxis con el tuyo:
+
+```tsx
+<FluxisQrCode token={token} logo="/tu-logo.png" logoSize={48} />
+```
+
+### Manejo de token inválido
+
+```tsx
+<FluxisQrCode
+  token={token}
+  onInvalidToken={(t) => console.warn('Token NASPIP inválido:', t)}
+/>
+```
+
+Cuando el `token` no pasa la verificación de validez, el componente muestra un placeholder "Token NASPIP inválido" en lugar del QR. El placeholder respeta `size`, `bgColor` y `fgColor`.
+
+## Notas
+
+- La validez del token se verifica con una comprobación liviana del prefijo (`naspip;`). El componente nunca realiza solicitudes de red.
+- Las props de color tienen prioridad sobre las variables CSS del tema. Consulta [Temas](/es/docs/guides/theming) para el orden completo de sobreescritura.
