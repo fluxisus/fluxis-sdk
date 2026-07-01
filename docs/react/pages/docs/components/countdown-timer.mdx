@@ -1,0 +1,58 @@
+---
+title: CountdownTimer
+---
+
+Displays a live countdown to an expiration timestamp. Color shifts to amber at ≤ 2 minutes remaining and red at ≤ 1 minute. Calls `onExpire` exactly once when the timer reaches zero.
+
+Uses the server time offset from `FluxisProvider` (populated by `usePaymentStatus`) to compensate for client/server clock drift.
+
+## Import
+
+```tsx
+import { CountdownTimer } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<CountdownTimer expiresAt={session.expires_at} />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `expiresAt` | `string` | **required** | ISO 8601 expiration timestamp |
+| `onExpire` | `() => void` | — | Called exactly once when the countdown reaches zero |
+| `className` | `string` | — | CSS class on the wrapper |
+
+## Color thresholds
+
+| Remaining time | Color |
+|----------------|-------|
+| > 2 minutes | `--fluxis-color-fg` (default text color) |
+| ≤ 2 minutes | `#f59e0b` (amber) |
+| ≤ 1 minute | `#ef4444` (red) |
+
+## Examples
+
+### Basic
+
+```tsx
+<CountdownTimer expiresAt="2025-12-31T23:59:59Z" />
+```
+
+### With expire callback
+
+```tsx
+<CountdownTimer
+  expiresAt={session.expires_at}
+  onExpire={() => setExpired(true)}
+/>
+```
+
+## Clock-skew correction
+
+When `CountdownTimer` is rendered inside a `<FluxisProvider>` that also wraps a `usePaymentStatus` hook, the hook writes the measured server time offset to shared context on every successful response. `CountdownTimer` reads this offset so the countdown stays accurate even when the device clock differs from the server.
+
+Without a provider (or before the first `usePaymentStatus` response), the offset defaults to `0` and the device clock is used directly — nothing breaks, accuracy is just lower.

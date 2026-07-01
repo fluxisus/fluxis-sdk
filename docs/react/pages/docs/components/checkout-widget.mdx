@@ -1,0 +1,106 @@
+---
+title: CheckoutWidget
+---
+
+Full-page checkout component that renders the correct UI for each stage of a payment session.
+
+- **pending** — shows the amount, countdown, QR code (desktop) or wallet deep-link buttons (mobile), and a copy button for the recipient address.
+- **confirming** — shows a spinner while the on-chain transaction is being confirmed.
+- **completed** — shows a success screen and a "Return to merchant" link via `return_url`.
+- **expired** — shows a timeout screen with a "Start over" button that reloads the page.
+
+The widget is **purely presentational** — it does not fetch session data. Your app fetches the `CheckoutSession` and passes it as a prop; the widget re-renders automatically when the status changes.
+
+## Import
+
+```tsx
+import { CheckoutWidget } from '@fluxisus/react';
+```
+
+## Usage
+
+```tsx
+<FluxisProvider>
+  <CheckoutWidget session={session} />
+</FluxisProvider>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `session` | `CheckoutSession` | **required** | The current checkout session |
+| `className` | `string` | — | CSS class on the wrapper |
+| `style` | `CSSProperties` | — | Inline style on the wrapper |
+
+## `CheckoutSession` type
+
+```ts
+interface CheckoutSession {
+  id: string;
+  amount: string;            // decimal string e.g. "12.50"
+  currency: string;          // ISO 4217 code e.g. "USD"
+  recipient_address: string; // NASPIP token used for the QR and deep links
+  expires_at: string;        // ISO 8601 timestamp
+  status: 'pending' | 'confirming' | 'completed' | 'expired';
+  return_url: string;        // where to redirect the payer after completion
+}
+```
+
+## Examples
+
+### Basic
+
+```tsx
+function CheckoutPage({ session }: { session: CheckoutSession }) {
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} />
+    </FluxisProvider>
+  );
+}
+```
+
+### With live polling
+
+Use TanStack Query (or any data-fetching library) to refresh the session and pass the updated data:
+
+```tsx
+function CheckoutPage({ sessionId }: { sessionId: string }) {
+  const { data: session, isLoading } = useQuery({
+    queryKey: ['checkout', sessionId],
+    queryFn: () => fetch(`/api/checkout/${sessionId}`).then(r => r.json()),
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      return status === 'pending' || status === 'confirming' ? 3000 : false;
+    },
+  });
+
+  if (isLoading || !session) return <Spinner />;
+
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} style={{ maxWidth: '480px', width: '100%' }} />
+    </FluxisProvider>
+  );
+}
+```
+
+### Custom width
+
+```tsx
+<CheckoutWidget session={session} style={{ maxWidth: '480px', width: '100%' }} />
+```
+
+## Status reference
+
+| Status | Widget renders |
+|--------|----------------|
+| `pending` | Amount, countdown, QR code (desktop) or wallet deep-link buttons (mobile), address copy button |
+| `confirming` | Animated spinner + "Confirming on-chain…" message |
+| `completed` | Success icon + "Return to merchant" link |
+| `expired` | Timeout icon + "Start over" reload button |
+
+## Theming
+
+All visual tokens use CSS variable fallbacks compatible with `FluxisProvider`. Wrap the widget in `<FluxisProvider theme={...}>` to apply brand colors. See [Theming](/docs/guides/theming).

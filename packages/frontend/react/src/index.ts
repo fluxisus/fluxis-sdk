@@ -4,6 +4,11 @@ export { CompatibleApps } from './components/CompatibleApps.js';
 export { CompatibleAppsMarquee } from './components/CompatibleAppsMarquee.js';
 export { PayWithAppButton } from './components/PayWithAppButton.js';
 export { FluxisProvider } from './theme/FluxisProvider.js';
+export { CheckoutWidget } from './components/CheckoutWidget.js';
+export { CountdownTimer } from './components/CountdownTimer.js';
+export { AddressCopyButton } from './components/AddressCopyButton.js';
+export { PaymentStatusBadge } from './components/PaymentStatusBadge.js';
+export { AmountDisplay } from './components/AmountDisplay.js';
 
 // Hooks
 export { useFluxisTheme } from './theme/useFluxisTheme.js';
@@ -45,6 +50,12 @@ export type {
   CompatibleAppsMarqueeProps,
   CompatibleAppsRemoteOptions,
   QrErrorCorrectionLevel,
+  CheckoutSession,
+  CheckoutWidgetProps,
+  CountdownTimerProps,
+  AddressCopyButtonProps,
+  PaymentStatusBadgeProps,
+  AmountDisplayProps,
 } from './types.js';
 export type {
   UsePaymentStatusOptions,
