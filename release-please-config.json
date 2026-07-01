@@ -7,12 +7,14 @@
     "packages/backend/sdk": {
       "component": "typescript-sdk",
       "release-type": "node",
-      "package-name": "@fluxisus/sdk"
+      "package-name": "@fluxisus/sdk",
+      "include-paths": ["packages/backend/sdk"]
     },
     "packages/backend/sdk-csharp": {
       "component": "csharp-sdk",
       "release-type": "simple",
       "package-name": "Fluxis.Sdk",
+      "include-paths": ["packages/backend/sdk-csharp"],
       "extra-files": [
         {
           "type": "xml",
@@ -24,17 +26,20 @@
     "packages/backend/sdk-python": {
       "release-type": "python",
       "package-name": "fluxis",
-      "tag-name": "sdk-python/v${version}"
+      "tag-name": "sdk-python/v${version}",
+      "include-paths": ["packages/backend/sdk-python"]
     },
     "packages/backend/sdk-go": {
       "release-type": "go",
       "package-name": "fluxis-sdk-go",
-      "tag-name": "sdk-go/v${version}"
+      "tag-name": "sdk-go/v${version}",
+      "include-paths": ["packages/backend/sdk-go"]
     },
     "packages/frontend/react": {
       "component": "react-sdk",
       "release-type": "node",
-      "package-name": "@fluxisus/react"
+      "package-name": "@fluxisus/react",
+      "include-paths": ["packages/frontend/react"]
     }
   }
 }
