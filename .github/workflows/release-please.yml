@@ -130,7 +130,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v5
 
@@ -152,6 +151,6 @@ jobs:
         run: npm run test --workspace=packages/frontend/react
 
       - name: Publish to npm
-        run: npm publish --workspace=packages/frontend/react --access public --provenance
+        run: npm publish --workspace=packages/frontend/react --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
