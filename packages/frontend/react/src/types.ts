@@ -1,13 +1,25 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+export interface ManualTransferData {
+  wallet_address: string;
+  crypto_amount: string;
+  crypto_asset: string;
+  network: string;
+  reference_amount?: string;
+  reference_currency?: string;
+}
+
 export interface CheckoutSession {
   id: string;
   amount: string;
   currency: string;
-  recipient_address: string;
+  recipient_address?: string;
   expires_at: string;
   status: 'pending' | 'confirming' | 'completed' | 'expired';
   return_url: string;
+  manual_transfer?: ManualTransferData;
+  tx_hash?: string;
+  receipt_link?: string;
 }
 
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
@@ -123,6 +135,21 @@ export interface AmountDisplayProps {
   amount: string;
   currency: string;
   className?: string;
+}
+
+export interface CompatibleAppsChipsProps extends CompatibleAppsRemoteOptions {
+  include?: string[];
+  exclude?: string[];
+  onAppClick?: (app: CompatibleApp) => void;
+  className?: string;
+  style?: CSSProperties;
+}
+
+export interface CompatibleAppsStackProps extends CompatibleAppsRemoteOptions {
+  include?: string[];
+  exclude?: string[];
+  className?: string;
+  style?: CSSProperties;
 }
 
 export interface CompatibleAppsMarqueeProps extends CompatibleAppsRemoteOptions {
