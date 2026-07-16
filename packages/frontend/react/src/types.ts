@@ -15,11 +15,12 @@ export interface CheckoutSession {
   currency: string;
   recipient_address?: string;
   expires_at: string;
-  status: 'pending' | 'confirming' | 'completed' | 'expired';
+  status: 'pending' | 'selecting_asset' | 'confirming' | 'completed' | 'expired';
   return_url: string;
   manual_transfer?: ManualTransferData;
   tx_hash?: string;
   receipt_link?: string;
+  payment_options?: string[];
 }
 
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
@@ -111,6 +112,7 @@ export interface CompatibleAppsRemoteOptions {
 
 export interface CheckoutWidgetProps {
   session: CheckoutSession;
+  onSelectAsset?: (assetId: string) => void | Promise<void>;
   className?: string;
   style?: CSSProperties;
 }

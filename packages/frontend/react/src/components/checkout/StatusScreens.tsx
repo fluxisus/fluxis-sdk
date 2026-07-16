@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CheckoutSession } from '../../types.js';
+
+const AUTO_REDIRECT_SECONDS = 5;
 
 const SPIN_KEYFRAMES = `@keyframes fluxis-checkout-spin { to { transform: rotate(360deg); } }`;
 
@@ -85,6 +88,17 @@ export function CompletedScreen({
   className?: string;
   style?: CSSProperties;
 }) {
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_REDIRECT_SECONDS);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      window.location.href = returnUrl;
+      return;
+    }
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [secondsLeft, returnUrl]);
+
   return (
     <div className={className} style={style}>
       <div
@@ -118,7 +132,7 @@ export function CompletedScreen({
           fontSize: '0.875rem',
         }}
       >
-        Volver al comercio
+        Volver al comercio ({secondsLeft})
       </a>
       {session?.receipt_link && (
         <a
