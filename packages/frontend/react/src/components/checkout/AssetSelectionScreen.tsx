@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CheckoutSession } from '../../types.js';
-import { AddressFormat } from './AddressFormat.js';
-import { capitalizeFirst } from '../../utils/checkoutFormat.js';
+import { capitalizeFirst, truncateAddress } from '../../utils/checkoutFormat.js';
 
 interface AssetSelectionScreenProps {
   session: CheckoutSession;
@@ -78,6 +77,7 @@ export function AssetSelectionScreen({ session, onSelectAsset, className, style 
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              gap: '0.75rem',
               padding: '0.875rem 1rem',
               border: '1px solid var(--fluxis-color-border, #e2e8f0)',
               borderRadius: 'var(--fluxis-radius, 0.75rem)',
@@ -91,8 +91,8 @@ export function AssetSelectionScreen({ session, onSelectAsset, className, style 
           >
             <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{capitalizeFirst(network)}</span>
             {address && (
-              <span style={{ fontSize: '0.8125rem' }}>
-                <AddressFormat address={address} boldChars={4} />
+              <span style={{ fontSize: '0.8125rem', fontFamily: 'monospace', color: 'var(--fluxis-color-muted, #64748b)' }}>
+                {truncateAddress(address)}
               </span>
             )}
             {isPending && (

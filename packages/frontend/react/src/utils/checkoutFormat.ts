@@ -23,3 +23,9 @@ export function capitalizeFirst(str: string): string {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+export function truncateAddress(address: string, chars = 4): string {
+  const prefixLength = 2 + chars; // e.g. "0x" + chars
+  if (address.length <= prefixLength + chars) return address;
+  return `${address.slice(0, prefixLength)}…${address.slice(-chars)}`;
+}
