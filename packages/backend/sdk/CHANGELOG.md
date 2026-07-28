@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/fluxisus/fluxis-sdk/compare/typescript-sdk-v1.0.0...typescript-sdk-v1.1.0) (2026-07-28)
+
+
+### Features
+
+* **react:** checkout UI components + automated npm publish ([#21](https://github.com/fluxisus/fluxis-sdk/issues/21)) ([750121a](https://github.com/fluxisus/fluxis-sdk/commit/750121a04cb067b7d80ff194268b7f3cb832ec6e))
+
 ## [1.0.0](https://github.com/fluxisus/fluxis-sdk/compare/typescript-sdk-v0.1.0...typescript-sdk-v1.0.0) (2026-06-06)
 
 
