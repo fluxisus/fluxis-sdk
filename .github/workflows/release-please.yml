@@ -35,6 +35,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # SDKs publish from main, not from the default branch. Without this the
+          # action targets the repository default (`development`), so it analysed
+          # development's history and opened release PRs there while running on a
+          # push to main — releases and publishes never lined up.
+          target-branch: main
 
   # When one component release merges, sibling release-please PRs touch the same
   # manifest and become conflicting. Close them so the next workflow run recreates
