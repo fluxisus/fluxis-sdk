@@ -1,13 +1,17 @@
 import { useState } from 'react';
-import type { ManualTransferData } from '../../types.js';
+import type { ReactNode } from 'react';
 import { WalletTransferIcon, ChevronIcon } from './icons.js';
-import { ManualTransferContent } from './ManualTransferContent.js';
+import { StepIndicator } from './StepIndicator.js';
 
 interface ManualTransferSectionProps {
-  data: ManualTransferData;
+  /** Last completed step index (0-based) into ['Token', 'Red', 'Pagar'] — -1 while an asset
+   * still needs to be picked (nothing done yet), 1 once resolved (Token+Red done via the
+   * single asset pick; 'Pagar' is the current, not-yet-done step). */
+  activeStep: number;
+  children: ReactNode;
 }
 
-export function ManualTransferSection({ data }: ManualTransferSectionProps) {
+export function ManualTransferSection({ activeStep, children }: ManualTransferSectionProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -70,7 +74,10 @@ export function ManualTransferSection({ data }: ManualTransferSectionProps) {
 
       {open && (
         <div style={{ borderTop: '1px solid var(--fluxis-color-border, #e2e8f0)' }}>
-          <ManualTransferContent data={data} />
+          <div style={{ padding: '0.875rem 1rem 0' }}>
+            <StepIndicator steps={['Token', 'Red', 'Pagar']} activeStep={activeStep} />
+          </div>
+          {children}
         </div>
       )}
     </div>

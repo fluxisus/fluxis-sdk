@@ -10,6 +10,8 @@ import { CountdownTimer } from '../CountdownTimer.js';
 import { PaymentStatusBadge } from '../PaymentStatusBadge.js';
 import { InfoIcon } from './icons.js';
 import { ManualTransferSection } from './ManualTransferSection.js';
+import { ManualTransferContent } from './ManualTransferContent.js';
+import { AssetSelectionScreen } from './AssetSelectionScreen.js';
 
 interface DetailRowProps {
   label: string;
@@ -63,15 +65,23 @@ const divider: CSSProperties = {
 
 interface PendingScreenProps {
   session: CheckoutSession;
+  onSelectAsset?: (assetId: string) => void | Promise<void>;
   className?: string;
   style?: CSSProperties;
 }
 
 const SPIN_KEYFRAMES = `@keyframes fluxis-checkout-spin { to { transform: rotate(360deg); } }`;
 
-export function PendingScreen({ session, className, style }: PendingScreenProps) {
+export function PendingScreen({ session, onSelectAsset, className, style }: PendingScreenProps) {
   const isMobile = useIsMobile();
   const [expired, setExpired] = useState(false);
+  const [isChangingAsset, setIsChangingAsset] = useState(false);
+
+  async function handleSelectAsset(assetId: string) {
+    if (!onSelectAsset) return;
+    await onSelectAsset(assetId);
+    setIsChangingAsset(false);
+  }
 
   return (
     <div
@@ -216,33 +226,35 @@ export function PendingScreen({ session, className, style }: PendingScreenProps)
         </div>
       </div>
 
-      {/* Manual transfer accordion (only when decoded payment data is available) */}
-      {session.manual_transfer && (
+      {/* Manual transfer accordion — shows the resolved transfer details once an asset is
+          picked, or the asset picker itself first (or again, if the shopper wants to change
+          a previous selection via ManualTransferContent's "Cambiar" affordance). */}
+      {session.manual_transfer && !isChangingAsset ? (
         <>
           <div style={divider} />
-          <div style={{ padding: '0.75rem 1rem 0' }}>
-            <ManualTransferSection data={{
-              ...session.manual_transfer,
-              reference_amount: session.amount,
-              reference_currency: session.currency,
-            }} />
+          <div style={{ padding: '0.75rem 1rem' }}>
+            <ManualTransferSection activeStep={1}>
+              <ManualTransferContent
+                data={{
+                  ...session.manual_transfer,
+                  reference_amount: session.amount,
+                  reference_currency: session.currency,
+                }}
+                onChangeAsset={session.payment_options ? () => setIsChangingAsset(true) : undefined}
+              />
+            </ManualTransferSection>
           </div>
         </>
-      )}
-
-      {/* Footer */}
-      <p
-        style={{
-          margin: '0.75rem 0 0',
-          padding: '0.875rem 1.5rem',
-          borderTop: '1px solid var(--fluxis-color-border, #e2e8f0)',
-          fontSize: '0.8125rem',
-          color: 'var(--fluxis-color-muted, #64748b)',
-          textAlign: 'center',
-        }}
-      >
-        Esta pantalla se actualiza automáticamente al cambiar el estado del pago.
-      </p>
+      ) : session.status === 'selecting_asset' || (session.manual_transfer && isChangingAsset) ? (
+        <>
+          <div style={divider} />
+          <div style={{ padding: '0.75rem 1rem' }}>
+            <ManualTransferSection activeStep={-1}>
+              <AssetSelectionScreen session={session} onSelectAsset={handleSelectAsset} />
+            </ManualTransferSection>
+          </div>
+        </>
+      ) : null}
 
       {expired && (
         <div

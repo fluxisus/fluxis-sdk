@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { CheckoutWidgetProps } from '../types.js';
 import { PendingScreen } from './checkout/PendingScreen.js';
-import { AssetSelectionScreen } from './checkout/AssetSelectionScreen.js';
 import {
   ConfirmingScreen,
   CompletedScreen,
@@ -25,17 +24,6 @@ const centeredCard: CSSProperties = {
 export function CheckoutWidget({ session, onSelectAsset, className, style }: CheckoutWidgetProps) {
   const mergedStyle = { ...centeredCard, ...style };
 
-  if (session.status === 'selecting_asset') {
-    return (
-      <AssetSelectionScreen
-        session={session}
-        onSelectAsset={onSelectAsset}
-        className={className}
-        style={mergedStyle}
-      />
-    );
-  }
-
   if (session.status === 'confirming') {
     return <ConfirmingScreen session={session} className={className} style={mergedStyle} />;
   }
@@ -48,5 +36,12 @@ export function CheckoutWidget({ session, onSelectAsset, className, style }: Che
     return <ExpiredScreen className={className} style={mergedStyle} />;
   }
 
-  return <PendingScreen session={session} className={className} style={style} />;
+  return (
+    <PendingScreen
+      session={session}
+      onSelectAsset={onSelectAsset}
+      className={className}
+      style={style}
+    />
+  );
 }
