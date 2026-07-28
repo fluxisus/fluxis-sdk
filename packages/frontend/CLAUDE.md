@@ -30,7 +30,7 @@ Each subdirectory with a `package.json` is picked up by the root workspace (`pac
 ## Design rules
 
 1. **No API credentials in the browser** — never ship `apiSecret`, webhook secrets, or `FluxisClient` from `@fluxisus/sdk`.
-2. **Backend creates, frontend displays** — payment requests, checkout URLs, and NASPIP tokens are created server-side; frontend packages render UI and poll status via your API routes if needed.
+2. **Backend creates, frontend displays** — payment requests, checkout URLs, and NASPIP tokens are created server-side; frontend packages render UI and poll status via your API routes if needed. This rule protects merchant credentials in *third-party* integrations — a merchant's own frontend must never hold `api_key`/`api_secret`, so it proxies through its backend. It does not apply to Fluxis's own first-party products (e.g. the hosted checkout page, `checkout-web`): those call core-api's public, credential-free, capability-URL-gated endpoints (`/public/checkout/...`) directly, the same pattern Stripe/MercadoPago use for their own hosted checkout pages. `CheckoutWidget` itself still never makes network calls of its own — see `onSelectAsset` on `CheckoutWidgetProps`, which delegates the actual request to whatever calling code supplies the callback.
 3. **Peer dependencies** — declare `react`, `react-dom`, etc. as peers; do not bundle framework runtimes.
 4. **Minimal runtime deps** — prefer zero or tiny deps; reuse types from `@fluxisus/sdk` as devDependency for parity only (re-export public types if useful).
 5. **Dual module output** — ESM + CJS via `tsup` (match backend TS SDK).

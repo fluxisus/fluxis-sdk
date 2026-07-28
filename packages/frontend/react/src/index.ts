@@ -2,6 +2,8 @@
 export { FluxisQrCode } from './components/FluxisQrCode.js';
 export { CompatibleApps } from './components/CompatibleApps.js';
 export { CompatibleAppsMarquee } from './components/CompatibleAppsMarquee.js';
+export { CompatibleAppsChips } from './components/CompatibleAppsChips.js';
+export { CompatibleAppsStack } from './components/CompatibleAppsStack.js';
 export { PayWithAppButton } from './components/PayWithAppButton.js';
 export { FluxisProvider } from './theme/FluxisProvider.js';
 export { CheckoutWidget } from './components/CheckoutWidget.js';
@@ -48,9 +50,13 @@ export type {
   PayWithAppButtonProps,
   CompatibleAppsProps,
   CompatibleAppsMarqueeProps,
+  CompatibleAppsChipsProps,
+  CompatibleAppsStackProps,
   CompatibleAppsRemoteOptions,
   QrErrorCorrectionLevel,
+  ManualTransferData,
   CheckoutSession,
+  CheckoutPaymentOption,
   CheckoutWidgetProps,
   CountdownTimerProps,
   AddressCopyButtonProps,

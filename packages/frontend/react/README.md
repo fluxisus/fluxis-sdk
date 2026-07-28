@@ -8,6 +8,24 @@ Official React SDK for Fluxis payment UI — hosted checkout widget, QR codes, c
 npm install @fluxisus/react qrcode.react react react-dom
 ```
 
+## Upgrading from 0.2.x
+
+`CheckoutSession.recipient_address` is now **optional** (`string | undefined`). A session in
+the new `selecting_asset` status has no recipient address until the shopper picks an asset, so
+the previous required typing could not be honoured once that status existed.
+
+If your code reads the field directly, narrow it first:
+
+```ts
+if (session.recipient_address) {
+  // safe to use
+}
+```
+
+Everything else in this release is additive: the `selecting_asset` member on `status`, the
+optional `manual_transfer`, `tx_hash`, `receipt_link` and `payment_options` fields, and the
+optional `onSelectAsset` prop on `CheckoutWidget`.
+
 ## Quick start
 
 ### Drop-in checkout widget
@@ -28,6 +46,31 @@ function CheckoutPage({ session }: { session: CheckoutSession }) {
 ```
 
 Poll your backend for status updates and pass the refreshed session to keep the widget in sync.
+
+When `session.status === 'completed'`, the widget shows a manual "Volver al comercio" link to `session.return_url` and, if the shopper doesn't click it, redirects automatically after 5 seconds.
+
+### Sessions requiring asset selection
+
+If a session has more than one configured payment option and no vault assigned yet, the backend reports `status: 'selecting_asset'` along with `payment_options: string[]` (unique asset IDs). Pass an `onSelectAsset` callback so `CheckoutWidget` can render an asset picker — the widget itself never calls your API, it only invokes the callback with the shopper's choice and shows a loading state while it resolves:
+
+```tsx
+function CheckoutPage({ session, refetch }: { session: CheckoutSession; refetch: () => void }) {
+  async function handleSelectAsset(assetId: string) {
+    await fetch(`/api/checkout/${session.id}/select-asset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unique_asset_id: assetId }),
+    });
+    refetch();
+  }
+
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} onSelectAsset={handleSelectAsset} style={{ maxWidth: 480 }} />
+    </FluxisProvider>
+  );
+}
+```
 
 ### Building a custom UI
 

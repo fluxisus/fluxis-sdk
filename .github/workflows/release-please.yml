@@ -150,7 +150,11 @@ jobs:
       - name: Test
         run: npm run test --workspace=packages/frontend/react
 
+      # Published under the `next` dist-tag, not `latest`, so a fresh
+      # `npm install @fluxisus/react` keeps resolving the current stable release.
+      # Promote deliberately once a version has been validated:
+      #   npm dist-tag add @fluxisus/react@<version> latest
       - name: Publish to npm
-        run: npm publish --workspace=packages/frontend/react --access public
+        run: npm publish --workspace=packages/frontend/react --access public --tag next
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
