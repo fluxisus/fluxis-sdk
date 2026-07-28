@@ -39,7 +39,8 @@
       "component": "react-sdk",
       "release-type": "node",
       "package-name": "@fluxisus/react",
-      "include-paths": ["packages/frontend/react"]
+      "include-paths": ["packages/frontend/react"],
+      "bump-minor-pre-major": true
     }
   }
 }
