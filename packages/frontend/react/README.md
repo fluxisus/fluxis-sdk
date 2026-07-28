@@ -1,6 +1,6 @@
 # @fluxisus/react
 
-Official React SDK for Fluxis payment UI — standardized QR codes with the Fluxis logo and compatible wallet deep links.
+Official React SDK for Fluxis payment UI — hosted checkout widget, QR codes, countdown timer, address copy, payment status badge, and compatible wallet deep links.
 
 ## Install
 
@@ -8,24 +8,80 @@ Official React SDK for Fluxis payment UI — standardized QR codes with the Flux
 npm install @fluxisus/react qrcode.react react react-dom
 ```
 
+## Upgrading from 0.2.x
+
+`CheckoutSession.recipient_address` is now **optional** (`string | undefined`). A session in
+the new `selecting_asset` status has no recipient address until the shopper picks an asset, so
+the previous required typing could not be honoured once that status existed.
+
+If your code reads the field directly, narrow it first:
+
+```ts
+if (session.recipient_address) {
+  // safe to use
+}
+```
+
+Everything else in this release is additive: the `selecting_asset` member on `status`, the
+optional `manual_transfer`, `tx_hash`, `receipt_link` and `payment_options` fields, and the
+optional `onSelectAsset` prop on `CheckoutWidget`.
+
 ## Quick start
 
-Your backend creates a payment request and returns a NASPIP token. Pass it to the components:
+### Drop-in checkout widget
+
+Your backend creates a payment request and returns a `CheckoutSession`. Pass it to `CheckoutWidget` — it handles the full payment UI automatically:
+
+```tsx
+import { FluxisProvider, CheckoutWidget } from '@fluxisus/react';
+import type { CheckoutSession } from '@fluxisus/react';
+
+function CheckoutPage({ session }: { session: CheckoutSession }) {
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} style={{ maxWidth: 480 }} />
+    </FluxisProvider>
+  );
+}
+```
+
+Poll your backend for status updates and pass the refreshed session to keep the widget in sync.
+
+When `session.status === 'completed'`, the widget shows a manual "Volver al comercio" link to `session.return_url` and, if the shopper doesn't click it, redirects automatically after 5 seconds.
+
+### Sessions requiring asset selection
+
+If a session has more than one configured payment option and no vault assigned yet, the backend reports `status: 'selecting_asset'` along with `payment_options: string[]` (unique asset IDs). Pass an `onSelectAsset` callback so `CheckoutWidget` can render an asset picker — the widget itself never calls your API, it only invokes the callback with the shopper's choice and shows a loading state while it resolves:
+
+```tsx
+function CheckoutPage({ session, refetch }: { session: CheckoutSession; refetch: () => void }) {
+  async function handleSelectAsset(assetId: string) {
+    await fetch(`/api/checkout/${session.id}/select-asset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unique_asset_id: assetId }),
+    });
+    refetch();
+  }
+
+  return (
+    <FluxisProvider>
+      <CheckoutWidget session={session} onSelectAsset={handleSelectAsset} style={{ maxWidth: 480 }} />
+    </FluxisProvider>
+  );
+}
+```
+
+### Building a custom UI
+
+Use the lower-level components directly with a NASPIP token:
 
 ```tsx
 import { FluxisProvider, FluxisQrCode, CompatibleApps } from '@fluxisus/react';
 
-const token = 'naspip;fluxis.us;...'; // from your backend
-
 function Checkout({ token }: { token: string }) {
   return (
-    <FluxisProvider
-      theme={{
-        colorPrimary: '#2563eb',
-        qrFg: '#0f172a',
-        qrBg: '#ffffff',
-      }}
-    >
+    <FluxisProvider theme={{ colorPrimary: '#2563eb' }}>
       <FluxisQrCode token={token} size={280} />
       <CompatibleApps token={token} />
     </FluxisProvider>
@@ -34,6 +90,83 @@ function Checkout({ token }: { token: string }) {
 ```
 
 ## Components
+
+### `CheckoutWidget`
+
+All-in-one hosted checkout UI. Renders the correct screen based on `session.status`:
+
+| Status | UI |
+|--------|----|
+| `pending` | Amount · countdown · QR (desktop) or wallet buttons (mobile) · copy address |
+| `confirming` | Animated spinner + confirmation message |
+| `completed` | Success icon + return link |
+| `expired` | Clock icon + restart button |
+
+```tsx
+<CheckoutWidget session={session} style={{ width: '100%', maxWidth: 480 }} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `session` | `CheckoutSession` | required | Payment session from your backend |
+| `className` | `string` | — | Wrapper class |
+| `style` | `CSSProperties` | — | Wrapper style |
+
+### `CountdownTimer`
+
+Counts down in real time to a payment expiration timestamp. Changes color to amber at ≤ 2 min and red at ≤ 1 min. Calls `onExpire` exactly once at zero.
+
+```tsx
+<CountdownTimer expiresAt={session.expires_at} onExpire={() => setExpired(true)} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `expiresAt` | `string` | required | ISO 8601 expiration timestamp |
+| `onExpire` | `() => void` | — | Called once when timer reaches zero |
+| `className` | `string` | — | Wrapper class |
+
+### `AddressCopyButton`
+
+Renders a truncated crypto address with a copy-to-clipboard button. Shows a checkmark confirmation for 2 seconds after copying.
+
+```tsx
+<AddressCopyButton address="0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `address` | `string` | required | Wallet address to copy |
+| `className` | `string` | — | Wrapper class |
+
+### `PaymentStatusBadge`
+
+Inline colored badge mapping a payment status to a readable label.
+
+```tsx
+<PaymentStatusBadge status={session.status} />
+```
+
+| Status | Label | Color |
+|--------|-------|-------|
+| `pending` | Pending | Blue |
+| `confirming` | Confirming | Amber |
+| `completed` | Completed | Green |
+| `expired` | Expired | Gray |
+
+### `AmountDisplay`
+
+Formats and renders a payment amount with its currency code.
+
+```tsx
+<AmountDisplay amount={session.amount} currency={session.currency} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `amount` | `string \| number` | required | Payment amount |
+| `currency` | `string` | required | Currency code (e.g. `USD`) |
+| `className` | `string` | — | Wrapper class |
 
 ### `FluxisQrCode`
 

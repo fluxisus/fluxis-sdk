@@ -1,13 +1,32 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+export interface ManualTransferData {
+  wallet_address: string;
+  crypto_amount: string;
+  crypto_asset: string;
+  network: string;
+  reference_amount?: string;
+  reference_currency?: string;
+}
+
+export interface CheckoutPaymentOption {
+  unique_asset_id: string;
+  symbol: string;
+  network: string;
+}
+
 export interface CheckoutSession {
   id: string;
   amount: string;
   currency: string;
-  recipient_address: string;
+  recipient_address?: string;
   expires_at: string;
-  status: 'pending' | 'confirming' | 'completed' | 'expired';
+  status: 'pending' | 'selecting_asset' | 'confirming' | 'completed' | 'expired';
   return_url: string;
+  manual_transfer?: ManualTransferData;
+  tx_hash?: string;
+  receipt_link?: string;
+  payment_options?: CheckoutPaymentOption[];
 }
 
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
@@ -99,6 +118,7 @@ export interface CompatibleAppsRemoteOptions {
 
 export interface CheckoutWidgetProps {
   session: CheckoutSession;
+  onSelectAsset?: (assetId: string) => void | Promise<void>;
   className?: string;
   style?: CSSProperties;
 }
@@ -123,6 +143,21 @@ export interface AmountDisplayProps {
   amount: string;
   currency: string;
   className?: string;
+}
+
+export interface CompatibleAppsChipsProps extends CompatibleAppsRemoteOptions {
+  include?: string[];
+  exclude?: string[];
+  onAppClick?: (app: CompatibleApp) => void;
+  className?: string;
+  style?: CSSProperties;
+}
+
+export interface CompatibleAppsStackProps extends CompatibleAppsRemoteOptions {
+  include?: string[];
+  exclude?: string[];
+  className?: string;
+  style?: CSSProperties;
 }
 
 export interface CompatibleAppsMarqueeProps extends CompatibleAppsRemoteOptions {
