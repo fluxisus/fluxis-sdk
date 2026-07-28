@@ -56,6 +56,7 @@ export type {
   QrErrorCorrectionLevel,
   ManualTransferData,
   CheckoutSession,
+  CheckoutPaymentOption,
   CheckoutWidgetProps,
   CountdownTimerProps,
   AddressCopyButtonProps,

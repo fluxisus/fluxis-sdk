@@ -9,6 +9,12 @@ export interface ManualTransferData {
   reference_currency?: string;
 }
 
+export interface CheckoutPaymentOption {
+  unique_asset_id: string;
+  symbol: string;
+  network: string;
+}
+
 export interface CheckoutSession {
   id: string;
   amount: string;
@@ -20,7 +26,7 @@ export interface CheckoutSession {
   manual_transfer?: ManualTransferData;
   tx_hash?: string;
   receipt_link?: string;
-  payment_options?: string[];
+  payment_options?: CheckoutPaymentOption[];
 }
 
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
