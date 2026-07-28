@@ -8,6 +8,24 @@ Official React SDK for Fluxis payment UI — hosted checkout widget, QR codes, c
 npm install @fluxisus/react qrcode.react react react-dom
 ```
 
+## Upgrading from 0.2.x
+
+`CheckoutSession.recipient_address` is now **optional** (`string | undefined`). A session in
+the new `selecting_asset` status has no recipient address until the shopper picks an asset, so
+the previous required typing could not be honoured once that status existed.
+
+If your code reads the field directly, narrow it first:
+
+```ts
+if (session.recipient_address) {
+  // safe to use
+}
+```
+
+Everything else in this release is additive: the `selecting_asset` member on `status`, the
+optional `manual_transfer`, `tx_hash`, `receipt_link` and `payment_options` fields, and the
+optional `onSelectAsset` prop on `CheckoutWidget`.
+
 ## Quick start
 
 ### Drop-in checkout widget
