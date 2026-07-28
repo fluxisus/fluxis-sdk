@@ -51,6 +51,30 @@ fluxis-sdks/
 - Non-JS packages (C#, Python, Go) live alongside JS workspaces without interference.
   The root `package.json` uses npm workspaces for backend (`packages/backend/sdk`) and frontend (`packages/frontend/*`) packages.
 
+## Releasing
+
+**SDKs publish from `main`, never from `development`** — even though `development` is the
+repository's default branch. Feature work lands on `development`; promoting `development` → `main`
+is what starts a release.
+
+```
+feature branch → development → main → release-please opens a release PR on main → merge → publish
+```
+
+Two consequences that are easy to get wrong:
+
+1. **release-please reads `main`.** The action is pinned with `target-branch: main`; without it,
+   it silently falls back to the repository default (`development`) and opens release PRs on the
+   wrong branch while running on a push to `main`.
+2. **Merges are squashed, so the PR title becomes the commit subject** — and that subject is what
+   release-please parses. A PR titled in prose produces a commit it cannot classify, and the
+   package is skipped with no release and no error. Title PRs conventionally
+   (`feat(checkout)!: …`), and put `BREAKING CHANGE:` in the PR body when the API breaks.
+
+`@fluxisus/react` sets `bump-minor-pre-major`, so a breaking change bumps `0.2.0 → 0.3.0` rather
+than release-please's default 0.x behaviour of promoting to `1.0.0`. It publishes under the `next`
+dist-tag; promote deliberately with `npm dist-tag add @fluxisus/react@<version> latest`.
+
 ## Architecture: Key Concepts
 
 - **Organization**: Top-level entity (the business using Fluxis). Has API keys.
