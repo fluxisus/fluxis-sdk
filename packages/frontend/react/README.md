@@ -8,11 +8,13 @@ Official React SDK for Fluxis payment UI — hosted checkout widget, QR codes, c
 npm install @fluxisus/react qrcode.react react react-dom
 ```
 
-## Upgrading from 0.2.x
+## Upgrading
 
-`CheckoutSession.recipient_address` is now **optional** (`string | undefined`). A session in
-the new `selecting_asset` status has no recipient address until the shopper picks an asset, so
-the previous required typing could not be honoured once that status existed.
+### ⚠️ Breaking in 0.3.0 — `recipient_address` is optional
+
+`CheckoutSession.recipient_address` changed from `string` to `string | undefined`. A session in
+the `selecting_asset` status has no recipient address until the shopper picks an asset, so the
+previously required typing could not be honoured once that status existed.
 
 If your code reads the field directly, narrow it first:
 
@@ -22,9 +24,28 @@ if (session.recipient_address) {
 }
 ```
 
-Everything else in this release is additive: the `selecting_asset` member on `status`, the
-optional `manual_transfer`, `tx_hash`, `receipt_link` and `payment_options` fields, and the
-optional `onSelectAsset` prop on `CheckoutWidget`.
+This is the only breaking change since 0.2.x. Everything else added in 0.3.0 is additive: the
+`selecting_asset` member on `status`, the optional `manual_transfer`, `tx_hash`, `receipt_link`
+and `payment_options` fields, and the optional `onSelectAsset` prop on `CheckoutWidget`.
+
+### New in 0.4.0 — retry and wallet payment (both optional)
+
+`CheckoutWidget` accepts two further optional callbacks. Omit them and behaviour is unchanged,
+with one exception noted below.
+
+| Prop | Purpose |
+|---|---|
+| `onRetryExpired` / `isRetryingExpired` | Starts a fresh payment attempt from the expired screen |
+| `onPayWithWallet` / `isPayingWithWallet` / `payWithWalletError` | Sends the transfer from a connected browser wallet |
+
+Both follow the same contract as `onSelectAsset`: this package never makes network or chain calls
+of its own, so the host performs the work and reports progress back.
+
+**Behaviour change:** the expired screen previously always showed a "Reintentar" button that
+reloaded the page. Reloading only re-read the same expired payment request, so it appeared to do
+nothing. The button now renders only when you pass `onRetryExpired`, since whether a retry is
+possible depends on how the session is addressed — a durable code can open a new request, a
+payment-request id cannot.
 
 ## Quick start
 
@@ -51,7 +72,7 @@ When `session.status === 'completed'`, the widget shows a manual "Volver al come
 
 ### Sessions requiring asset selection
 
-If a session has more than one configured payment option and no vault assigned yet, the backend reports `status: 'selecting_asset'` along with `payment_options: string[]` (unique asset IDs). Pass an `onSelectAsset` callback so `CheckoutWidget` can render an asset picker — the widget itself never calls your API, it only invokes the callback with the shopper's choice and shows a loading state while it resolves:
+If a session has configured payment options and no vault assigned yet, the backend reports `status: 'selecting_asset'` along with `payment_options: CheckoutPaymentOption[]` — each carrying `unique_asset_id`, `symbol` and `network`, so the picker can label choices rather than show raw asset ids. Pass an `onSelectAsset` callback so `CheckoutWidget` can render the picker — the widget itself never calls your API, it only invokes the callback with the shopper's choice and shows a loading state while it resolves:
 
 ```tsx
 function CheckoutPage({ session, refetch }: { session: CheckoutSession; refetch: () => void }) {

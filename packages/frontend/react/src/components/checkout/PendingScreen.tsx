@@ -66,13 +66,24 @@ const divider: CSSProperties = {
 interface PendingScreenProps {
   session: CheckoutSession;
   onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
   className?: string;
   style?: CSSProperties;
 }
 
 const SPIN_KEYFRAMES = `@keyframes fluxis-checkout-spin { to { transform: rotate(360deg); } }`;
 
-export function PendingScreen({ session, onSelectAsset, className, style }: PendingScreenProps) {
+export function PendingScreen({
+  session,
+  onSelectAsset,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
+  className,
+  style,
+}: PendingScreenProps) {
   const isMobile = useIsMobile();
   const [expired, setExpired] = useState(false);
   const [isChangingAsset, setIsChangingAsset] = useState(false);
@@ -240,7 +251,17 @@ export function PendingScreen({ session, onSelectAsset, className, style }: Pend
                   reference_amount: session.amount,
                   reference_currency: session.currency,
                 }}
-                onChangeAsset={session.payment_options ? () => setIsChangingAsset(true) : undefined}
+                // Offered only when there is something else to switch to. Any array is truthy, so
+                // testing the array alone showed "Cambiar" for a single-option session, leading to
+                // a picker containing just the asset already selected.
+                onChangeAsset={
+                  (session.payment_options?.length ?? 0) > 1
+                    ? () => setIsChangingAsset(true)
+                    : undefined
+                }
+                onPayWithWallet={onPayWithWallet}
+                isPayingWithWallet={isPayingWithWallet}
+                payWithWalletError={payWithWalletError}
               />
             </ManualTransferSection>
           </div>
