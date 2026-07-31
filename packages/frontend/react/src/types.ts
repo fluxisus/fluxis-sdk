@@ -119,6 +119,14 @@ export interface CompatibleAppsRemoteOptions {
 export interface CheckoutWidgetProps {
   session: CheckoutSession;
   onSelectAsset?: (assetId: string) => void | Promise<void>;
+  /**
+   * Starts a fresh payment attempt from the expired screen. Omit it when the caller cannot
+   * recover — a session addressed by payment-request id has nothing to retry, since only the
+   * merchant can create a new request — and the retry button is hidden rather than offering an
+   * action that does nothing.
+   */
+  onRetryExpired?: () => void | Promise<void>;
+  isRetryingExpired?: boolean;
   className?: string;
   style?: CSSProperties;
 }

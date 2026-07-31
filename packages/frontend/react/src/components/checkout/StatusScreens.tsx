@@ -159,7 +159,27 @@ export function CompletedScreen({
   );
 }
 
-export function ExpiredScreen({ className, style }: { className?: string; style?: CSSProperties }) {
+/**
+ * `onRetry` is injected rather than defaulting to a page reload. Reloading only re-reads the same
+ * expired payment request, so the shopper sees the identical screen and nothing appears to happen.
+ * Whether a retry is even possible depends on how the session was addressed: a payment link can
+ * open a fresh request from its code, while a session addressed by payment-request id cannot —
+ * only the merchant can create a new one. Callers that cannot recover omit the prop and the button
+ * is not rendered, instead of offering an action that silently does nothing.
+ */
+export function ExpiredScreen({
+  onRetry,
+  isRetrying,
+  returnUrl,
+  className,
+  style,
+}: {
+  onRetry?: () => void | Promise<void>;
+  isRetrying?: boolean;
+  returnUrl?: string;
+  className?: string;
+  style?: CSSProperties;
+}) {
   return (
     <div className={className} style={style}>
       <div
@@ -179,26 +199,55 @@ export function ExpiredScreen({ className, style }: { className?: string; style?
         ⏱
       </div>
       <p style={{ margin: 0, fontWeight: 600, fontSize: '1.125rem' }}>Pago vencido</p>
-      <p style={mutedText}>Este pedido de pago ha expirado.</p>
-      <button
-        type="button"
-        onClick={() => window.location.reload()}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          padding: '0.75rem 1.5rem',
-          background: 'none',
-          border: '1px solid var(--fluxis-color-border, #e2e8f0)',
-          color: 'var(--fluxis-color-fg, #0f172a)',
-          borderRadius: 'var(--fluxis-radius, 0.75rem)',
-          cursor: 'pointer',
-          font: 'inherit',
-          fontWeight: 600,
-          fontSize: '0.875rem',
-        }}
-      >
-        Reintentar
-      </button>
+      <p style={mutedText}>
+        {onRetry
+          ? 'Este pedido de pago ha expirado.'
+          : 'Este pedido de pago ha expirado. Pedí uno nuevo al comercio.'}
+      </p>
+
+      {onRetry && (
+        <button
+          type="button"
+          onClick={() => onRetry()}
+          disabled={isRetrying}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.75rem 1.5rem',
+            background: 'none',
+            border: '1px solid var(--fluxis-color-border, #e2e8f0)',
+            color: 'var(--fluxis-color-fg, #0f172a)',
+            borderRadius: 'var(--fluxis-radius, 0.75rem)',
+            cursor: isRetrying ? 'default' : 'pointer',
+            opacity: isRetrying ? 0.6 : 1,
+            font: 'inherit',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+          }}
+        >
+          {isRetrying ? 'Generando…' : 'Reintentar'}
+        </button>
+      )}
+
+      {!onRetry && returnUrl && (
+        <a
+          href={returnUrl}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.75rem 1.5rem',
+            border: '1px solid var(--fluxis-color-border, #e2e8f0)',
+            color: 'var(--fluxis-color-fg, #0f172a)',
+            borderRadius: 'var(--fluxis-radius, 0.75rem)',
+            font: 'inherit',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            textDecoration: 'none',
+          }}
+        >
+          Volver al comercio
+        </a>
+      )}
     </div>
   );
 }

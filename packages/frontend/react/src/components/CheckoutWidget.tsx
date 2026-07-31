@@ -21,7 +21,14 @@ const centeredCard: CSSProperties = {
   boxSizing: 'border-box',
 };
 
-export function CheckoutWidget({ session, onSelectAsset, className, style }: CheckoutWidgetProps) {
+export function CheckoutWidget({
+  session,
+  onSelectAsset,
+  onRetryExpired,
+  isRetryingExpired,
+  className,
+  style,
+}: CheckoutWidgetProps) {
   const mergedStyle = { ...centeredCard, ...style };
 
   if (session.status === 'confirming') {
@@ -33,7 +40,15 @@ export function CheckoutWidget({ session, onSelectAsset, className, style }: Che
   }
 
   if (session.status === 'expired') {
-    return <ExpiredScreen className={className} style={mergedStyle} />;
+    return (
+      <ExpiredScreen
+        onRetry={onRetryExpired}
+        isRetrying={isRetryingExpired}
+        returnUrl={session.return_url}
+        className={className}
+        style={mergedStyle}
+      />
+    );
   }
 
   return (
