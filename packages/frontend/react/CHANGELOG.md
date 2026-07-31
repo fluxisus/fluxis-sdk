@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.3.0...react-sdk-v0.4.0) (2026-07-31)
+
+
+### Features
+
+* **checkout:** add wallet payment, with expired-retry and single-asset fixes ([e384bae](https://github.com/fluxisus/fluxis-sdk/commit/e384baef4e5dd64dd4549ea5894a579e7e805383))
+
+
+### Bug Fixes
+
+* **checkout:** repair expired retry, single-asset picker and wallet payment ([#48](https://github.com/fluxisus/fluxis-sdk/issues/48)) ([df4bb5a](https://github.com/fluxisus/fluxis-sdk/commit/df4bb5a096b9f8894730baa846843bb3b90bd745))
+
 ## [0.3.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.2.0...react-sdk-v0.3.0) (2026-07-28)
 
 
