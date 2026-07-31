@@ -127,6 +127,15 @@ export interface CheckoutWidgetProps {
    */
   onRetryExpired?: () => void | Promise<void>;
   isRetryingExpired?: boolean;
+  /**
+   * Sends the transfer from a connected browser wallet, shown alongside the manual instructions.
+   * Injected because this package makes no network or chain calls of its own, and only the host
+   * knows whether a wallet is connected and on the right chain. Omit it and the checkout stays
+   * manual-transfer only.
+   */
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
   className?: string;
   style?: CSSProperties;
 }

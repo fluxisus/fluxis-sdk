@@ -26,6 +26,9 @@ export function CheckoutWidget({
   onSelectAsset,
   onRetryExpired,
   isRetryingExpired,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
   className,
   style,
 }: CheckoutWidgetProps) {
@@ -55,6 +58,9 @@ export function CheckoutWidget({
     <PendingScreen
       session={session}
       onSelectAsset={onSelectAsset}
+      onPayWithWallet={onPayWithWallet}
+      isPayingWithWallet={isPayingWithWallet}
+      payWithWalletError={payWithWalletError}
       className={className}
       style={style}
     />

@@ -66,6 +66,9 @@ const divider: CSSProperties = {
 interface PendingScreenProps {
   session: CheckoutSession;
   onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -75,6 +78,9 @@ const SPIN_KEYFRAMES = `@keyframes fluxis-checkout-spin { to { transform: rotate
 export function PendingScreen({
   session,
   onSelectAsset,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
   className,
   style,
 }: PendingScreenProps) {
@@ -253,6 +259,9 @@ export function PendingScreen({
                     ? () => setIsChangingAsset(true)
                     : undefined
                 }
+                onPayWithWallet={onPayWithWallet}
+                isPayingWithWallet={isPayingWithWallet}
+                payWithWalletError={payWithWalletError}
               />
             </ManualTransferSection>
           </div>
