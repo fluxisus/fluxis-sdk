@@ -53,9 +53,24 @@ function TokenPill({ symbol, color }: { symbol: string; color: string }) {
 interface ManualTransferContentProps {
   data: ManualTransferData;
   onChangeAsset?: () => void;
+  /**
+   * Sends the transfer from a connected browser wallet. Injected rather than performed here: this
+   * package makes no network or chain calls of its own (see `onSelectAsset`), and only the host
+   * knows whether a wallet is connected and on the right chain. Omit it and the manual
+   * instructions below stand alone, exactly as before.
+   */
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
 }
 
-export function ManualTransferContent({ data, onChangeAsset }: ManualTransferContentProps) {
+export function ManualTransferContent({
+  data,
+  onChangeAsset,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
+}: ManualTransferContentProps) {
   const networkName = capitalizeFirst(data.network);
   const networkColor = NETWORK_COLORS[data.network.toLowerCase()] ?? '#64748b';
   const assetColor = ASSET_COLORS[data.crypto_asset.toUpperCase()] ?? '#64748b';
@@ -132,6 +147,48 @@ export function ManualTransferContent({ data, onChangeAsset }: ManualTransferCon
         value={data.wallet_address}
         display={<AddressFormat address={data.wallet_address} />}
       />
+
+      {onPayWithWallet && (
+        <>
+          <button
+            type="button"
+            onClick={() => onPayWithWallet()}
+            disabled={isPayingWithWallet}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              marginTop: '0.875rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--fluxis-color-fg, #0f172a)',
+              color: 'var(--fluxis-color-bg, #ffffff)',
+              border: 'none',
+              borderRadius: 'var(--fluxis-radius, 0.75rem)',
+              cursor: isPayingWithWallet ? 'default' : 'pointer',
+              opacity: isPayingWithWallet ? 0.6 : 1,
+              font: 'inherit',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+            }}
+          >
+            {isPayingWithWallet ? 'Confirmá en tu wallet…' : 'Pagar con mi wallet'}
+          </button>
+
+          {payWithWalletError && (
+            <p
+              style={{
+                margin: '0.5rem 0 0',
+                fontSize: '0.8125rem',
+                color: 'var(--fluxis-color-danger, #dc2626)',
+                textAlign: 'center',
+              }}
+            >
+              {payWithWalletError}
+            </p>
+          )}
+        </>
+      )}
 
       <div
         style={{
