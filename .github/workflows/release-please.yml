@@ -155,11 +155,13 @@ jobs:
       - name: Test
         run: npm run test --workspace=packages/frontend/react
 
-      # Published under the `next` dist-tag, not `latest`, so a fresh
-      # `npm install @fluxisus/react` keeps resolving the current stable release.
-      # Promote deliberately once a version has been validated:
+      # Publishes to `latest`, so a fresh `npm install @fluxisus/react` gets this release.
+      # 0.3.0 went out under a temporary `next` tag while its breaking change (recipient_address
+      # becoming optional) was validated; that guard has served its purpose and the change is
+      # documented in the package README. To stage a release again rather than ship it straight
+      # away, add `--tag next` back and promote deliberately with:
       #   npm dist-tag add @fluxisus/react@<version> latest
       - name: Publish to npm
-        run: npm publish --workspace=packages/frontend/react --access public --tag next
+        run: npm publish --workspace=packages/frontend/react --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
