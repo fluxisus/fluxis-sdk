@@ -22,7 +22,8 @@ export interface CheckoutSession {
   recipient_address?: string;
   expires_at: string;
   status: 'pending' | 'selecting_asset' | 'confirming' | 'completed' | 'expired';
-  return_url: string;
+  /** Omitted entirely when the point of sale has no configured return URL. */
+  return_url?: string;
   manual_transfer?: ManualTransferData;
   tx_hash?: string;
   receipt_link?: string;
