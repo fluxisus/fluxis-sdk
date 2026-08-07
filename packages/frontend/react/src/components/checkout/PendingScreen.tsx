@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import type { CheckoutSession } from '../../types.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
@@ -12,6 +12,7 @@ import { InfoIcon } from './icons.js';
 import { ManualTransferSection } from './ManualTransferSection.js';
 import { ManualTransferContent } from './ManualTransferContent.js';
 import { AssetSelectionScreen } from './AssetSelectionScreen.js';
+import { EXPIRED_OVERLAY_FALLBACK_MS } from '../../utils/checkoutExpiry.js';
 
 interface DetailRowProps {
   label: string;
@@ -69,6 +70,8 @@ interface PendingScreenProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  /** Called when the expiry overlay outlasts polling — parent should show ExpiredScreen. */
+  onExpiredTimeout?: () => void;
   className?: string;
   style?: CSSProperties;
 }
@@ -81,12 +84,19 @@ export function PendingScreen({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  onExpiredTimeout,
   className,
   style,
 }: PendingScreenProps) {
   const isMobile = useIsMobile();
   const [expired, setExpired] = useState(false);
   const [isChangingAsset, setIsChangingAsset] = useState(false);
+
+  useEffect(() => {
+    if (!expired || !onExpiredTimeout) return;
+    const id = setTimeout(onExpiredTimeout, EXPIRED_OVERLAY_FALLBACK_MS);
+    return () => clearTimeout(id);
+  }, [expired, onExpiredTimeout]);
 
   async function handleSelectAsset(assetId: string) {
     if (!onSelectAsset) return;

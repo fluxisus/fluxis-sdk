@@ -70,4 +70,18 @@ describe('CheckoutWidget expired wiring', () => {
     // return_url is present on the session, so the shopper still gets a way out.
     expect(screen.getByRole('link', { name: 'Volver al comercio' })).toBeInTheDocument();
   });
+
+  it('renders ExpiredScreen on reload when expires_at passed but status is still pending', () => {
+    const stalePending: CheckoutSession = {
+      ...expiredSession,
+      status: 'pending',
+      expires_at: new Date(Date.now() - 60_000).toISOString(),
+    };
+
+    render(<CheckoutWidget session={stalePending} onRetryExpired={vi.fn()} />);
+
+    expect(screen.getByText('Pago vencido')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.queryByText('Actualizando…')).not.toBeInTheDocument();
+  });
 });
