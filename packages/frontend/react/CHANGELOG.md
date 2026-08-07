@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.4.0...react-sdk-v0.5.0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **checkout:** CheckoutSession.return_url is now optional, matching what the backend actually sends. Consumers reading it as a required string will need to handle undefined.
+
+### Features
+
+* **checkout:** hold the completed screen when there is no merchant to return to ([#57](https://github.com/fluxisus/fluxis-sdk/issues/57)) ([78573df](https://github.com/fluxisus/fluxis-sdk/commit/78573dfc103111103d657611befc6dbf86fc9dd8))
+
 ## [0.4.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.3.0...react-sdk-v0.4.0) (2026-07-31)
 
 
