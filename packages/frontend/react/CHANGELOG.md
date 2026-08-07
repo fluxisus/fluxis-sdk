@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.0...react-sdk-v0.5.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **checkout:** expired screen fallback and polling recovery ([8701e7a](https://github.com/fluxisus/fluxis-sdk/commit/8701e7a70924b8784edbccf9eec1986578456439))
+* **checkout:** fall back to ExpiredScreen when expiry outlasts polling ([55f797c](https://github.com/fluxisus/fluxis-sdk/commit/55f797c75530b1fc64f1f575bb73da4a8aa90402))
+* **checkout:** fall back to ExpiredScreen when expiry outlasts polling ([43b5d2b](https://github.com/fluxisus/fluxis-sdk/commit/43b5d2b069c74a62faccb18e665fb636f71c4343))
+
 ## [0.5.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.4.0...react-sdk-v0.5.0) (2026-08-07)
 
 
