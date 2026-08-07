@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import type { CheckoutWidgetProps } from '../types.js';
 import { PendingScreen } from './checkout/PendingScreen.js';
 import {
@@ -6,6 +7,8 @@ import {
   CompletedScreen,
   ExpiredScreen,
 } from './checkout/StatusScreens.js';
+import { useServerTimeOffset } from '../hooks/useServerTimeOffset.js';
+import { isCheckoutSessionPastExpiry } from '../utils/checkoutExpiry.js';
 
 const centeredCard: CSSProperties = {
   display: 'flex',
@@ -33,6 +36,16 @@ export function CheckoutWidget({
   style,
 }: CheckoutWidgetProps) {
   const mergedStyle = { ...centeredCard, ...style };
+  const { offsetMs } = useServerTimeOffset();
+  const [forceExpired, setForceExpired] = useState(() =>
+    isCheckoutSessionPastExpiry(session.expires_at, offsetMs),
+  );
+
+  useEffect(() => {
+    if (isCheckoutSessionPastExpiry(session.expires_at, offsetMs)) {
+      setForceExpired(true);
+    }
+  }, [session.expires_at, offsetMs]);
 
   if (session.status === 'confirming') {
     return <ConfirmingScreen session={session} className={className} style={mergedStyle} />;
@@ -42,7 +55,7 @@ export function CheckoutWidget({
     return <CompletedScreen session={session} returnUrl={session.return_url} className={className} style={mergedStyle} />;
   }
 
-  if (session.status === 'expired') {
+  if (session.status === 'expired' || forceExpired) {
     return (
       <ExpiredScreen
         onRetry={onRetryExpired}
@@ -61,6 +74,7 @@ export function CheckoutWidget({
       onPayWithWallet={onPayWithWallet}
       isPayingWithWallet={isPayingWithWallet}
       payWithWalletError={payWithWalletError}
+      onExpiredTimeout={() => setForceExpired(true)}
       className={className}
       style={style}
     />
