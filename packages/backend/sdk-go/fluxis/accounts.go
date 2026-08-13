@@ -62,6 +62,7 @@ func (s *AccountsService) Delete(ctx context.Context, accountID string) error {
 }
 
 // GetSettlementAddresses returns settlement addresses for an account.
+// Uses GET /account/{accountId}/settlement-addresses (account-scoped read path).
 func (s *AccountsService) GetSettlementAddresses(ctx context.Context, accountID string) (*AccountSettlementAddresses, error) {
 	raw, _, err := s.client.doRequest(ctx, "GET", "/account/"+accountID+"/settlement-addresses", nil, nil, true)
 	if err != nil {
@@ -74,9 +75,13 @@ func (s *AccountsService) GetSettlementAddresses(ctx context.Context, accountID 
 	return &addresses, nil
 }
 
+func accountSettlementWritePath(accountID string) string {
+	return "/account/settlement/" + accountID + "/settlement-addresses"
+}
+
 // SetSettlementAddress sets a settlement address for an account.
 func (s *AccountsService) SetSettlementAddress(ctx context.Context, accountID string, req *SettlementAddressRequest) (*SettlementAddressResponse, error) {
-	raw, _, err := s.client.doRequest(ctx, "POST", "/account/"+accountID+"/settlement-addresses", req, nil, true)
+	raw, _, err := s.client.doRequest(ctx, "POST", accountSettlementWritePath(accountID), req, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +94,7 @@ func (s *AccountsService) SetSettlementAddress(ctx context.Context, accountID st
 
 // UpdateSettlementAddress updates a settlement address for an account.
 func (s *AccountsService) UpdateSettlementAddress(ctx context.Context, accountID string, req *SettlementAddressRequest) (*SettlementAddressResponse, error) {
-	raw, _, err := s.client.doRequest(ctx, "PUT", "/account/"+accountID+"/settlement-addresses", req, nil, true)
+	raw, _, err := s.client.doRequest(ctx, "PUT", accountSettlementWritePath(accountID), req, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +108,6 @@ func (s *AccountsService) UpdateSettlementAddress(ctx context.Context, accountID
 // DeleteSettlementAddress deletes a settlement address for an account.
 func (s *AccountsService) DeleteSettlementAddress(ctx context.Context, accountID, network string) error {
 	query := buildQuery(map[string]string{"network": network})
-	_, _, err := s.client.doRequest(ctx, "DELETE", "/account/"+accountID+"/settlement-addresses", nil, query, true)
+	_, _, err := s.client.doRequest(ctx, "DELETE", accountSettlementWritePath(accountID), nil, query, true)
 	return err
 }
