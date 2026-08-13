@@ -228,13 +228,40 @@ paths:
         "400": *a1
         "401": *a2
         "403": *a4
+  /account/settlement/{accountID}/settlement-addresses:
+    get:
+      tags:
+        - Accounts
+      summary: Get settlement addresses (nested path)
+      security: *a3
+      parameters:
+        - name: accountID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    $ref: "#/components/schemas/ResponseStatus"
+                  data:
+                    $ref: "#/components/schemas/GetAccountSettlementAddressesResponseSchema"
+        "400": *a1
+        "401": *a2
+        "403": *a4
     post:
       tags:
         - Accounts
       summary: Set settlement addresses
       security: *a3
       parameters:
-        - name: accountId
+        - name: accountID
           in: path
           required: true
           schema:
@@ -265,7 +292,7 @@ paths:
       summary: Update settlement addresses
       security: *a3
       parameters:
-        - name: accountId
+        - name: accountID
           in: path
           required: true
           schema:
@@ -296,7 +323,7 @@ paths:
       summary: Delete settlement addresses
       security: *a3
       parameters:
-        - name: accountId
+        - name: accountID
           in: path
           required: true
           schema:

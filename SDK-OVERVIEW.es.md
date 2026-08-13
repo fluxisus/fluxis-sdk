@@ -81,6 +81,8 @@ El cliente renueva el token automáticamente **60 segundos antes** de expirar, d
 | `PUT` | `/account/{accountId}` | `accounts.update()` | `Accounts.UpdateAsync()` |
 | `DELETE` | `/account/{accountId}` | `accounts.delete()` | `Accounts.DeleteAsync()` |
 | `GET` | `/account/{accountId}/settlement-addresses` | `accounts.getSettlementAddresses()` | `Accounts.GetSettlementAddressesAsync()` |
+| `POST` | `/account/settlement/{accountID}/settlement-addresses` | `accounts.setSettlementAddress()` | `Accounts.SetSettlementAddressAsync()` |
+| `PUT` | `/account/settlement/{accountID}/settlement-addresses` | `accounts.updateSettlementAddress()` | `Accounts.UpdateSettlementAddressAsync()` |
 | `POST` | `/organization/settlement-addresses` | `organization.setSettlementAddresses()` | `Organization.SetSettlementAddressesAsync()` |
 | `PUT` | `/organization/settlement-addresses` | `organization.updateSettlementAddresses()` | `Organization.UpdateSettlementAddressesAsync()` |
 | `GET` | `/pos` | `pointOfSale.list()` | `PointOfSale.ListAsync()` |

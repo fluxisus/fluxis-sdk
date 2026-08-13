@@ -55,23 +55,31 @@ describe('AccountsResource', () => {
     expect(client.request).toHaveBeenCalledWith('GET', '/account/acc-1/settlement-addresses');
   });
 
-  it('setSettlementAddress() calls POST /account/:id/settlement-addresses', async () => {
+  it('setSettlementAddress() calls POST /account/settlement/:id/settlement-addresses', async () => {
     const data = { address: '0x1', network: 'polygon' };
     await accounts.setSettlementAddress('acc-1', data);
-    expect(client.request).toHaveBeenCalledWith('POST', '/account/acc-1/settlement-addresses', data);
+    expect(client.request).toHaveBeenCalledWith(
+      'POST',
+      '/account/settlement/acc-1/settlement-addresses',
+      data,
+    );
   });
 
-  it('updateSettlementAddress() calls PUT /account/:id/settlement-addresses', async () => {
+  it('updateSettlementAddress() calls PUT /account/settlement/:id/settlement-addresses', async () => {
     const data = { address: '0x2', network: 'ethereum' };
     await accounts.updateSettlementAddress('acc-1', data);
-    expect(client.request).toHaveBeenCalledWith('PUT', '/account/acc-1/settlement-addresses', data);
+    expect(client.request).toHaveBeenCalledWith(
+      'PUT',
+      '/account/settlement/acc-1/settlement-addresses',
+      data,
+    );
   });
 
   it('deleteSettlementAddress() calls DELETE with network query param', async () => {
     await accounts.deleteSettlementAddress('acc-1', 'polygon');
     expect(client.request).toHaveBeenCalledWith(
       'DELETE',
-      '/account/acc-1/settlement-addresses',
+      '/account/settlement/acc-1/settlement-addresses',
       undefined,
       { network: 'polygon' },
     );

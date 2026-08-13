@@ -537,6 +537,80 @@
             }
           }
         }
+      }
+    },
+    "/account/settlement/{accountID}/settlement-addresses": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Get settlement addresses (nested path)",
+        "security": [
+          {
+            "ApiKeyAuth": [],
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "accountID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$ref": "#/components/schemas/ResponseStatus"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GetAccountSettlementAddressesResponseSchema"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIErrorSchema"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIErrorSchema"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIErrorSchema"
+                }
+              }
+            }
+          }
+        }
       },
       "post": {
         "tags": [
@@ -551,7 +625,7 @@
         ],
         "parameters": [
           {
-            "name": "accountId",
+            "name": "accountID",
             "in": "path",
             "required": true,
             "schema": {
@@ -623,7 +697,7 @@
         ],
         "parameters": [
           {
-            "name": "accountId",
+            "name": "accountID",
             "in": "path",
             "required": true,
             "schema": {
@@ -695,7 +769,7 @@
         ],
         "parameters": [
           {
-            "name": "accountId",
+            "name": "accountID",
             "in": "path",
             "required": true,
             "schema": {
