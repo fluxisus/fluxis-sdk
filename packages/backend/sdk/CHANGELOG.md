@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/fluxisus/fluxis-sdk/compare/typescript-sdk-v1.0.0...typescript-sdk-v1.1.0) (2026-08-13)
+
+
+### Features
+
+* **react:** checkout UI components + automated npm publish ([#21](https://github.com/fluxisus/fluxis-sdk/issues/21)) ([750121a](https://github.com/fluxisus/fluxis-sdk/commit/750121a04cb067b7d80ff194268b7f3cb832ec6e))
+
+
+### Bug Fixes
+
+* **sdk:** send account settlement writes to nested path ([1b8102d](https://github.com/fluxisus/fluxis-sdk/commit/1b8102d5e72d1e8f29d0eb44ae81abd2b707555a))
+
 ## [1.0.0](https://github.com/fluxisus/fluxis-sdk/compare/typescript-sdk-v0.1.0...typescript-sdk-v1.0.0) (2026-06-06)
 
 
