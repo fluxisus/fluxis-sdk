@@ -189,6 +189,7 @@ class TestAccountsResourceRouting:
         )
         req = routing_recorder.last_api_request()
         assert req.method == "POST"
+        assert req.url.path.endswith("/account/settlement/acc-1/settlement-addresses")
         assert json.loads(req.content.decode())["network"] == "polygon"
 
     def test_update_settlement_address(
@@ -197,13 +198,17 @@ class TestAccountsResourceRouting:
         routed_client.accounts.update_settlement_address(
             "acc-1", SettlementAddressRequest(address="0x2", network="ethereum")
         )
-        assert routing_recorder.last_api_request().method == "PUT"
+        req = routing_recorder.last_api_request()
+        assert req.method == "PUT"
+        assert req.url.path.endswith("/account/settlement/acc-1/settlement-addresses")
 
     def test_delete_settlement_address(
         self, routed_client: FluxisClient, routing_recorder: _RoutingRecorder
     ) -> None:
         routed_client.accounts.delete_settlement_address("acc-1", "polygon")
-        assert routing_recorder.last_api_request().url.params["network"] == "polygon"
+        req = routing_recorder.last_api_request()
+        assert req.url.path.endswith("/account/settlement/acc-1/settlement-addresses")
+        assert req.url.params["network"] == "polygon"
 
 
 class TestOrganizationResourceRouting:
