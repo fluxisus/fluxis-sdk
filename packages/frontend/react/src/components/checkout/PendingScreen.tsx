@@ -188,7 +188,7 @@ export function PendingScreen({
               display: 'inline-flex',
             }}
           >
-            <FluxisQrCode token={session.recipient_address} size={220} />
+            <FluxisQrCode token={session.recipient_address} size={220} level='L' />
           </div>
           <p
             style={{

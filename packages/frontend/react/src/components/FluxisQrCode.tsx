@@ -13,7 +13,7 @@ const DEFAULT_BG_COLOR = '#ffffff';
 export function FluxisQrCode({
   token,
   size = DEFAULT_SIZE,
-  level = 'H',
+  level = 'M',
   logo = DEFAULT_FLUXIS_LOGO,
   logoSize,
   fgColor,
