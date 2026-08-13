@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.1...react-sdk-v0.5.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **react:** tune QR error correction for NASPIP scan density ([fb81c9f](https://github.com/fluxisus/fluxis-sdk/commit/fb81c9f945fe16a225102e53a120a5d1ae6f18d2))
+
 ## [0.5.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.0...react-sdk-v0.5.1) (2026-08-07)
 
 
