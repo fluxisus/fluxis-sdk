@@ -121,9 +121,9 @@ and re-authenticate if expired or about to expire.
 | PUT | `/account/{accountId}` | Update account |
 | DELETE | `/account/{accountId}` | Delete account |
 | GET | `/account/{accountId}/settlement-addresses` | Get settlement addresses |
-| POST | `/account/{accountId}/settlement-addresses` | Set settlement address |
-| PUT | `/account/{accountId}/settlement-addresses` | Update settlement address |
-| DELETE | `/account/{accountId}/settlement-addresses?network=` | Delete settlement address |
+| POST | `/account/settlement/{accountID}/settlement-addresses` | Set settlement address |
+| PUT | `/account/settlement/{accountID}/settlement-addresses` | Update settlement address |
+| DELETE | `/account/settlement/{accountID}/settlement-addresses?network=` | Delete settlement address |
 
 ### Organization
 | Method | Path | Description |
