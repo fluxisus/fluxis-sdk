@@ -1,8 +1,12 @@
+import fluxisLogo from '../assets/fluxis-logo.svg';
 import fluxisLogoTrazoBlanco from '../assets/fluxis-logo-trazo-blanco.svg';
 import { svgToDataUri } from './svgToDataUri.js';
 
 /** Raw SVG string for consumers that want to render or host the logo themselves. */
 export const FLUXIS_LOGO_SVG = fluxisLogoTrazoBlanco;
+
+/** Square Fluxis mark for list rows (not the QR overlay). */
+export const FLUXIS_MARK_LOGO = svgToDataUri(fluxisLogo);
 
 /**
  * Default Fluxis logo as a data URI.

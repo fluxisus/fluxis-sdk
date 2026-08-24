@@ -8,7 +8,7 @@ function getRemainingSecs(expiresAt: string, offsetMs: number): number {
   return Math.max(0, Math.floor((expiryMs - (Date.now() + offsetMs)) / 1000));
 }
 
-export function CountdownTimer({ expiresAt, onExpire, className }: CountdownTimerProps) {
+export function CountdownTimer({ expiresAt, onExpire, className, style }: CountdownTimerProps) {
   const { offsetMs } = useServerTimeOffset();
   const onExpireRef = useRef(onExpire);
   onExpireRef.current = onExpire;
@@ -53,6 +53,7 @@ export function CountdownTimer({ expiresAt, onExpire, className }: CountdownTime
         fontSize: '1.125rem',
         fontWeight: 500,
         transition: 'color 0.3s',
+        ...style,
       }}
     >
       {mm}:{ss}

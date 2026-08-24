@@ -5,23 +5,26 @@ import { filterCompatibleApps } from '../utils/compatibleApps.js';
 
 const VISIBLE_COUNT = 4;
 
-function AppPopover({
+export function CompatibleAppsPopover({
   apps,
   onClose,
+  align = 'center',
 }: {
   apps: CompatibleApp[];
-  onClose: () => void;
+  onClose?: () => void;
+  align?: 'center' | 'end';
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!onClose) return;
     function handleOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
+        onClose?.();
       }
     }
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onClose?.();
     }
     document.addEventListener('mousedown', handleOutside);
     document.addEventListener('keydown', handleKey);
@@ -31,6 +34,8 @@ function AppPopover({
     };
   }, [onClose]);
 
+  const endAligned = align === 'end';
+
   return (
     <div
       ref={ref}
@@ -38,15 +43,16 @@ function AppPopover({
       style={{
         position: 'absolute',
         top: 'calc(100% + 8px)',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: endAligned ? 'auto' : '50%',
+        right: endAligned ? 0 : 'auto',
+        transform: endAligned ? undefined : 'translateX(-50%)',
         background: 'var(--fluxis-color-bg, #ffffff)',
         border: '1px solid var(--fluxis-color-border, #e2e8f0)',
         borderRadius: '0.75rem',
         boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
         padding: '0.875rem 1rem',
-        minWidth: '200px',
-        maxWidth: '260px',
+        minWidth: '15.5rem',
+        maxWidth: '18rem',
         zIndex: 100,
       }}
     >
@@ -56,8 +62,9 @@ function AppPopover({
         style={{
           position: 'absolute',
           top: '-5px',
-          left: '50%',
-          transform: 'translateX(-50%) rotate(45deg)',
+          left: endAligned ? 'auto' : '50%',
+          right: endAligned ? '12px' : 'auto',
+          transform: endAligned ? 'rotate(45deg)' : 'translateX(-50%) rotate(45deg)',
           width: '8px',
           height: '8px',
           background: 'var(--fluxis-color-bg, #ffffff)',
@@ -74,9 +81,10 @@ function AppPopover({
           color: 'var(--fluxis-color-muted, #64748b)',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
         }}
       >
-        Wallets compatibles
+        Billeteras compatibles
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {apps.map((app) => (
@@ -218,7 +226,7 @@ export function CompatibleAppsStack({
         i
       </button>
 
-      {open && <AppPopover apps={filtered} onClose={() => setOpen(false)} />}
+      {open && <CompatibleAppsPopover apps={filtered} onClose={() => setOpen(false)} />}
     </div>
   );
 }
