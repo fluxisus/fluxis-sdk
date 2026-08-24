@@ -8,10 +8,16 @@ interface ManualTransferSectionProps {
    * still needs to be picked (nothing done yet), 1 once resolved (Token+Red done via the
    * single asset pick; 'Pagar' is the current, not-yet-done step). */
   activeStep: number;
+  /** Hosted flow renders its own stepper (logos + back-navigation) inside the body. */
+  hideStepper?: boolean;
   children: ReactNode;
 }
 
-export function ManualTransferSection({ activeStep, children }: ManualTransferSectionProps) {
+export function ManualTransferSection({
+  activeStep,
+  hideStepper,
+  children,
+}: ManualTransferSectionProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -74,9 +80,11 @@ export function ManualTransferSection({ activeStep, children }: ManualTransferSe
 
       {open && (
         <div style={{ borderTop: '1px solid var(--fluxis-color-border, #e2e8f0)' }}>
-          <div style={{ padding: '0.875rem 1rem 0' }}>
-            <StepIndicator steps={['Token', 'Red', 'Pagar']} activeStep={activeStep} />
-          </div>
+          {hideStepper ? null : (
+            <div style={{ padding: '0.875rem 1rem 0' }}>
+              <StepIndicator steps={['Token', 'Red', 'Pagar']} activeStep={activeStep} />
+            </div>
+          )}
           {children}
         </div>
       )}

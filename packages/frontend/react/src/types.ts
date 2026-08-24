@@ -24,6 +24,8 @@ export interface CheckoutSession {
   status: 'pending' | 'selecting_asset' | 'confirming' | 'completed' | 'expired';
   /** Omitted entirely when the point of sale has no configured return URL. */
   return_url?: string;
+  /** Merchant order / payment-link reference. Omitted when the session has none. */
+  external_id?: string;
   manual_transfer?: ManualTransferData;
   tx_hash?: string;
   receipt_link?: string;
@@ -145,6 +147,7 @@ export interface CountdownTimerProps {
   expiresAt: string;
   onExpire?: () => void;
   className?: string;
+  style?: CSSProperties;
 }
 
 export interface AddressCopyButtonProps {
