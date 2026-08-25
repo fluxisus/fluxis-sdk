@@ -1,6 +1,6 @@
 {
   "name": "@fluxisus/react",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Official React SDK for Fluxis payment UI — QR codes, compatible apps, and deep links",
   "type": "module",
   "main": "./dist/index.cjs",

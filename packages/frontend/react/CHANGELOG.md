@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.1...react-sdk-v0.6.0) (2026-08-24)
+
+
+### Features
+
+* **react:** hosted checkout widget and unique-asset catalog ([86cef66](https://github.com/fluxisus/fluxis-sdk/commit/86cef66b54534b7e06722f5dacaf14d5e6387449))
+* **react:** hosted checkout widget and unique-asset catalog ([#79](https://github.com/fluxisus/fluxis-sdk/issues/79)) ([bcbfc5d](https://github.com/fluxisus/fluxis-sdk/commit/bcbfc5d28a7b95f60beb9159021d41d1aa1519c3))
+
+
+### Bug Fixes
+
+* **react:** tune QR error correction for NASPIP scan density ([fb81c9f](https://github.com/fluxisus/fluxis-sdk/commit/fb81c9f945fe16a225102e53a120a5d1ae6f18d2))
+
 ## [0.5.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.0...react-sdk-v0.5.1) (2026-08-07)
 
 
