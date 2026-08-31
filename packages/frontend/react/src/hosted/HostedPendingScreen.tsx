@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CheckoutSession } from '../types.js';
+import type { CheckoutSession, ConnectedWalletInfo } from '../types.js';
 import { useIsMobile } from '../hooks/useIsMobile.js';
 import { CountdownTimer } from '../components/CountdownTimer.js';
 import { PaymentStatusBadge } from '../components/PaymentStatusBadge.js';
@@ -9,6 +9,7 @@ import { EXPIRED_OVERLAY_FALLBACK_MS } from '../utils/checkoutExpiry.js';
 import { useWalletCatalog } from './useWalletCatalog.js';
 import { DefiWalletPanel } from './DefiWalletPanel.js';
 import { ManualPaymentFlow } from './ManualPaymentFlow.js';
+import type { ConnectedWalletBalance } from './types.js';
 
 interface DetailRowProps {
   label: string;
@@ -110,6 +111,11 @@ interface HostedPendingScreenProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  connectedWallet?: ConnectedWalletInfo;
+  onDisconnectWallet?: () => void;
+  /** The connected wallet's balances, already resolved and sorted by the host. */
+  walletBalances?: ConnectedWalletBalance[];
+  isLoadingWalletBalances?: boolean;
   onExpiredTimeout?: () => void;
   className?: string;
   style?: CSSProperties;
@@ -130,6 +136,10 @@ export function HostedPendingScreen({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  connectedWallet,
+  onDisconnectWallet,
+  walletBalances,
+  isLoadingWalletBalances,
   onExpiredTimeout,
   className,
   style,
@@ -148,10 +158,10 @@ export function HostedPendingScreen({
     if (session.recipient_address) onPrepareWalletConnect?.();
   }, [session.recipient_address, onPrepareWalletConnect]);
 
-  const showManualFlow =
-    Boolean(session.manual_transfer) ||
+  const showManualFlow = !connectedWallet?.address &&
+    (Boolean(session.manual_transfer) ||
     session.status === 'selecting_asset' ||
-    (session.payment_options?.length ?? 0) > 0;
+    (session.payment_options?.length ?? 0) > 0) ;
 
   return (
     <div
@@ -274,6 +284,17 @@ export function HostedPendingScreen({
               installedWalletNames={installedWalletNames}
               onSelectWalletConnect={onSelectWalletConnect}
               onLaunchExtension={onLaunchExtension}
+              connectedWallet={connectedWallet}
+              onDisconnectWallet={onDisconnectWallet}
+              paymentOptions={session.payment_options}
+              assetsUrl={uniqueAssetsUrl}
+              walletBalances={walletBalances}
+              isLoadingWalletBalances={isLoadingWalletBalances}
+              manualTransfer={session.manual_transfer}
+              onSelectAsset={onSelectAsset}
+              onPayWithWallet={onPayWithWallet}
+              isPayingWithWallet={isPayingWithWallet}
+              payWithWalletError={payWithWalletError}
             />
           )}
         </div>
@@ -289,9 +310,6 @@ export function HostedPendingScreen({
                 isMobile={isMobile}
                 assetsUrl={uniqueAssetsUrl}
                 onSelectAsset={onSelectAsset}
-                onPayWithWallet={onPayWithWallet}
-                isPayingWithWallet={isPayingWithWallet}
-                payWithWalletError={payWithWalletError}
               />
             </ManualTransferSection>
           </div>

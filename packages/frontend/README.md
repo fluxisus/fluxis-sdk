@@ -7,6 +7,8 @@ Browser and UI framework bindings for Fluxis. Each package lives in its own subd
 | Package | Directory | Status |
 |---------|-----------|--------|
 | `@fluxisus/react` | `react/` | Available |
+| `@fluxisus/wallet-core` | `wallet-core/` | Available (private — not yet registered for release, see its `CLAUDE.md`) |
+| `@fluxisus/react-wallet` | `react-wallet/` | Available (private — not yet registered for release, see its `CLAUDE.md`) |
 
 ## Adding a new frontend package
 

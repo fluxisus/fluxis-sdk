@@ -1,11 +1,14 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { CompatibleAppsPopover } from '../components/CompatibleAppsStack.js';
 import { FluxisQrCode } from '../components/FluxisQrCode.js';
+import { capitalizeFirst, truncateAddress } from '../utils/checkoutFormat.js';
 import { FLUXIS_MARK_LOGO } from '../utils/logo.js';
+import type { CheckoutPaymentOption, ConnectedWalletInfo, ManualTransferData } from '../types.js';
+import { AssetPicker } from './AssetPicker.js';
 import { DeeplinkQrCode } from './DeeplinkQrCode.js';
 import { toCompatibleApp } from './normalizeWalletCatalog.js';
 import { resolveWalletLink } from './resolveWalletLink.js';
-import type { WalletCatalogApp } from './types.js';
+import type { ConnectedWalletBalance, WalletCatalogApp } from './types.js';
 
 export const OTHER_WALLETS_ID = 'other-wallets';
 export const FLUXIS_OPTION_ID = 'fluxis';
@@ -24,6 +27,29 @@ export interface DefiWalletPanelProps {
   installedWalletNames?: string[];
   onSelectWalletConnect?: () => void;
   onLaunchExtension?: (walletName: string) => void;
+  /** The wallet the host has connected, if any — replaces the picker below with a pay flow. */
+  connectedWallet?: ConnectedWalletInfo;
+  onDisconnectWallet?: () => void;
+  /** `session.payment_options` — the fallback picker once a wallet is connected but no balances
+   * (or an empty list) came in. */
+  paymentOptions?: CheckoutPaymentOption[];
+  /** Passed through to the fallback `AssetPicker` (same catalog `ManualPaymentFlow` uses). */
+  assetsUrl?: string;
+  /**
+   * The connected wallet's balances, already resolved and **sorted by the host** (highest first).
+   * The first entry that matches a `paymentOptions` entry is picked automatically via
+   * `onSelectAsset` — no picker shown. Omit it, or pass `[]` once resolved, to fall back to letting
+   * the shopper choose from `paymentOptions` manually.
+   */
+  walletBalances?: ConnectedWalletBalance[];
+  /** True while the host is still fetching `walletBalances` — shows a loading state. */
+  isLoadingWalletBalances?: boolean;
+  /** `session.manual_transfer` — once resolved, the connected-wallet view shows a "Pagar" button. */
+  manualTransfer?: ManualTransferData;
+  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
 }
 
 export function DefiWalletPanel({
@@ -37,6 +63,17 @@ export function DefiWalletPanel({
   installedWalletNames = [],
   onSelectWalletConnect,
   onLaunchExtension,
+  connectedWallet,
+  onDisconnectWallet,
+  paymentOptions,
+  assetsUrl,
+  walletBalances,
+  isLoadingWalletBalances,
+  manualTransfer,
+  onSelectAsset,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
 }: DefiWalletPanelProps) {
   const hasFluxis = Boolean(naspipToken);
   const [selectedName, setSelectedName] = useState(
@@ -49,6 +86,26 @@ export function DefiWalletPanel({
   useEffect(() => {
     if (otherSelected) onSelectWalletConnect?.();
   }, [otherSelected, onSelectWalletConnect]);
+
+  // A connected wallet turns this panel into a pay flow instead of a picker — extension/WalletConnect
+  // discovery only applies on desktop today, so mobile keeps the deep-link grid below untouched.
+  if (connectedWallet && !isMobile) {
+    return (
+      <ConnectedWalletPanel
+        connectedWallet={connectedWallet}
+        onDisconnectWallet={onDisconnectWallet}
+        paymentOptions={paymentOptions}
+        assetsUrl={assetsUrl}
+        walletBalances={walletBalances}
+        isLoadingWalletBalances={isLoadingWalletBalances}
+        manualTransfer={manualTransfer}
+        onSelectAsset={onSelectAsset}
+        onPayWithWallet={onPayWithWallet}
+        isPayingWithWallet={isPayingWithWallet}
+        payWithWalletError={payWithWalletError}
+      />
+    );
+  }
 
   if (!hasFluxis && apps.length === 0) return null;
 
@@ -194,6 +251,215 @@ export function DefiWalletPanel({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface ConnectedWalletPanelProps {
+  connectedWallet: ConnectedWalletInfo;
+  onDisconnectWallet?: () => void;
+  paymentOptions?: CheckoutPaymentOption[];
+  assetsUrl?: string;
+  walletBalances?: ConnectedWalletBalance[];
+  isLoadingWalletBalances?: boolean;
+  manualTransfer?: ManualTransferData;
+  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onPayWithWallet?: () => void | Promise<void>;
+  isPayingWithWallet?: boolean;
+  payWithWalletError?: string;
+}
+
+const CONNECTED_SPIN_KEYFRAMES = `@keyframes fluxis-connected-wallet-spin { to { transform: rotate(360deg); } }`;
+
+/** Deterministic pick from the wallet's label, so the same wallet always gets the same color. */
+const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626'];
+
+function avatarColor(label: string): string {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]!;
+}
+
+function avatarInitials(label: string): string {
+  const words = label.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+  return `${words[0]![0]}${words[1]![0]}`.toUpperCase();
+}
+
+function WalletAvatar({ label }: { label?: string }) {
+  const text = label || 'Wallet';
+  return (
+    <span style={{ position: 'relative', flexShrink: 0, display: 'inline-flex' }}>
+      <span
+        aria-hidden="true"
+        style={{
+          width: '2.25rem',
+          height: '2.25rem',
+          borderRadius: '0.625rem',
+          background: avatarColor(text),
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          letterSpacing: '0.02em',
+        }}
+      >
+        {avatarInitials(text)}
+      </span>
+      <span
+        aria-hidden="true"
+        title="Conectada"
+        style={{
+          position: 'absolute',
+          bottom: -2,
+          right: -2,
+          width: '0.625rem',
+          height: '0.625rem',
+          borderRadius: '50%',
+          background: '#22c55e',
+          border: '2px solid var(--fluxis-color-bg, #ffffff)',
+        }}
+      />
+    </span>
+  );
+}
+
+function LoadingRow({ text }: { text: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0' }}>
+      <style>{CONNECTED_SPIN_KEYFRAMES}</style>
+      <span
+        role="status"
+        aria-label={text}
+        style={{
+          width: '1rem',
+          height: '1rem',
+          flexShrink: 0,
+          borderRadius: '50%',
+          border: '2px solid var(--fluxis-color-border, #e2e8f0)',
+          borderTopColor: 'var(--fluxis-color-primary, #2563eb)',
+          animation: 'fluxis-connected-wallet-spin 0.8s linear infinite',
+        }}
+      />
+      <p style={{ ...legendStyle, margin: 0 }}>{text}</p>
+    </div>
+  );
+}
+
+/**
+ * Replaces the app/QR picker once the host reports a connected wallet: shows the connected
+ * address, then either
+ *  - a "Pagar" button once the host resolves `manualTransfer`,
+ *  - a loading row while `walletBalances` is still being fetched,
+ *  - an automatic selection when there's nothing to actually choose — either the first
+ *    `walletBalances` entry that matches a `paymentOptions` entry (already sorted by the host), or,
+ *    lacking that, a single `paymentOptions` entry with no alternatives — or
+ *  - the same token → network picker `ManualPaymentFlow` uses (via `AssetPicker`) when there's
+ *    more than one payable option and no balance match to decide for the shopper.
+ */
+function ConnectedWalletPanel({
+  connectedWallet,
+  onDisconnectWallet,
+  paymentOptions = [],
+  assetsUrl,
+  walletBalances,
+  isLoadingWalletBalances,
+  manualTransfer,
+  onSelectAsset,
+  onPayWithWallet,
+  isPayingWithWallet,
+  payWithWalletError,
+}: ConnectedWalletPanelProps) {
+  const [error, setError] = useState(false);
+  const autoSelectedIdRef = useRef<string | null>(null);
+
+  const matchedBalance = walletBalances?.find((balance) =>
+    paymentOptions.some((option) => option.unique_asset_id === balance.uniqueAssetId),
+  );
+  // Nothing to actually choose with exactly one payable option — same reasoning as the balance
+  // match below, just without a balance to go on.
+  const singleOption = paymentOptions.length === 1 ? paymentOptions[0] : undefined;
+  const autoSelectId = matchedBalance?.uniqueAssetId ?? singleOption?.unique_asset_id;
+
+  useEffect(() => {
+    if (manualTransfer || !autoSelectId || !onSelectAsset) return;
+    if (autoSelectedIdRef.current === autoSelectId) return;
+    autoSelectedIdRef.current = autoSelectId;
+
+    setError(false);
+    Promise.resolve(onSelectAsset(autoSelectId)).catch(() => setError(true));
+  }, [manualTransfer, autoSelectId, onSelectAsset]);
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={connectedWalletCardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+          <WalletAvatar label={connectedWallet.label} />
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                color: 'var(--fluxis-color-fg, #0f172a)',
+                lineHeight: 1.3,
+              }}
+            >
+              {truncateAddress(connectedWallet.address)}
+            </div>
+            {connectedWallet.label && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--fluxis-color-muted, #64748b)',
+                  marginTop: '0.0625rem',
+                }}
+              >
+                {connectedWallet.label}
+              </div>
+            )}
+          </div>
+        </div>
+        {onDisconnectWallet && (
+          <button type="button" onClick={onDisconnectWallet} style={disconnectButtonStyle}>
+            Desconectar
+          </button>
+        )}
+      </div>
+
+      {manualTransfer ? (
+        <>
+          <button
+            type="button"
+            onClick={() => onPayWithWallet?.()}
+            disabled={isPayingWithWallet}
+            style={payButtonStyle(isPayingWithWallet)}
+          >
+            {isPayingWithWallet
+              ? 'Confirmá en tu wallet…'
+              : `Pagar ${manualTransfer.crypto_amount} ${manualTransfer.crypto_asset} · ${capitalizeFirst(manualTransfer.network)}`}
+          </button>
+          {payWithWalletError && <p style={connectedErrorStyle}>{payWithWalletError}</p>}
+        </>
+      ) : isLoadingWalletBalances ? (
+        <LoadingRow text="Buscando tus saldos…" />
+      ) : autoSelectId ? (
+        <LoadingRow text="Preparando tu pago…" />
+      ) : paymentOptions.length > 1 ? (
+        <AssetPicker
+          assetsUrl={assetsUrl}
+          paymentOptions={paymentOptions}
+          onSelectAsset={onSelectAsset}
+          renderPay={() => <LoadingRow text="Preparando tu pago…" />}
+        />
+      ) : (
+        <p style={legendStyle}>Preparando tu pago…</p>
+      )}
+
+      {error && <p style={connectedErrorStyle}>No pudimos procesar tu selección. Intentá de nuevo.</p>}
     </div>
   );
 }
@@ -428,6 +694,58 @@ const legendStyle: CSSProperties = {
   margin: '0 0 0.75rem',
   fontSize: '0.8125rem',
   color: 'var(--fluxis-color-muted, #64748b)',
+};
+
+const connectedWalletCardStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.75rem',
+  padding: '0.625rem 0.75rem',
+  marginBottom: '0.875rem',
+  border: '1px solid var(--fluxis-color-border, #e2e8f0)',
+  borderRadius: '0.875rem',
+  background: 'var(--fluxis-color-bg, #ffffff)',
+};
+
+const disconnectButtonStyle: CSSProperties = {
+  border: '1px solid var(--fluxis-color-border, #e2e8f0)',
+  background: 'none',
+  padding: '0.375rem 0.75rem',
+  borderRadius: '9999px',
+  font: 'inherit',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  color: 'var(--fluxis-color-primary, #2563eb)',
+  cursor: 'pointer',
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+};
+
+function payButtonStyle(isPaying?: boolean): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    padding: '0.75rem 1rem',
+    background: 'var(--fluxis-color-fg, #0f172a)',
+    color: 'var(--fluxis-color-bg, #ffffff)',
+    border: 'none',
+    borderRadius: 'var(--fluxis-radius, 0.75rem)',
+    cursor: isPaying ? 'default' : 'pointer',
+    opacity: isPaying ? 0.6 : 1,
+    font: 'inherit',
+    fontWeight: 600,
+    fontSize: '0.875rem',
+  };
+}
+
+const connectedErrorStyle: CSSProperties = {
+  margin: '0.5rem 0 0',
+  fontSize: '0.8125rem',
+  color: 'var(--fluxis-color-danger, #dc2626)',
+  textAlign: 'center',
 };
 
 const iconImg: CSSProperties = {

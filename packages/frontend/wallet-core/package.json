@@ -1,0 +1,42 @@
+{
+  "name": "@fluxisus/wallet-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic EVM wallet connection (EIP-6963 + WalletConnect v2) for Fluxis hosted checkout",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["fluxis", "crypto", "payments", "wallet", "eip-6963", "walletconnect"],
+  "author": "Fluxis <dev@fluxis.us>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fluxisus/fluxis-sdk.git",
+    "directory": "packages/frontend/wallet-core"
+  },
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@walletconnect/sign-client": "^2.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsup": "^8.4.0",
+    "vitest": "^3.0.0"
+  }
+}

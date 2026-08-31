@@ -27,7 +27,7 @@ export function StepIndicator({ steps, activeStep }: StepIndicatorProps) {
         const isActive = i === activeStep;
         const isDone = i < activeStep;
         const filled = isActive || isDone;
-        const clickable = Boolean(item.onClick && item.logoUrl);
+        const clickable = Boolean(item.onClick);
         const circle = (
           <div
             style={{

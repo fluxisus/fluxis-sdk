@@ -41,6 +41,10 @@ export function HostedCheckoutWidget({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  connectedWallet,
+  onDisconnectWallet,
+  walletBalances,
+  isLoadingWalletBalances,
   className,
   style,
 }: HostedCheckoutWidgetProps) {
@@ -99,6 +103,10 @@ export function HostedCheckoutWidget({
       onPayWithWallet={onPayWithWallet}
       isPayingWithWallet={isPayingWithWallet}
       payWithWalletError={payWithWalletError}
+      connectedWallet={connectedWallet}
+      onDisconnectWallet={onDisconnectWallet}
+      walletBalances={walletBalances}
+      isLoadingWalletBalances={isLoadingWalletBalances}
       onExpiredTimeout={() => setForceExpired(true)}
       className={className}
       style={style}
