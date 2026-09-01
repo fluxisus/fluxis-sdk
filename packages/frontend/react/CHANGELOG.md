@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.6.0...react-sdk-v0.7.0) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **checkout:** add wallet connection to HostedCheckoutWidget
+
+### Features
+
+* **checkout:** add wallet connection to HostedCheckoutWidget ([7285b84](https://github.com/fluxisus/fluxis-sdk/commit/7285b84324a9c08c58d44dd2ec5c2afb00dd5480))
+
 ## [0.6.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.1...react-sdk-v0.6.0) (2026-08-24)
 
 
