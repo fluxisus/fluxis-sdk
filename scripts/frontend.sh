@@ -25,7 +25,14 @@ for pkg in "${ROOT}"/packages/frontend/*/package.json; do
   fi
 
   echo "==> npm run ${CMD} — ${rel}"
-  npm run "${CMD}" --workspace="${rel}"
+  if [[ "${CMD}" == "test" ]]; then
+    # A package with no test files yet (e.g. a fresh workspace) shouldn't fail the whole run —
+    # only an actual failing test should. This doesn't mask real failures: --passWithNoTests only
+    # changes vitest's exit code when it finds zero test files.
+    npm run "${CMD}" --workspace="${rel}" -- --passWithNoTests
+  else
+    npm run "${CMD}" --workspace="${rel}"
+  fi
 done
 
 if [[ "${found}" -eq 0 ]]; then
