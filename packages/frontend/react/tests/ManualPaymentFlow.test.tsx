@@ -187,17 +187,15 @@ describe('ManualPaymentFlow', () => {
 
   async function reachPayStep(isMobile = false) {
     renderFlow(paidSession, { isMobile, onSelectAsset: vi.fn().mockResolvedValue(undefined) });
-    fireEvent.click(await screen.findByRole('button', { name: 'USDC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Polygon PoS' }));
     expect(await screen.findByText('Monto a pagar')).toBeInTheDocument();
   }
 
-  it('starts on stablecoin selection even when the session already has a transfer', async () => {
+  it('starts directly on the pay step when the session already has a transfer', async () => {
     renderFlow(paidSession);
 
-    expect(await screen.findByText('Elegí el token con el que vas a pagar.')).toBeInTheDocument();
+    expect(await screen.findByText('Monto a pagar')).toBeInTheDocument();
     expect(screen.getByText('Stablecoin')).toBeInTheDocument();
-    expect(screen.queryByText('Monto a pagar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Elegí el token con el que vas a pagar.')).not.toBeInTheDocument();
   });
 
   it('copies amount and address and shows the QR on desktop', async () => {

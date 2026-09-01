@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
-import { WALLET_CATALOG_URL } from './constants.js';
-import { parseWalletCatalog, splitWalletCatalog } from './normalizeWalletCatalog.js';
-import type { WalletCatalogApp } from './types.js';
+import { useEffect, useState } from "react";
+import { WALLET_CATALOG_URL } from "./constants.js";
+import {
+  parseWalletCatalog,
+  splitWalletCatalog,
+} from "./normalizeWalletCatalog.js";
+import type { WalletCatalogApp } from "./types.js";
 
 interface UseWalletCatalogOptions {
   appsUrl?: string;
@@ -73,7 +76,11 @@ export function useWalletCatalog({
       .catch((err: unknown) => {
         if (!cancelled) {
           setApps([]);
-          setError(err instanceof Error ? err : new Error('Failed to load wallet catalog'));
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Failed to load wallet catalog"),
+          );
         }
       })
       .finally(() => {
