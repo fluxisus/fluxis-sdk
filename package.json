@@ -6,6 +6,7 @@
     "packages/backend/sdk",
     "packages/frontend/*",
     "examples/demo-react",
+    "examples/demo-checkout/react",
     "examples/storybook-react"
   ],
   "scripts": {
@@ -16,6 +17,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "lint:frontend": "./scripts/frontend.sh lint",
     "dev:react-demo": "npm run build --workspace=packages/frontend/react && npm run dev --workspace=examples/demo-react",
+    "dev:react-checkout-demo": "npm run build --workspace=packages/frontend/react --workspace=packages/frontend/wallet-core --workspace=packages/frontend/react-wallet && npm run dev --workspace=examples/demo-checkout/react",
     "dev:react-storybook": "npm run storybook --workspace=examples/storybook-react",
     "dev:react-docs": "cd docs/react && bun run dev",
     "build:react-docs": "cd docs/react && bun run build",

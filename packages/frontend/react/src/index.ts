@@ -77,6 +77,7 @@ export type {
   CheckoutSession,
   CheckoutPaymentOption,
   CheckoutWidgetProps,
+  ConnectedWalletInfo,
   CountdownTimerProps,
   AddressCopyButtonProps,
   PaymentStatusBadgeProps,
@@ -87,6 +88,7 @@ export type {
   WalletCatalogApp,
   WalletCatalogAppRaw,
   HostedCheckoutWidgetProps,
+  ConnectedWalletBalance,
 } from './hosted/types.js';
 export type { DeeplinkQrCodeProps } from './hosted/DeeplinkQrCode.js';
 export type {

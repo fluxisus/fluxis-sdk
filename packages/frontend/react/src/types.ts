@@ -32,6 +32,18 @@ export interface CheckoutSession {
   payment_options?: CheckoutPaymentOption[];
 }
 
+/**
+ * Describes the wallet the host has connected on the shopper's behalf, so the checkout can show
+ * confirmation of which address is about to sign — this package never connects a wallet itself,
+ * it only renders whatever the host reports. See `onPayWithWallet` below for the same rationale.
+ */
+export interface ConnectedWalletInfo {
+  /** Full address — display components truncate it (see AddressFormat). */
+  address: string;
+  /** Human label shown next to the address, e.g. "MetaMask", "WalletConnect". */
+  label?: string;
+}
+
 export type QrErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
 
 export interface CompatibleApp {
@@ -139,6 +151,10 @@ export interface CheckoutWidgetProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  /** The wallet the host has connected, if any. Omit it and the checkout shows no connection state. */
+  connectedWallet?: ConnectedWalletInfo;
+  /** Lets the shopper disconnect/switch from within the checkout. Omit it and there's no such affordance. */
+  onDisconnectWallet?: () => void;
   className?: string;
   style?: CSSProperties;
 }
