@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.0...react-sdk-v0.8.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **react:** normalize unique asset id in selection ([3d3e0b5](https://github.com/fluxisus/fluxis-sdk/commit/3d3e0b55b2b661bd0792f0402d9edf3d87e53fc2))
+
 ## [0.8.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.7.0...react-sdk-v0.8.0) (2026-09-03)
 
 
