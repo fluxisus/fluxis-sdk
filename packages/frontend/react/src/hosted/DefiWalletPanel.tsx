@@ -483,7 +483,7 @@ function ConnectedWalletPanel({
   );
   // Nothing to actually choose with exactly one payable option — same reasoning as the balance
   // match below, just without a balance to go on.
-  const singleOption = paymentOptions?.[0];
+  const singleOption = paymentOptions.length === 1 ? paymentOptions[0] : undefined;
   const autoSelectId = matchedBalance?.uniqueAssetId ?? singleOption?.unique_asset_id;
   
   // Only block payment when we actually have a balance to compare against — no data means we
