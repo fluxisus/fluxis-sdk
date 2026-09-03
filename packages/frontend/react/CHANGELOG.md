@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.7.0...react-sdk-v0.8.0) (2026-09-03)
+
+
+### Features
+
+* **react:** show crypto asset details and wallet payment tx status ([3177d74](https://github.com/fluxisus/fluxis-sdk/commit/3177d74f157b3931802d7e9b3f2b0898b504b71c))
+* **react:** show crypto asset details and wallet payment tx status ([29663a3](https://github.com/fluxisus/fluxis-sdk/commit/29663a3c66f8e14af36831ada8e0f36402242426))
+
 ## [0.7.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.6.0...react-sdk-v0.7.0) (2026-09-01)
 
 
