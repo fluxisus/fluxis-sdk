@@ -4,7 +4,7 @@ import { FluxisProvider, HostedCheckoutWidget } from '@fluxisus/react';
 import { useHostedCheckoutWallet } from '@fluxisus/react-wallet';
 import { createPublicRpcBalanceFetcher } from '@fluxisus/wallet-core';
 import { createErc20Resolver } from './assetCatalog.js';
-import { buildSession, SINGLE_ASSET_ID } from './mockSession.js';
+import { buildSession, MAP_ASSET, SINGLE_ASSET_ID } from './mockSession.js';
 import {
   simulatePayWithWallet,
   simulateRetryExpired,
@@ -37,7 +37,7 @@ export function App() {
   const [singleAssetOnly, setSingleAssetOnly] = useState(false);
 
   const [session, setSession] = useState<CheckoutSession>(() =>
-    buildSession({ status: 'pending', amount: '10.00', currency: 'USD' }),
+    buildSession({ status: 'pending', amount: "10", currency: "ARS" }),
   );
 
   const [installedWalletNames, setInstalledWalletNames] = useState<string[]>(['metamask']);
@@ -56,6 +56,7 @@ export function App() {
   const [isPaying, setIsPaying] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [payError, setPayError] = useState<string | undefined>(undefined);
+  const [lastTxHash, setLastTxHash] = useState<string | undefined>(undefined);
 
   const [primaryColor, setPrimaryColor] = useState('#2563eb');
 
@@ -104,6 +105,7 @@ export function App() {
     const nextWithManualTransfer = overrides.withManualTransfer ?? withManualTransfer;
     const nextSingleAssetOnly = overrides.singleAssetOnly ?? singleAssetOnly;
     setPayError(undefined);
+    setLastTxHash(undefined);
     setSession(
       buildSession({
         status,
@@ -132,14 +134,15 @@ export function App() {
   }
 
   async function handleSelectAsset(assetId: string) {
+    setLastTxHash(undefined);
     await simulateSelectAsset(assetId, delayMs, forceSelectAssetError, log);
-    const network = assetId.startsWith('n') ? assetId.slice(1).split('_t')[0] : 'polygon';
+    const { network, symbol } = MAP_ASSET[assetId] ?? { network: 'base', symbol: 'USDC' };
     setSession((prev) => ({
       ...prev,
       manual_transfer: {
         wallet_address: '0xB4DB02f8c4b5159e5368CE4749fD9344a333997',
         crypto_amount: prev.amount,
-        crypto_asset: 'USDC',
+        crypto_asset: symbol,
         network,
         reference_amount: prev.amount,
         reference_currency: prev.currency,
@@ -149,8 +152,11 @@ export function App() {
 
   async function handlePayWithWallet() {
     setIsPaying(true);
-    const error = await simulatePayWithWallet(delayMs, forcePayWithWalletError, log);
+    setPayError(undefined);
+    setLastTxHash(undefined);
+    const { error, txHash } = await simulatePayWithWallet(delayMs, forcePayWithWalletError, log);
     setPayError(error);
+    setLastTxHash(txHash);
     setIsPaying(false);
   }
 
@@ -171,6 +177,8 @@ export function App() {
     restartSession();
   }
 
+  console.log(session);
+  console.log(realWallet.walletBalances);
   return (
     <div className="page">
       <header className="header">
@@ -404,9 +412,10 @@ export function App() {
               }
               isPayingWithWallet={useRealWallet ? realWallet.isPayingWithWallet : isPaying}
               payWithWalletError={useRealWallet ? realWallet.payWithWalletError : payError}
+              lastTxHash={useRealWallet ? realWallet.lastTxHash : lastTxHash}
               connectedWallet={useRealWallet ? realWallet.connectedWallet : undefined}
               onDisconnectWallet={useRealWallet ? realWallet.onDisconnectWallet : undefined}
-              //walletBalances={useRealWallet ? realWallet.walletBalances : undefined}
+              walletBalances={useRealWallet ? realWallet.walletBalances : undefined}
               isLoadingWalletBalances={useRealWallet ? realWallet.isLoadingWalletBalances : false}
               style={{ width: '100%',border: "none",
                 borderRadius: 0,

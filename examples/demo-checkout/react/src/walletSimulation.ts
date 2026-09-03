@@ -26,20 +26,31 @@ export function simulateSelectAsset(
   });
 }
 
+function fakeTxHash(): string {
+  const bytes = Array.from({ length: 32 }, () => Math.floor(Math.random() * 256));
+  return `0x${bytes.map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export interface SimulatedPayResult {
+  error?: string;
+  txHash?: string;
+}
+
 export function simulatePayWithWallet(
   delayMs: number,
   forceError: boolean,
   log: EventLogger,
-): Promise<string | undefined> {
+): Promise<SimulatedPayResult> {
   log('onPayWithWallet');
   return delay(delayMs).then(() => {
     if (forceError) {
       const message = 'La wallet rechazó la transacción';
       log('onPayWithWallet failed', message);
-      return message;
+      return { error: message };
     }
-    log('onPayWithWallet resolved');
-    return undefined;
+    const txHash = fakeTxHash();
+    log('onPayWithWallet resolved', txHash);
+    return { txHash };
   });
 }
 
