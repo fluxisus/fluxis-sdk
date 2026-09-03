@@ -7,9 +7,10 @@ interface CopyablePayBoxProps {
   value: string;
   display?: ReactNode;
   extra?: ReactNode;
+  labelExtra?: ReactNode;
 }
 
-export function CopyablePayBox({ label, value, display, extra }: CopyablePayBoxProps) {
+export function CopyablePayBox({ label, value, display, extra, labelExtra }: CopyablePayBoxProps) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -22,6 +23,10 @@ export function CopyablePayBox({ label, value, display, extra }: CopyablePayBoxP
     <div style={{ marginBottom: '0.5rem' }}>
       <div
         style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.3rem',
+          position: 'relative',
           fontSize: '0.625rem',
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -31,6 +36,7 @@ export function CopyablePayBox({ label, value, display, extra }: CopyablePayBoxP
         }}
       >
         {label}
+        {labelExtra}
       </div>
       <button
         type="button"

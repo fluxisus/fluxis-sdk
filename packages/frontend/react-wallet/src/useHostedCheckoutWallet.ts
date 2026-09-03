@@ -62,6 +62,7 @@ type WalletConnectionProps = Pick<
   | 'onPayWithWallet'
   | 'isPayingWithWallet'
   | 'payWithWalletError'
+  | 'lastTxHash'
   | 'connectedWallet'
   | 'onDisconnectWallet'
   | 'walletBalances'
@@ -160,6 +161,7 @@ export function useHostedCheckoutWallet(
   const [connected, setConnected] = useState<ConnectedWallet | undefined>(undefined);
   const [isPayingWithWallet, setIsPayingWithWallet] = useState(false);
   const [payWithWalletError, setPayWithWalletError] = useState<string | undefined>(undefined);
+  const [lastTxHash, setLastTxHash] = useState<string | undefined>(undefined);
 
   const connector = useMemo(
     () =>
@@ -316,6 +318,7 @@ export function useHostedCheckoutWallet(
 
     setIsPayingWithWallet(true);
     setPayWithWalletError(undefined);
+    setLastTxHash(undefined);
     try {
       const erc20 = await options.resolveErc20({
         cryptoAsset: transfer.crypto_asset,
@@ -341,15 +344,17 @@ export function useHostedCheckoutWallet(
         // transfer's chain before asking it to sign (see onLaunchExtension for why this can't
         // happen at connect time: the asset, and so the chain, is often picked afterwards).
         await switchExtensionChain(connected.provider, chain);
-        await connected.provider.request({
+        const hash = (await connected.provider.request({
           method: 'eth_sendTransaction',
           params: [{ from: connected.address, ...tx }],
-        });
+        })) as string;
+        setLastTxHash(hash);
       } else {
-        await connector.sendTransaction(connected.topic, chain.chainId, {
+        const hash = await connector.sendTransaction(connected.topic, chain.chainId, {
           from: connected.address,
           ...tx,
         });
+        setLastTxHash(hash);
       }
     } catch (error) {
       setPayWithWalletError(
@@ -402,6 +407,7 @@ export function useHostedCheckoutWallet(
     }
     setConnected(undefined);
     setPayWithWalletError(undefined);
+    setLastTxHash(undefined);
     writePersistedConnection(undefined);
   }, [connected, connector]);
 
@@ -420,6 +426,7 @@ export function useHostedCheckoutWallet(
     onPayWithWallet,
     isPayingWithWallet,
     payWithWalletError,
+    lastTxHash,
     connectedWallet,
     onDisconnectWallet,
     walletBalances,

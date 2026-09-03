@@ -41,6 +41,7 @@ export function HostedCheckoutWidget({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  lastTxHash,
   connectedWallet,
   onDisconnectWallet,
   walletBalances,
@@ -103,6 +104,7 @@ export function HostedCheckoutWidget({
       onPayWithWallet={onPayWithWallet}
       isPayingWithWallet={isPayingWithWallet}
       payWithWalletError={payWithWalletError}
+      lastTxHash={lastTxHash}
       connectedWallet={connectedWallet}
       onDisconnectWallet={onDisconnectWallet}
       walletBalances={walletBalances}
