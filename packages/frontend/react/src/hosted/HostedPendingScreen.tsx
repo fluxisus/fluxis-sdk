@@ -111,6 +111,7 @@ interface HostedPendingScreenProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  lastTxHash?: string;
   connectedWallet?: ConnectedWalletInfo;
   onDisconnectWallet?: () => void;
   /** The connected wallet's balances, already resolved and sorted by the host. */
@@ -136,6 +137,7 @@ export function HostedPendingScreen({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  lastTxHash,
   connectedWallet,
   onDisconnectWallet,
   walletBalances,
@@ -295,6 +297,7 @@ export function HostedPendingScreen({
               onPayWithWallet={onPayWithWallet}
               isPayingWithWallet={isPayingWithWallet}
               payWithWalletError={payWithWalletError}
+              lastTxHash={lastTxHash}
             />
           )}
         </div>

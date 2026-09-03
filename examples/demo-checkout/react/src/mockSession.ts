@@ -19,7 +19,31 @@ const PAYMENT_OPTIONS = [
     symbol: "ARGt",
     network: "base",
   },
+  {
+    unique_asset_id: "nbase_t0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+    symbol: "wARS",
+    network: "base",
+  },
 ];
+
+export const MAP_ASSET: Record<string, { symbol: string; network: string }> = {
+  nbase_t0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913: {
+    symbol: "USDC",
+    network: "base",
+  },
+  nbase_t0x0xf016413834E6D1A14F3D628B11D6Ef725a6bdbDD: {
+    symbol: "ARGt",
+    network: "base",
+  },
+  nbase_t0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D: {
+    symbol: "wARS",
+    network: "base",
+  },
+  npolygon_t0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359: {
+    symbol: "USDC",
+    network: "polygon",
+  },
+};
 
 let sessionCounter = 0;
 

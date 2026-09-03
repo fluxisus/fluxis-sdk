@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { CompatibleAppsPopover } from '../components/CompatibleAppsStack.js';
 import { FluxisQrCode } from '../components/FluxisQrCode.js';
 import { capitalizeFirst, truncateAddress } from '../utils/checkoutFormat.js';
+import { explorerTxUrl } from '../utils/blockExplorer.js';
 import { FLUXIS_MARK_LOGO } from '../utils/logo.js';
 import type { CheckoutPaymentOption, ConnectedWalletInfo, ManualTransferData } from '../types.js';
 import { AssetPicker } from './AssetPicker.js';
@@ -50,6 +51,9 @@ export interface DefiWalletPanelProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  /** Hash of the just-sent transaction — replaces the "Pagar" button with a pending-confirmation
+   * state while the host's own flow is still moving `session.status` to `confirming`. */
+  lastTxHash?: string;
 }
 
 export function DefiWalletPanel({
@@ -74,6 +78,7 @@ export function DefiWalletPanel({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  lastTxHash,
 }: DefiWalletPanelProps) {
   const hasFluxis = Boolean(naspipToken);
   const [selectedName, setSelectedName] = useState(
@@ -103,6 +108,7 @@ export function DefiWalletPanel({
         onPayWithWallet={onPayWithWallet}
         isPayingWithWallet={isPayingWithWallet}
         payWithWalletError={payWithWalletError}
+        lastTxHash={lastTxHash}
       />
     );
   }
@@ -267,6 +273,7 @@ interface ConnectedWalletPanelProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  lastTxHash?: string;
 }
 
 const CONNECTED_SPIN_KEYFRAMES = `@keyframes fluxis-connected-wallet-spin { to { transform: rotate(360deg); } }`;
@@ -350,6 +357,100 @@ function LoadingRow({ text }: { text: string }) {
 }
 
 /**
+ * Shown in place of the "Pagar" button once `onPayWithWallet` has sent a transaction — the host
+ * hasn't moved `session.status` to `confirming` yet (that's the merchant backend detecting the tx,
+ * which takes a moment), so this bridges the gap: the shopper sees the transfer went out and can
+ * already track it, without a stale "Pagar" button that would just resend the payment.
+ */
+function TxSentCard({ txHash, network }: { txHash: string; network: string }) {
+  const explorerUrl = explorerTxUrl(network, txHash);
+
+  return (
+    <div style={txSentCardStyle}>
+      <style>{CONNECTED_SPIN_KEYFRAMES}</style>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+        <span
+          role="status"
+          aria-label="Confirmando transacción"
+          style={{
+            width: '1.25rem',
+            height: '1.25rem',
+            flexShrink: 0,
+            borderRadius: '50%',
+            border: '2.5px solid var(--fluxis-color-border, #e2e8f0)',
+            borderTopColor: 'var(--fluxis-color-primary, #2563eb)',
+            animation: 'fluxis-connected-wallet-spin 0.8s linear infinite',
+          }}
+        />
+        <div style={{ minWidth: 0 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--fluxis-color-fg, #0f172a)',
+            }}
+          >
+            Transacción enviada
+          </p>
+          <p
+            style={{
+              margin: '0.125rem 0 0',
+              fontSize: '0.75rem',
+              color: 'var(--fluxis-color-muted, #64748b)',
+            }}
+          >
+            Esperando confirmación en la red, puede tardar unos minutos…
+          </p>
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+          marginTop: '0.75rem',
+          paddingTop: '0.75rem',
+          borderTop: '1px solid var(--fluxis-color-border, #e2e8f0)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '0.8125rem',
+            fontFamily: 'monospace',
+            color: 'var(--fluxis-color-fg, #0f172a)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+        >
+          {truncateAddress(txHash, 6)}
+        </span>
+        {explorerUrl && (
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flexShrink: 0,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--fluxis-color-primary, #2563eb)',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Ver en el explorador ↗
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Replaces the app/QR picker once the host reports a connected wallet: shows the connected
  * address, then either
  *  - a "Pagar" button once the host resolves `manualTransfer`,
@@ -372,6 +473,7 @@ function ConnectedWalletPanel({
   onPayWithWallet,
   isPayingWithWallet,
   payWithWalletError,
+  lastTxHash,
 }: ConnectedWalletPanelProps) {
   const [error, setError] = useState(false);
   const autoSelectedIdRef = useRef<string | null>(null);
@@ -381,8 +483,16 @@ function ConnectedWalletPanel({
   );
   // Nothing to actually choose with exactly one payable option — same reasoning as the balance
   // match below, just without a balance to go on.
-  const singleOption = paymentOptions.length === 1 ? paymentOptions[0] : undefined;
+  const singleOption = paymentOptions?.[0];
   const autoSelectId = matchedBalance?.uniqueAssetId ?? singleOption?.unique_asset_id;
+  
+  // Only block payment when we actually have a balance to compare against — no data means we
+  // can't tell, so don't assume insufficiency.
+  const insufficientBalance = Boolean(
+    manualTransfer &&
+    matchedBalance &&
+      Number.parseFloat(matchedBalance.balance ?? -1) <= Number.parseFloat(manualTransfer.crypto_amount),
+  );
 
   useEffect(() => {
     if (manualTransfer || !autoSelectId || !onSelectAsset) return;
@@ -430,18 +540,21 @@ function ConnectedWalletPanel({
         )}
       </div>
 
-      {manualTransfer ? (
+      {manualTransfer && lastTxHash ? (
+        <TxSentCard txHash={lastTxHash} network={manualTransfer.network} />
+      ) : manualTransfer ? (
         <>
           <button
             type="button"
             onClick={() => onPayWithWallet?.()}
-            disabled={isPayingWithWallet}
-            style={payButtonStyle(isPayingWithWallet)}
+            disabled={isPayingWithWallet || insufficientBalance}
+            style={payButtonStyle(isPayingWithWallet || insufficientBalance)}
           >
             {isPayingWithWallet
               ? 'Confirmá en tu wallet…'
               : `Pagar ${manualTransfer.crypto_amount} ${manualTransfer.crypto_asset} · ${capitalizeFirst(manualTransfer.network)}`}
           </button>
+          {insufficientBalance && <p style={connectedErrorStyle}>Balance insuficiente</p>}
           {payWithWalletError && <p style={connectedErrorStyle}>{payWithWalletError}</p>}
         </>
       ) : isLoadingWalletBalances ? (
@@ -722,7 +835,7 @@ const disconnectButtonStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-function payButtonStyle(isPaying?: boolean): CSSProperties {
+function payButtonStyle(disabled?: boolean): CSSProperties {
   return {
     display: 'flex',
     alignItems: 'center',
@@ -733,13 +846,20 @@ function payButtonStyle(isPaying?: boolean): CSSProperties {
     color: 'var(--fluxis-color-bg, #ffffff)',
     border: 'none',
     borderRadius: 'var(--fluxis-radius, 0.75rem)',
-    cursor: isPaying ? 'default' : 'pointer',
-    opacity: isPaying ? 0.6 : 1,
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
     font: 'inherit',
     fontWeight: 600,
     fontSize: '0.875rem',
   };
 }
+
+const txSentCardStyle: CSSProperties = {
+  padding: '0.875rem 1rem',
+  border: '1px solid var(--fluxis-color-border, #e2e8f0)',
+  borderRadius: 'var(--fluxis-radius, 0.75rem)',
+  background: 'var(--fluxis-color-bg, #ffffff)',
+};
 
 const connectedErrorStyle: CSSProperties = {
   margin: '0.5rem 0 0',

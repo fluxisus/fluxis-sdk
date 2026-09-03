@@ -151,6 +151,14 @@ export interface CheckoutWidgetProps {
   onPayWithWallet?: () => void | Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
+  /**
+   * Hash of the transaction the connected wallet just signed, once `onPayWithWallet` sent it —
+   * before the host's own confirmation flow has moved `session.status` to `confirming`. Replaces
+   * the "Pagar" button with a pending-confirmation state (hash + explorer link) so the shopper
+   * isn't left looking at a button that would just resend the payment. Cleared by the host once a
+   * new payment attempt starts (e.g. after `payWithWalletError`).
+   */
+  lastTxHash?: string;
   /** The wallet the host has connected, if any. Omit it and the checkout shows no connection state. */
   connectedWallet?: ConnectedWalletInfo;
   /** Lets the shopper disconnect/switch from within the checkout. Omit it and there's no such affordance. */

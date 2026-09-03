@@ -226,4 +226,23 @@ describe('ManualPaymentFlow', () => {
     expect(screen.queryByText('O escaneá este código QR')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copiar dirección' })).toBeInTheDocument();
   });
+
+  it('shows the crypto asset and reveals the network-matched token address with an explorer link', async () => {
+    await reachPayStep();
+
+    expect(screen.getByText('Moneda')).toBeInTheDocument();
+    expect(screen.getByText('USDC · Polygon PoS')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver dirección del contrato' }));
+
+    expect(screen.getByText('Dirección del contrato')).toBeInTheDocument();
+    // Must be the polygon USDC address, not the base one (which shares the same symbol).
+    expect(screen.getByText('0xusdc')).toBeInTheDocument();
+    expect(screen.queryByText('0xusdc-base')).not.toBeInTheDocument();
+
+    expect(screen.getByRole('link', { name: /Ver en el explorador/ })).toHaveAttribute(
+      'href',
+      'https://polygonscan.com/token/0xusdc',
+    );
+  });
 });
