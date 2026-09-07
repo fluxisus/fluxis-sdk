@@ -15,7 +15,7 @@ const PAYMENT_OPTIONS = [
     network: "base",
   },
   {
-    unique_asset_id: "nbase_t0x0xf016413834E6D1A14F3D628B11D6Ef725a6bdbDD",
+    unique_asset_id: "nbase_t0xf016413834E6D1A14F3D628B11D6Ef725a6bdbDD",
     symbol: "ARGt",
     network: "base",
   },
@@ -31,7 +31,7 @@ export const MAP_ASSET: Record<string, { symbol: string; network: string }> = {
     symbol: "USDC",
     network: "base",
   },
-  nbase_t0x0xf016413834E6D1A14F3D628B11D6Ef725a6bdbDD: {
+  nbase_t0xf016413834E6D1A14F3D628B11D6Ef725a6bdbDD: {
     symbol: "ARGt",
     network: "base",
   },

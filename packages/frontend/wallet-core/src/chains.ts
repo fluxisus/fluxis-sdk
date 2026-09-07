@@ -37,6 +37,14 @@ export const EVM_CHAINS: Record<string, EvmChain> = {
     nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
     blockExplorerUrls: ['https://polygonscan.com'],
   },
+  avalanche: {
+    network: "avalanche",
+    chainId: 43114,
+    chainName: 'Avalanche C-Chain',
+    rpcUrls: ['https://avalanche-c-chain-rpc.publicnode.com'],
+    nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 },
+    blockExplorerUrls: ['https://snowscan.xyz'],
+  }
 };
 
 export function chainForNetwork(network: string): EvmChain | undefined {

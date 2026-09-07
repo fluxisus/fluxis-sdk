@@ -127,8 +127,9 @@ export function ManualPaymentFlow({ session, isMobile, assetsUrl, onSelectAsset 
                 ) : undefined
               }
             />
-            <CopyablePayBox label="Monto a pagar" value={transfer.crypto_amount} />
+            <CopyablePayBox label="Monto a pagar" value={transfer.crypto_amount} showCopyButton />
             <CopyablePayBox
+              showCopyButton
               label="Dirección"
               value={transfer.wallet_address}
               display={<AddressFormat address={transfer.wallet_address} />}
