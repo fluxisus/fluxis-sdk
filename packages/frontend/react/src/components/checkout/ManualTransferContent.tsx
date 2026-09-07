@@ -59,6 +59,9 @@ export function ManualTransferContent({ data, onChangeAsset }: ManualTransferCon
   const networkName = capitalizeFirst(data.network);
   const networkColor = NETWORK_COLORS[data.network.toLowerCase()] ?? '#64748b';
   const assetColor = ASSET_COLORS[data.crypto_asset.toUpperCase()] ?? '#64748b';
+  const rate = data.reference_amount && data.reference_currency
+          ? parseFloat(data.reference_amount) / parseFloat(data.crypto_amount)
+          : NaN;
 
   return (
     <div style={{ padding: '0.875rem 1rem 0.75rem' }}>
@@ -92,11 +95,7 @@ export function ManualTransferContent({ data, onChangeAsset }: ManualTransferCon
         )}
       </div>
 
-      {(() => {
-        const rate = data.reference_amount && data.reference_currency
-          ? parseFloat(data.reference_amount) / parseFloat(data.crypto_amount)
-          : NaN;
-        return Number.isFinite(rate) ? (
+      {Number.isFinite(rate) ? (
           <div
             style={{
               display: 'flex',
@@ -112,8 +111,8 @@ export function ManualTransferContent({ data, onChangeAsset }: ManualTransferCon
               1 {data.crypto_asset} = {formatFiatAmount(rate.toFixed(2), data.reference_currency!)}
             </span>
           </div>
-        ) : null;
-      })()}
+        ) : null
+      }
 
       <p
         style={{

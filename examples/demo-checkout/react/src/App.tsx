@@ -69,6 +69,7 @@ export function App() {
   const getWalletBalances = useMemo(() => createPublicRpcBalanceFetcher(resolveErc20), [resolveErc20]);
   const realWallet = useHostedCheckoutWallet(session, {
     walletConnectProjectId: WALLETCONNECT_PROJECT_ID,
+    walletConnectLogoUrl: walletConnectLogoUrl,
     resolveErc20,
     getWalletBalances,
   });

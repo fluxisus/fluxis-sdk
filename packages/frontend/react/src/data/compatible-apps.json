@@ -6,24 +6,47 @@
     "website_url": "https://belo.app",
     "app_store_url": "https://apps.apple.com/bo/app/belo-tu-pasaporte-financiero/id1575614708",
     "google_play_url": "https://play.google.com/store/apps/details?id=com.belo.android",
-    "deep_link": "https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=[NASPIP_TOKEN]"
+    "deep_link": "https://api.belo.app/dynamic-link?route=qri-scanner&naspip_token=[NASPIP_TOKEN]",
+    "type": "CEFI"
   },
   {
     "name": "metamask",
     "display_name": "Metamask",
     "image_url": "https://assets.fluxis.us/apps/metamask.png",
     "website_url": "https://metamask.io",
-    "app_store_url": null,
-    "google_play_url": null,
-    "deep_link": "https://metamask.app.link/dapp/dapp.fluxis.us/pay?token=[NASPIP_TOKEN]"
+    "app_store_url": "https://apps.apple.com/es/app/metamask-billetera-cripto/id1438144202",
+    "google_play_url": "https://play.google.com/store/apps/details?id=io.metamask",
+    "deep_link": "https://metamask.app.link/dapp/[CHECKOUT_HOST_PATH]",
+    "type": "DEFI"
   },
   {
     "name": "trustwallet",
     "display_name": "Trust Wallet",
     "image_url": "https://assets.fluxis.us/apps/trustwallet.png",
     "website_url": "https://trustwallet.com",
-    "app_store_url": null,
-    "google_play_url": null,
-    "deep_link": "https://link.trustwallet.com/open_url?url=https://dapp.fluxis.us/pay?token=[NASPIP_TOKEN]"
+    "app_store_url": "https://apps.apple.com/es/app/trust-crypto-bitcoin-wallet/id1288339409",
+    "google_play_url": "https://play.google.com/store/apps/details?id=com.wallet.crypto.trustapp",
+    "deep_link": "https://link.trustwallet.com/open_url?url=[CHECKOUT_URL]",
+    "type": "DEFI"
+  },
+  {
+    "name": "phantom",
+    "display_name": "Phantom",
+    "image_url": "https://assets.fluxis.us/apps/phantom.png",
+    "website_url": "https://phantom.com",
+    "app_store_url": "https://apps.apple.com/es/app/phantom-trade-markets/id1598432977",
+    "google_play_url": "https://play.google.com/store/apps/details?id=app.phantom",
+    "deep_link": "https://phantom.app/ul/browse/[CHECKOUT_URL]",
+    "type": "DEFI"
+  },
+  {
+    "name": "base",
+    "display_name": "Base App",
+    "image_url": "https://assets.fluxis.us/apps/base-app.jpg",
+    "website_url": "https://base.org",
+    "app_store_url": "https://apps.apple.com/es/app/base-antes-coinbase-wallet/id1278383455",
+    "google_play_url": "https://play.google.com/store/apps/details?id=org.toshi",
+    "deep_link": "https://go.cb-w.com/dapp?cb_url=[CHECKOUT_URL]",
+    "type": "DEFI"
   }
 ]

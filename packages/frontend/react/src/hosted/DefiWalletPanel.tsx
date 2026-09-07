@@ -3,7 +3,7 @@ import { CompatibleAppsPopover } from '../components/CompatibleAppsStack.js';
 import { FluxisQrCode } from '../components/FluxisQrCode.js';
 import { capitalizeFirst, truncateAddress } from '../utils/checkoutFormat.js';
 import { explorerTxUrl } from '../utils/blockExplorer.js';
-import { FLUXIS_MARK_LOGO } from '../utils/logo.js';
+import { DEFAULT_WALLETCONNECT_LOGO, FLUXIS_MARK_LOGO } from '../utils/logo.js';
 import type { CheckoutPaymentOption, ConnectedWalletInfo, ManualTransferData } from '../types.js';
 import { AssetPicker } from './AssetPicker.js';
 import { DeeplinkQrCode } from './DeeplinkQrCode.js';
@@ -60,7 +60,6 @@ export function DefiWalletPanel({
   apps,
   cefiApps = [],
   naspipToken,
-  checkoutUrl,
   isMobile,
   walletConnectUri,
   walletConnectLogoUrl,
@@ -87,14 +86,35 @@ export function DefiWalletPanel({
   const selected = apps.find((app) => app.name === selectedName);
   const fluxisSelected = selectedName === FLUXIS_OPTION_ID;
   const otherSelected = selectedName === OTHER_WALLETS_ID;
+  const defiAppSelected = Boolean(selected) && selected!.type === 'DEFI';
+  // Whether the panel is in "connect via WalletConnect" mode — true for both a specific DEFI
+  // wallet and the generic "Otras wallets" option, on both platforms: the pairing session itself
+  // is identical either way (it's not scoped to whichever icon was tapped), only the QR's overlay
+  // logo and, on desktop, the "Abrir <wallet>" extension-launch button differ per selection.
+  const walletConnectFlow = otherSelected || defiAppSelected;
+  const redirectAttemptedRef = useRef(false);
 
   useEffect(() => {
-    if (otherSelected) onSelectWalletConnect?.();
-  }, [otherSelected, onSelectWalletConnect]);
+    if (walletConnectFlow) onSelectWalletConnect?.();
+  }, [walletConnectFlow, onSelectWalletConnect]);
 
-  // A connected wallet turns this panel into a pay flow instead of a picker — extension/WalletConnect
-  // discovery only applies on desktop today, so mobile keeps the deep-link grid below untouched.
-  if (connectedWallet && !isMobile) {
+  // Mobile-only silent handoff: if a WalletConnect-compatible wallet is registered for the `wc:`
+  // scheme, this opens it straight to the connect-approval screen. Guarded to fire once per visit
+  // to this screen — the QR/copy-link fallback rendered below is what covers the case where
+  // nothing happens (or the shopper switches between individual wallets in the same session).
+  useEffect(() => {
+    if (!isMobile || !walletConnectFlow || !walletConnectUri) return;
+    if (redirectAttemptedRef.current) return;
+    redirectAttemptedRef.current = true;
+    window.location.assign(walletConnectUri);
+  }, [isMobile, walletConnectFlow, walletConnectUri]);
+
+  useEffect(() => {
+    if (!walletConnectFlow) redirectAttemptedRef.current = false;
+  }, [walletConnectFlow]);
+
+  // A connected wallet turns this panel into a pay flow instead of a picker.
+  if (connectedWallet) {
     return (
       <ConnectedWalletPanel
         connectedWallet={connectedWallet}
@@ -116,8 +136,29 @@ export function DefiWalletPanel({
   if (!hasFluxis && apps.length === 0) return null;
 
   if (isMobile) {
-    const mobileApps = [...(hasFluxis ? cefiApps : []), ...apps];
+    const otherWalletsApp: WalletCatalogApp = {
+      name: OTHER_WALLETS_ID,
+      displayName: 'Otras wallets',
+      imageUrl: walletConnectLogoUrl ?? DEFAULT_WALLETCONNECT_LOGO,
+      websiteUrl: '',
+      appStoreUrl: null,
+      googlePlayUrl: null,
+      deepLink: '',
+      type: 'DEFI',
+    };
+    const mobileApps = [...(hasFluxis ? cefiApps : []), ...apps, otherWalletsApp];
     if (mobileApps.length === 0) return null;
+
+    if (walletConnectFlow) {
+      return (
+        <MobileWalletConnectPanel
+          displayName={otherSelected ? 'Otras wallets' : selected!.displayName}
+          imageUrl={otherSelected ? (walletConnectLogoUrl ?? DEFAULT_WALLETCONNECT_LOGO) : selected!.imageUrl}
+          walletConnectUri={walletConnectUri}
+          onBack={() => setSelectedName(hasFluxis ? FLUXIS_OPTION_ID : apps[0]?.name)}
+        />
+      );
+    }
 
     return (
       <div style={{ width: '100%' }}>
@@ -127,28 +168,28 @@ export function DefiWalletPanel({
         <WalletGrid
           apps={mobileApps}
           onSelect={(app) => {
-            const href =
-              app.type === 'CEFI'
-                ? resolveWalletLink(app.deepLink, { naspipToken })
-                : resolveWalletLink(app.deepLink, { checkoutUrl });
-            window.location.assign(href);
+            if (app.type === 'CEFI') {
+              window.location.assign(resolveWalletLink(app.deepLink, { naspipToken }));
+              return;
+            }
+            setSelectedName(app.name);
           }}
         />
       </div>
     );
   }
 
-  const deeplink = selected
-    ? resolveWalletLink(selected.deepLink, { checkoutUrl })
-    : undefined;
-  const qrValue = otherSelected ? walletConnectUri : deeplink;
-  const qrLogo = otherSelected ? walletConnectLogoUrl : selected?.imageUrl;
+  // Every non-Fluxis selection (a specific DEFI wallet, or "Otras wallets") now connects the same
+  // way mobile does: scan the WalletConnect pairing QR, or — if that wallet's extension is
+  // installed — skip scanning and launch it directly via the button below.
+  const qrValue = walletConnectFlow ? walletConnectUri : undefined;
+  const qrLogo = otherSelected ? (walletConnectLogoUrl ?? DEFAULT_WALLETCONNECT_LOGO) : selected?.imageUrl;
   const qrLabel = fluxisSelected
     ? 'Escaneá con tu app compatible con Fluxis'
     : otherSelected
       ? 'Escaneá con WalletConnect'
       : selected
-        ? `Escaneá con la cámara para abrir ${selected.displayName}`
+        ? `Escaneá con ${selected.displayName} o cualquier wallet compatible con WalletConnect`
         : undefined;
   const canLaunch =
     !fluxisSelected &&
@@ -230,7 +271,7 @@ export function DefiWalletPanel({
             </div>
           ) : (
             <p style={{ ...legendStyle, margin: '2rem 0', textAlign: 'center' }}>
-              {otherSelected ? 'Generando código…' : 'Elegí una wallet'}
+              {walletConnectFlow ? 'Generando código…' : 'Elegí una wallet'}
             </p>
           )}
           {qrLabel ? (
@@ -258,6 +299,74 @@ export function DefiWalletPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+interface MobileWalletConnectPanelProps {
+  displayName: string;
+  imageUrl?: string;
+  walletConnectUri?: string;
+  onBack: () => void;
+}
+
+/**
+ * Shown after tapping a DEFI wallet (or "Otras wallets") on mobile. `walletConnectUri` also drives
+ * a silent `window.location.assign` redirect attempt (see the effect in `DefiWalletPanel`) — this
+ * panel is the fallback that's always visible in case that redirect didn't land on a registered
+ * wallet, same pattern as scanning a WalletConnect QR on desktop, just with a copy-link option
+ * instead since there's no second device here.
+ */
+function MobileWalletConnectPanel({
+  displayName,
+  imageUrl,
+  walletConnectUri,
+  onBack,
+}: MobileWalletConnectPanelProps) {
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <p style={{ ...legendStyle, fontWeight: 600, color: 'var(--fluxis-color-fg, #0f172a)' }}>
+        Conectá {displayName}
+      </p>
+      {walletConnectUri ? (
+        <>
+          <div style={qrFrame}>
+            <DeeplinkQrCode value={walletConnectUri} logo={imageUrl} size={160} />
+          </div>
+          <p style={{ ...legendStyle, margin: '0.75rem 0 0', textAlign: 'center' }}>
+            Estamos intentando abrir {displayName}. Si no pasó nada, copiá el link y pegalo en tu
+            wallet, o escaneá el código con otro dispositivo.
+          </p>
+          <div style={{ marginTop: '0.75rem' }}>
+            <CopyLinkButton value={walletConnectUri} />
+          </div>
+        </>
+      ) : (
+        <p style={{ ...legendStyle, margin: '2rem 0', textAlign: 'center' }}>Generando código…</p>
+      )}
+      <button type="button" onClick={onBack} style={{ ...backButtonStyle, marginTop: '1rem' }}>
+        Volver
+      </button>
+    </div>
+  );
+}
+
+function CopyLinkButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable in non-secure context or on permission denial.
+    }
+  }
+
+  return (
+    <button type="button" onClick={handleCopy} style={copyLinkButtonStyle}>
+      {copied ? 'Copiado!' : 'Copiar link'}
+    </button>
   );
 }
 
@@ -925,6 +1034,33 @@ const launchButtonStyle: CSSProperties = {
   fontSize: '0.8125rem',
   fontWeight: 600,
   cursor: 'pointer',
+};
+
+const copyLinkButtonStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0.6rem 1rem',
+  border: '1px solid var(--fluxis-color-primary, #2563eb)',
+  borderRadius: '0.65rem',
+  background: 'var(--fluxis-color-bg, #ffffff)',
+  color: 'var(--fluxis-color-primary, #2563eb)',
+  fontFamily: 'inherit',
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const backButtonStyle: CSSProperties = {
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  color: 'var(--fluxis-color-muted, #64748b)',
+  fontFamily: 'inherit',
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  textDecoration: 'underline',
 };
 
 function listButtonStyle(selected: boolean): CSSProperties {
