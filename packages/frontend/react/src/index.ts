@@ -43,6 +43,7 @@ export { isValidNaspipToken, buildDeepLink } from './utils/naspip.js';
 export { resolveWalletLink, checkoutHostPath } from './hosted/resolveWalletLink.js';
 export {
   DEFAULT_FLUXIS_LOGO,
+  DEFAULT_WALLETCONNECT_LOGO,
   FLUXIS_LOGO_SVG,
   QR_EXCAVATION_MASK,
 } from './utils/logo.js';

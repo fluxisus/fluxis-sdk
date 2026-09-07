@@ -116,27 +116,40 @@ describe('HostedCheckoutWidget', () => {
     expect(screen.queryByText('Billeteras compatibles')).not.toBeInTheDocument();
   });
 
-  it('encodes the selected wallet deeplink in the QR', async () => {
-    renderHosted();
+  it('selecting a specific DEFI wallet on desktop connects via WalletConnect too, showing that wallet\'s logo', async () => {
+    const onSelectWalletConnect = vi.fn();
+    render(
+      <FluxisProvider>
+        <HostedCheckoutWidget
+          session={pendingSession}
+          checkoutUrl={CHECKOUT_URL}
+          appsUrl={APPS_URL}
+          walletConnectUri="wc:abc123"
+          onSelectWalletConnect={onSelectWalletConnect}
+        />
+      </FluxisProvider>,
+    );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Metamask' }));
 
+    expect(onSelectWalletConnect).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(screen.getByTestId('qr-code')).toHaveAttribute(
-        'data-value',
-        'https://metamask.app.link/dapp/checkout.stgfluxis.us/checkout/pay/abc',
-      );
+      expect(screen.getByTestId('qr-code')).toHaveAttribute('data-value', 'wc:abc123');
     });
-    expect(screen.getByText('Escaneá con la cámara para abrir Metamask')).toBeInTheDocument();
+    expect(
+      screen.getByText('Escaneá con Metamask o cualquier wallet compatible con WalletConnect'),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trust Wallet' }));
 
+    // Same pairing session regardless of which wallet icon is selected — no re-pairing.
+    expect(onSelectWalletConnect).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(screen.getByTestId('qr-code')).toHaveAttribute(
-        'data-value',
-        `https://link.trustwallet.com/open_url?url=${encodeURIComponent(CHECKOUT_URL)}`,
-      );
+      expect(screen.getByTestId('qr-code')).toHaveAttribute('data-value', 'wc:abc123');
     });
+    expect(
+      screen.getByText('Escaneá con Trust Wallet o cualquier wallet compatible con WalletConnect'),
+    ).toBeInTheDocument();
   });
 
   it('shows a WalletConnect QR when Otras wallets is selected', async () => {
@@ -243,8 +256,9 @@ describe('HostedCheckoutWidget', () => {
 
     const belo = await screen.findByRole('button', { name: 'Belo App' });
     const metamask = screen.getByRole('button', { name: 'Metamask' });
+    const otherWallets = screen.getByRole('button', { name: 'Otras wallets' });
     expect(belo.compareDocumentPosition(metamask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Otras wallets/ })).not.toBeInTheDocument();
+    expect(belo.compareDocumentPosition(otherWallets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText('Pagar con Belo App')).not.toBeInTheDocument();
     expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
 
@@ -254,7 +268,38 @@ describe('HostedCheckoutWidget', () => {
     );
   });
 
-  it('opens a DEFI deeplink from the mobile grid instead of showing a QR', async () => {
+  it('tapping a DEFI wallet on mobile starts WalletConnect pairing instead of app-open deeplink', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('innerWidth', 375);
+    Object.defineProperty(window, 'location', {
+      value: { assign, href: CHECKOUT_URL },
+      writable: true,
+    });
+    const onSelectWalletConnect = vi.fn();
+
+    render(
+      <FluxisProvider>
+        <HostedCheckoutWidget
+          session={pendingSession}
+          checkoutUrl={CHECKOUT_URL}
+          appsUrl={APPS_URL}
+          onSelectWalletConnect={onSelectWalletConnect}
+        />
+      </FluxisProvider>,
+    );
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Metamask' }));
+
+    expect(onSelectWalletConnect).toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByText('Conectá Metamask')).toBeInTheDocument();
+    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
+  });
+
+  it('redirects to the raw wc: URI and shows a QR + copy-link fallback once pairing starts', async () => {
     const assign = vi.fn();
     vi.stubGlobal('innerWidth', 375);
     Object.defineProperty(window, 'location', {
@@ -262,17 +307,28 @@ describe('HostedCheckoutWidget', () => {
       writable: true,
     });
 
-    renderHosted();
+    render(
+      <FluxisProvider>
+        <HostedCheckoutWidget
+          session={pendingSession}
+          checkoutUrl={CHECKOUT_URL}
+          appsUrl={APPS_URL}
+          walletConnectUri="wc:abc123"
+          onSelectWalletConnect={vi.fn()}
+        />
+      </FluxisProvider>,
+    );
     act(() => {
       window.dispatchEvent(new Event('resize'));
     });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Metamask' }));
 
-    expect(assign).toHaveBeenCalledWith(
-      'https://metamask.app.link/dapp/checkout.stgfluxis.us/checkout/pay/abc',
-    );
-    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('qr-code')).toHaveAttribute('data-value', 'wc:abc123');
+    });
+    expect(assign).toHaveBeenCalledWith('wc:abc123');
+    expect(screen.getByRole('button', { name: 'Copiar link' })).toBeInTheDocument();
   });
 
   it('centers the last mobile row when two wallets remain', async () => {
@@ -293,16 +349,6 @@ describe('HostedCheckoutWidget', () => {
             deep_link: 'https://phantom.app/ul/browse/[CHECKOUT_URL]',
             type: 'DEFI',
           },
-          {
-            name: 'base',
-            display_name: 'Base App',
-            image_url: 'https://assets.fluxis.us/apps/base.png',
-            website_url: 'https://base.org',
-            app_store_url: null,
-            google_play_url: null,
-            deep_link: 'https://go.cb-w.com/dapp?cb_url=[CHECKOUT_URL]',
-            type: 'DEFI',
-          },
         ],
       }),
     );
@@ -312,7 +358,44 @@ describe('HostedCheckoutWidget', () => {
       window.dispatchEvent(new Event('resize'));
     });
 
+    // belo (CEFI) + metamask, trustwallet, phantom (DEFI) + Otras wallets = 5 tiles — a row of 3
+    // then a trailing row of two, which should be centered.
     const belo = await screen.findByRole('button', { name: 'Belo App' });
+    await screen.findByRole('button', { name: 'Otras wallets' });
     expect(belo.parentElement).toHaveStyle({ justifyContent: 'center' });
+  });
+
+  it('shows an "Otras wallets" tile on the mobile grid too, connecting via WalletConnect', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('innerWidth', 375);
+    Object.defineProperty(window, 'location', {
+      value: { assign, href: CHECKOUT_URL },
+      writable: true,
+    });
+    const onSelectWalletConnect = vi.fn();
+
+    render(
+      <FluxisProvider>
+        <HostedCheckoutWidget
+          session={pendingSession}
+          checkoutUrl={CHECKOUT_URL}
+          appsUrl={APPS_URL}
+          walletConnectUri="wc:abc123"
+          onSelectWalletConnect={onSelectWalletConnect}
+        />
+      </FluxisProvider>,
+    );
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Otras wallets' }));
+
+    expect(onSelectWalletConnect).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('qr-code')).toHaveAttribute('data-value', 'wc:abc123');
+    });
+    expect(assign).toHaveBeenCalledWith('wc:abc123');
+    expect(screen.getByText('Conectá Otras wallets')).toBeInTheDocument();
   });
 });

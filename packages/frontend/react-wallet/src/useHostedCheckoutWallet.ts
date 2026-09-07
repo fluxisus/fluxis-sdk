@@ -8,6 +8,7 @@ import type {
 import {
   catalogNameForProvider,
   chainForNetwork,
+  EVM_CHAINS,
   encodeTransferData,
   listenForProviders,
   toHexChainId,
@@ -163,16 +164,16 @@ export function useHostedCheckoutWallet(
   const [payWithWalletError, setPayWithWalletError] = useState<string | undefined>(undefined);
   const [lastTxHash, setLastTxHash] = useState<string | undefined>(undefined);
 
-  const connector = useMemo(
-    () =>
-      new WalletConnectConnector(options.walletConnectProjectId, {
-        name: options.appName ?? 'Fluxis Checkout',
-        description: 'Fluxis hosted checkout',
-        url: options.appUrl ?? (typeof window !== 'undefined' ? window.location.origin : ''),
-        icons: [],
-      }),
-    [options.walletConnectProjectId, options.appName, options.appUrl],
-  );
+  const connector = useMemo(() => {
+    const url = options.appUrl ?? (typeof window !== 'undefined' ? window.location.origin : '');
+    return new WalletConnectConnector(options.walletConnectProjectId, {
+      name: options.appName ?? 'Fluxis Checkout',
+      description: 'Fluxis hosted checkout',
+      url,
+      icons: [],
+      redirect: { universal: url },
+    });
+  }, [options.walletConnectProjectId, options.appName, options.appUrl]);
 
   const extensionRestoreAttemptedRef = useRef(false);
 
@@ -227,6 +228,33 @@ export function useHostedCheckoutWallet(
       .catch(() => {});
   }, [connector]);
 
+  /**
+   * Mobile: the shopper leaves this tab to approve in their wallet app, and the WC relay's
+   * websocket may get throttled while backgrounded — the in-flight `approval()` promise from
+   * `onSelectWalletConnect` below can miss the event and never resolve. When the tab regains focus
+   * with a pairing still outstanding, ask SignClient directly what it already has (it persists
+   * approved sessions itself) instead of only waiting on that promise.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible' || connected || !walletConnectUri) return;
+      connector
+        .restoreSession()
+        .then((session) => {
+          if (!session) return;
+          setConnected({ kind: 'walletconnect', topic: session.topic, address: session.address, label: 'WalletConnect' });
+          writePersistedConnection({ kind: 'walletconnect', label: 'WalletConnect' });
+          setWalletConnectUri(undefined);
+        })
+        .catch(() => {});
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [connector, connected, walletConnectUri]);
+
   const onPrepareWalletConnect = useCallback(() => {
     connector.prepare().catch(() => {
       // Best-effort warmup only — a real pairing attempt from onSelectWalletConnect will surface
@@ -235,12 +263,15 @@ export function useHostedCheckoutWallet(
   }, [connector]);
 
   const onSelectWalletConnect = useCallback(() => {
-    const network = session.manual_transfer?.network;
-    const chain = network ? chainForNetwork(network) : undefined;
-    if (!chain) return;
+    // Request every supported EVM chain up front, not just session.manual_transfer.network — the
+    // shopper connects a wallet before an asset is picked more often than not (the DEFI picker
+    // shows up first, and ConnectedWalletPanel auto-selects an asset from the connected wallet's
+    // balances afterwards), so gating this on manual_transfer already being resolved meant
+    // connecting silently did nothing until an asset had somehow been chosen another way.
+    const chainIds = Object.values(EVM_CHAINS).map((chain) => chain.chainId);
 
     connector
-      .connect(chain.chainId)
+      .connect(chainIds)
       .then(({ uri, approval }) => {
         setWalletConnectUri(uri);
         return approval();
@@ -254,7 +285,7 @@ export function useHostedCheckoutWallet(
         // Pairing rejected/expired — clear the stale URI so the widget shows "Elegí una wallet" again.
         setWalletConnectUri(undefined);
       });
-  }, [connector, session.manual_transfer?.network]);
+  }, [connector]);
 
   const onLaunchExtension = useCallback(
     (walletName: string) => {

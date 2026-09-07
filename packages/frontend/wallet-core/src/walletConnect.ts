@@ -12,14 +12,21 @@ export interface WalletConnectPairing {
 /**
  * Thin wrapper over @walletconnect/sign-client — the one real external dependency in this
  * package. Everything here is a passthrough; no chain-specific business logic beyond scoping the
- * session to the single EVM chain the current checkout needs.
+ * session to the EVM chain(s) the current checkout needs.
  */
 export class WalletConnectConnector {
   private clientPromise: Promise<SignClientType> | undefined;
 
   constructor(
     private readonly projectId: string,
-    private readonly metadata: { name: string; description: string; url: string; icons: string[] },
+    private readonly metadata: {
+      name: string;
+      description: string;
+      url: string;
+      icons: string[];
+      /** Lets a wallet that honors it navigate back to the dapp after approving a mobile pairing. */
+      redirect?: { native?: string; universal?: string };
+    },
   ) {}
 
   /** Lazily creates the SignClient. Safe to call more than once — reuses the same instance. */
@@ -35,16 +42,21 @@ export class WalletConnectConnector {
     await this.getClient();
   }
 
-  /** Starts a new pairing scoped to a single EVM chain. Call from onSelectWalletConnect. */
-  async connect(chainId: number): Promise<WalletConnectPairing> {
+  /**
+   * Starts a new pairing scoped to one or more EVM chains. Call from onSelectWalletConnect.
+   * Accepts multiple chain ids so the shopper can connect before an asset/network is picked (the
+   * wallet approves a session that already covers every network the checkout might resolve to,
+   * rather than forcing a re-pair once the asset is known).
+   */
+  async connect(chainIds: number[]): Promise<WalletConnectPairing> {
     const client = await this.getClient();
-    const caipChainId = eip155CaipChainId(chainId);
+    const caipChainIds = chainIds.map(eip155CaipChainId);
 
     const { uri, approval } = await client.connect({
       requiredNamespaces: {
         eip155: {
           methods: ['eth_sendTransaction', 'personal_sign', 'wallet_switchEthereumChain'],
-          chains: [caipChainId],
+          chains: caipChainIds,
           events: ['chainChanged', 'accountsChanged'],
         },
       },

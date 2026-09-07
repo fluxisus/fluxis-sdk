@@ -8,12 +8,16 @@ interface CopyablePayBoxProps {
   display?: ReactNode;
   extra?: ReactNode;
   labelExtra?: ReactNode;
+  showCopyButton?: boolean;
 }
 
-export function CopyablePayBox({ label, value, display, extra, labelExtra }: CopyablePayBoxProps) {
+export function CopyablePayBox({ label, value, display, extra, labelExtra, showCopyButton }: CopyablePayBoxProps) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
+    if(!showCopyButton){
+      return;
+    }
     navigator.clipboard.writeText(value).catch(() => {});
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
@@ -80,7 +84,7 @@ export function CopyablePayBox({ label, value, display, extra, labelExtra }: Cop
           >
             {display ?? value}
           </span>
-          <span
+          {showCopyButton && <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -96,7 +100,7 @@ export function CopyablePayBox({ label, value, display, extra, labelExtra }: Cop
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
             {copied ? 'Copiado' : null}
-          </span>
+          </span>}
         </span>
         {extra}
       </button>
