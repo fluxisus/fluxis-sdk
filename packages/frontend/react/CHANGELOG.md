@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.1...react-sdk-v0.9.0) (2026-09-07)
+
+
+### Features
+
+* **checkout:** connect DeFi wallets via WalletConnect on mobile and desktop ([a9ec385](https://github.com/fluxisus/fluxis-sdk/commit/a9ec3853552450c78e630444be762f2ef37739b9))
+* **checkout:** connect DeFi wallets via WalletConnect on mobile and desktop ([e08e3d8](https://github.com/fluxisus/fluxis-sdk/commit/e08e3d89b191f9cdc83296253471dbc57f2686cd))
+* **checkout:** connect DeFi wallets via WalletConnect on mobile/desktop ([ba8e372](https://github.com/fluxisus/fluxis-sdk/commit/ba8e3722d306434d109fce7b5f05b8348e7df272))
+
 ## [0.8.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.0...react-sdk-v0.8.1) (2026-09-03)
 
 
