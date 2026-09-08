@@ -5,7 +5,7 @@ import { capitalizeFirst } from '../../utils/checkoutFormat.js';
 
 interface AssetSelectionScreenProps {
   session: CheckoutSession;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
   className?: string;
   style?: CSSProperties;
 }

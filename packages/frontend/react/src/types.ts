@@ -140,7 +140,7 @@ export interface CheckoutWidgetProps {
    * merchant can create a new request — and the retry button is hidden rather than offering an
    * action that does nothing.
    */
-  onRetryExpired?: () => void | Promise<void>;
+  onRetryExpired?: () => Promise<void>;
   isRetryingExpired?: boolean;
   /**
    * Sends the transfer from a connected browser wallet, shown alongside the manual instructions.
@@ -148,7 +148,7 @@ export interface CheckoutWidgetProps {
    * knows whether a wallet is connected and on the right chain. Omit it and the checkout stays
    * manual-transfer only.
    */
-  onPayWithWallet?: () => void | Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   /**

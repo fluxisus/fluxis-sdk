@@ -12,7 +12,7 @@ The `CheckoutSession` TypeScript interface SHALL support a `selecting_asset` sta
 - **THEN** `CheckoutSession.payment_options` SHALL be `undefined`
 
 ### Requirement: CheckoutWidget renders an asset picker for selecting_asset sessions
-`CheckoutWidget` SHALL render a new `AssetSelectionScreen` when `session.status === 'selecting_asset'`, listing the options in `session.payment_options`. `CheckoutWidgetProps` SHALL accept an optional `onSelectAsset: (assetId: string) => void | Promise<void>` callback, invoked when the shopper picks an option. `AssetSelectionScreen` SHALL NOT perform its own network request — submitting the selection to the backend is the responsibility of the code that supplies `onSelectAsset`.
+`CheckoutWidget` SHALL render a new `AssetSelectionScreen` when `session.status === 'selecting_asset'`, listing the options in `session.payment_options`. `CheckoutWidgetProps` SHALL accept an optional `onSelectAsset: (assetId: string) => Promise<void>` callback, invoked when the shopper picks an option. `AssetSelectionScreen` SHALL NOT perform its own network request — submitting the selection to the backend is the responsibility of the code that supplies `onSelectAsset`.
 
 #### Scenario: Shopper selects an asset
 - **WHEN** `session.status === 'selecting_asset'` and the shopper clicks one of the rendered `payment_options`

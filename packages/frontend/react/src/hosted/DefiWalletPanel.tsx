@@ -50,7 +50,7 @@ export interface DefiWalletPanelProps {
   /** `session.manual_transfer` — once resolved, the connected-wallet view shows a "Pagar" button. */
   manualTransfer?: ManualTransferData;
   onSelectAsset?: (assetId: string) => Promise<void>;
-  onPayWithWallet?: () => void | Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   /** Hash of the just-sent transaction — replaces the "Pagar" button with a pending-confirmation
@@ -381,7 +381,7 @@ interface ConnectedWalletPanelProps {
   isLoadingWalletBalances?: boolean;
   manualTransfer?: ManualTransferData;
   onSelectAsset?: (assetId: string) => Promise<void>;
-  onPayWithWallet?: () => void | Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   lastTxHash?: string;

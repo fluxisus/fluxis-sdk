@@ -19,7 +19,7 @@
 
 ### 1. `onSelectAsset` callback, not an internal fetch
 
-**Decision:** `CheckoutWidgetProps.onSelectAsset?: (assetId: string) => void | Promise<void>`. `AssetSelectionScreen` renders `payment_options` as buttons/list items and calls `onSelectAsset(option)` on click, showing a loading state while the returned promise is pending. The consumer is responsible for calling `POST /public/checkout/:sessionId/select-asset` and re-polling.
+**Decision:** `CheckoutWidgetProps.onSelectAsset?: (assetId: string) => Promise<void>`. `AssetSelectionScreen` renders `payment_options` as buttons/list items and calls `onSelectAsset(option)` on click, showing a loading state while the returned promise is pending. The consumer is responsible for calling `POST /public/checkout/:sessionId/select-asset` and re-polling.
 
 **Rationale:** Keeps parity with how the widget already works for reads (consumer polls, hands `session` down) and avoids introducing the first network dependency into a package whose stated design principle is "backend creates, frontend displays." checkout-web already owns a `fetchCheckoutSession` function in `src/lib/api.ts`; adding a sibling `selectCheckoutAsset` function there is a one-line addition, versus teaching the SDK package to know about API base URLs, error envelopes, and retry semantics.
 

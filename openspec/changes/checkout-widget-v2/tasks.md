@@ -1,7 +1,7 @@
 ## 1. CheckoutSession type
 
 - [x] 1.1 Add `'selecting_asset'` to `CheckoutSession.status` union and `payment_options?: string[]` to `CheckoutSession` (`src/types.ts`)
-- [x] 1.2 Add `onSelectAsset?: (assetId: string) => void | Promise<void>` to `CheckoutWidgetProps` (`src/types.ts`)
+- [x] 1.2 Add `onSelectAsset?: (assetId: string) => Promise<void>` to `CheckoutWidgetProps` (`src/types.ts`)
 
 ## 2. Auto-redirect on completion
 
