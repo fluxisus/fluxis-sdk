@@ -133,7 +133,7 @@ export interface CompatibleAppsRemoteOptions {
 
 export interface CheckoutWidgetProps {
   session: CheckoutSession;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
   /**
    * Starts a fresh payment attempt from the expired screen. Omit it when the caller cannot
    * recover — a session addressed by payment-request id has nothing to retry, since only the
