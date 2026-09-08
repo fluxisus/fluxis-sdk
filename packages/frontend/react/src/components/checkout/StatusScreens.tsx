@@ -214,7 +214,7 @@ export function ExpiredScreen({
   className,
   style,
 }: {
-  onRetry?: () => void | Promise<void>;
+  onRetry?: () => Promise<void>;
   isRetrying?: boolean;
   returnUrl?: string;
   className?: string;

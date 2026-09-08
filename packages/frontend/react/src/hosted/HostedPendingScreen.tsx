@@ -107,8 +107,8 @@ interface HostedPendingScreenProps {
   onSelectWalletConnect?: () => void;
   onPrepareWalletConnect?: () => void;
   onLaunchExtension?: (walletName: string) => void;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
-  onPayWithWallet?: () => void | Promise<void>;
+  onSelectAsset?: (assetId: string) =>Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   lastTxHash?: string;

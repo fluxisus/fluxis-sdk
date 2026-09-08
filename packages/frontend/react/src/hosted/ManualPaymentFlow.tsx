@@ -13,7 +13,7 @@ interface ManualPaymentFlowProps {
   session: CheckoutSession;
   isMobile: boolean;
   assetsUrl?: string;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
 }
 
 function TokenAddressInfo({ tokenAddress, network }: { tokenAddress: string; network: string }) {

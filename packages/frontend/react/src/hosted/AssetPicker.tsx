@@ -20,7 +20,7 @@ export interface AssetPickerProps {
   paymentOptions?: CheckoutPaymentOption[];
   /** Only used to decide whether to start straight on the pay step (already resolved). */
   manualTransfer?: ManualTransferData;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
   /** Rendered for the pay step, once an asset is picked (or from the start, if `manualTransfer` is
    * already resolved). The picker doesn't know or care what "paying" looks like for the caller —
    * `ManualPaymentFlow` shows a copy/paste box, `ConnectedWalletPanel` shows a loading row. */

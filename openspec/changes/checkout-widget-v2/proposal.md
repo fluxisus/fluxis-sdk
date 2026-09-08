@@ -7,7 +7,7 @@ A cross-repo audit of the hosted checkout flow (checkout-web, core-api, fluxis-s
 - `CompletedScreen` (`packages/frontend/react/src/components/checkout/StatusScreens.tsx`) auto-redirects to `session.return_url` after a 5-second countdown; the existing "Volver al comercio" link remains clickable to redirect immediately.
 - `CheckoutSession` type (`src/types.ts`) gains `status: 'selecting_asset'` and an optional `payment_options: string[]`.
 - New `AssetSelectionScreen` component, rendered by `CheckoutWidget` when `session.status === 'selecting_asset'`, listing `payment_options` and invoking a new `onSelectAsset` callback prop when the shopper picks one.
-- `CheckoutWidgetProps` gains `onSelectAsset?: (assetId: string) => void | Promise<void>`. The widget stays a pure display/callback component — it does not fetch anything itself; the consumer (checkout-web) performs the actual `POST /public/checkout/:sessionId/select-asset` call and re-polls, exactly as it already does for session status today. This keeps the package's existing "poll/act via your own calling code, the widget only displays" rule intact.
+- `CheckoutWidgetProps` gains `onSelectAsset?: (assetId: string) => Promise<void>`. The widget stays a pure display/callback component — it does not fetch anything itself; the consumer (checkout-web) performs the actual `POST /public/checkout/:sessionId/select-asset` call and re-polls, exactly as it already does for session status today. This keeps the package's existing "poll/act via your own calling code, the widget only displays" rule intact.
 
 ## Capabilities
 

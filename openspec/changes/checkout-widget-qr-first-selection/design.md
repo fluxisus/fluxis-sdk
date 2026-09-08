@@ -11,7 +11,7 @@
 
 **Non-Goals:**
 - No change to `AssetSelectionScreen`'s selection logic (`handleSelect`/`pendingAssetId`/error state) — only its outer chrome.
-- No change to how `onSelectAsset` is invoked or its contract (still `(assetId) => void | Promise<void>`, still the caller's responsibility to hit the backend).
+- No change to how `onSelectAsset` is invoked or its contract (still `(assetId) => Promise<void>`, still the caller's responsibility to hit the backend).
 
 ## Decisions
 
