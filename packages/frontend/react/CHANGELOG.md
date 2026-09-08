@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.9.0...react-sdk-v0.9.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **react:** re-select asset when manual_transfer ([1f847eb](https://github.com/fluxisus/fluxis-sdk/commit/1f847eb4ff315c65033056018d219255314ce7aa))
+* **react:** re-select asset when manual_transfer diverges from auto-s… ([0099795](https://github.com/fluxisus/fluxis-sdk/commit/0099795f74833b4ee206bd4e07f8be84059d95e2))
+* **react:** re-select asset when manual_transfer diverges from auto-selected balance ([d2b61f2](https://github.com/fluxisus/fluxis-sdk/commit/d2b61f22d97514b7fcea28825e398529f2e54276))
+
 ## [0.9.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.1...react-sdk-v0.9.0) (2026-09-07)
 
 
