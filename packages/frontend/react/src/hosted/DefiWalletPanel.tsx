@@ -10,6 +10,8 @@ import { DeeplinkQrCode } from './DeeplinkQrCode.js';
 import { toCompatibleApp } from './normalizeWalletCatalog.js';
 import { resolveWalletLink } from './resolveWalletLink.js';
 import type { ConnectedWalletBalance, WalletCatalogApp } from './types.js';
+import { useUniqueAssets } from './useUniqueAssets.js';
+import { findAsset } from './uniqueAssets.js';
 
 export const OTHER_WALLETS_ID = 'other-wallets';
 export const FLUXIS_OPTION_ID = 'fluxis';
@@ -47,8 +49,8 @@ export interface DefiWalletPanelProps {
   isLoadingWalletBalances?: boolean;
   /** `session.manual_transfer` — once resolved, the connected-wallet view shows a "Pagar" button. */
   manualTransfer?: ManualTransferData;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
-  onPayWithWallet?: () => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   /** Hash of the just-sent transaction — replaces the "Pagar" button with a pending-confirmation
@@ -378,8 +380,8 @@ interface ConnectedWalletPanelProps {
   walletBalances?: ConnectedWalletBalance[];
   isLoadingWalletBalances?: boolean;
   manualTransfer?: ManualTransferData;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
-  onPayWithWallet?: () => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
+  onPayWithWallet?: () => Promise<void>;
   isPayingWithWallet?: boolean;
   payWithWalletError?: string;
   lastTxHash?: string;
@@ -584,6 +586,9 @@ function ConnectedWalletPanel({
   payWithWalletError,
   lastTxHash,
 }: ConnectedWalletPanelProps) {
+  const { assets } = useUniqueAssets({ assetsUrl });
+  const asset = manualTransfer ? findAsset(assets, manualTransfer.crypto_asset, manualTransfer.network) : undefined;
+
   const [error, setError] = useState(false);
   const autoSelectedIdRef = useRef<string | null>(null);
 
@@ -604,13 +609,14 @@ function ConnectedWalletPanel({
   );
 
   useEffect(() => {
-    if (manualTransfer || !autoSelectId || !onSelectAsset) return;
+    if (!autoSelectId || !onSelectAsset) return;
+    if (manualTransfer && asset?.unique_asset_id === autoSelectId) return;
     if (autoSelectedIdRef.current === autoSelectId) return;
     autoSelectedIdRef.current = autoSelectId;
 
     setError(false);
-    Promise.resolve(onSelectAsset(autoSelectId)).catch(() => setError(true));
-  }, [manualTransfer, autoSelectId, onSelectAsset]);
+    onSelectAsset(autoSelectId).catch(() => setError(true));
+  }, [manualTransfer, autoSelectId, onSelectAsset, asset]);
 
   return (
     <div style={{ width: '100%' }}>

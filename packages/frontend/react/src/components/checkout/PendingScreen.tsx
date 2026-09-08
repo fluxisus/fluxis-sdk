@@ -66,7 +66,7 @@ const divider: CSSProperties = {
 
 interface PendingScreenProps {
   session: CheckoutSession;
-  onSelectAsset?: (assetId: string) => void | Promise<void>;
+  onSelectAsset?: (assetId: string) => Promise<void>;
   /** Called when the expiry overlay outlasts polling — parent should show ExpiredScreen. */
   onExpiredTimeout?: () => void;
   className?: string;

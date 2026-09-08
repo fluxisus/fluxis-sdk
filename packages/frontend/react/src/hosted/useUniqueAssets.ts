@@ -27,7 +27,8 @@ async function fetchUniqueAssets(url: string): Promise<UniqueAsset[]> {
       if (!response.ok) {
         throw new Error(`Failed to fetch unique assets (${response.status} ${response.statusText})`);
       }
-      const assets = parseUniqueAssets(await response.json());
+      const data = await response.json();
+      const assets = parseUniqueAssets(data);
       cache.set(url, assets);
       return assets;
     })
