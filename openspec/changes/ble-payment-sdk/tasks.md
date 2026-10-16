@@ -21,7 +21,7 @@
 - [x] 3.3 Tests: every vector and `PayerFlow` scenarios (deliver at each MTU, busy, reject, timeout, tamper); passing on Linux
 - [x] 3.4 `FluxisBLE`: CoreBluetooth `FluxisBLEPayer` and `PeripheralLink`
 - [x] 3.5 iOS `FluxisBLECollector` scaffold
-- [ ] 3.6 `swift test` and an iOS build on macOS (runs in the `sdk-ble-swift` workflow)
+- [x] 3.6 `swift test` and an iOS build on macOS (the `sdk-ble-swift` workflow: Xcode 16.4, no warnings)
 
 ## 4. Repo integration
 
