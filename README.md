@@ -9,6 +9,15 @@ Official SDKs for the [Fluxis](https://fluxis.us) crypto payment processing API.
 | TypeScript / Node.js | [`@fluxisus/sdk`](packages/backend/sdk/README.md) | `npm install @fluxisus/sdk` |
 | C# / .NET | [`Fluxis.Sdk`](packages/backend/sdk-csharp/README.md) | `dotnet add package Fluxis.Sdk` |
 
+### BLE handoff (POS ↔ wallet, in development)
+
+Hand the NASPIP token from a point of sale to a nearby wallet over Bluetooth LE. See [`packages/ble/`](packages/ble/README.md) and the protocol spec [`docs/ble-protocol.md`](docs/ble-protocol.md).
+
+| Platform | Package | Roles |
+|----------|---------|-------|
+| Android (Kotlin, API 26+) | [`us.fluxis:fluxis-ble-android`](packages/ble/kotlin/README.md) | Collector (POS), payer (wallet) |
+| iOS / macOS (Swift) | [`FluxisBLE`](packages/ble/swift/README.md) | Payer (wallet) |
+
 ### Frontend (in development)
 
 Browser/UI packages live under [`packages/frontend/`](packages/frontend/README.md). They will be published under the `@fluxisus/*` scope (e.g. `@fluxisus/react`).

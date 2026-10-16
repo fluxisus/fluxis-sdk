@@ -1,7 +1,7 @@
 # CLAUDE.md — Fluxis SDK Monorepo
 
 > This file provides shared API context for AI coding agents working on any Fluxis SDK.
-> For language-specific conventions, see the `CLAUDE.md` inside each `packages/backend/sdk-*` or `packages/frontend/` package directory.
+> For language-specific conventions, see the `CLAUDE.md` inside each `packages/backend/sdk-*`, `packages/frontend/` or `packages/ble/` package directory.
 
 ## What is Fluxis?
 
@@ -20,12 +20,19 @@ fluxis-sdks/
 │   │   ├── sdk-csharp/       # C# SDK (Fluxis.Sdk)
 │   │   ├── sdk-python/       # Python SDK (fluxis)
 │   │   └── sdk-go/           # Go SDK (github.com/fluxisus/fluxis-sdk/packages/sdk-go)
-│   └── frontend/             # Frontend SDKs (@fluxisus/react, …)
-│       ├── README.md
+│   ├── frontend/             # Frontend SDKs (@fluxisus/react, …)
+│   │   ├── README.md
+│   │   ├── CLAUDE.md
+│   │   └── <framework>/    # One npm package per subdirectory
+│   └── ble/                  # BLE token handoff (POS ↔ wallet), no REST API calls
 │       ├── CLAUDE.md
-│       └── <framework>/    # One npm package per subdirectory
+│       ├── test-vectors/     # Shared conformance vectors + Python reference
+│       ├── kotlin/           # us.fluxis:fluxis-ble-core / fluxis-ble-android
+│       └── swift/            # FluxisBLECore / FluxisBLE (Swift package)
 ├── spec/
 │   └── swagger.yaml          # OpenAPI spec — source of truth
+├── docs/
+│   └── ble-protocol.md       # BLE Handoff Protocol v3 — source of truth for packages/ble
 ├── examples/
 │   └── demo-checkout/        # TS example apps
 ├── scripts/
@@ -39,16 +46,19 @@ fluxis-sdks/
     ├── sdk-python.yml
     ├── sdk-go.yml
     ├── sdk-frontend.yml
+    ├── sdk-ble-kotlin.yml
+    ├── sdk-ble-swift.yml
     └── validate-spec.yml
 ```
 
 ### Principles
 
 - Each SDK is an **independent package** with its own lifecycle, version, and publish pipeline.
-- The **source of truth** is always `spec/swagger.yaml`.
+- The **source of truth** is always `spec/swagger.yaml` (for the BLE SDKs: `docs/ble-protocol.md`).
 - SDKs are **hand-written** for idiomatic ergonomics — NOT auto-generated from the spec.
-- Tests run against the **Fluxis staging sandbox**, not mocks.
-- Non-JS packages (C#, Python, Go) live alongside JS workspaces without interference.
+- Tests run against the **Fluxis staging sandbox**, not mocks. The BLE SDKs are the exception:
+  they never call the API and are tested offline against `packages/ble/test-vectors/vectors.json`.
+- Non-JS packages (C#, Python, Go, Kotlin, Swift) live alongside JS workspaces without interference.
   The root `package.json` uses npm workspaces for backend (`packages/backend/sdk`) and frontend (`packages/frontend/*`) packages.
 
 ## Releasing
@@ -75,6 +85,10 @@ Two consequences that are easy to get wrong:
 than release-please's default 0.x behaviour of promoting to `1.0.0`. It publishes under the `next`
 dist-tag; promote deliberately with `npm dist-tag add @fluxisus/react@<version> latest`.
 
+The BLE SDKs (`ble-kotlin`, `ble-swift`) also set `bump-minor-pre-major`. Their include-paths
+cover `packages/ble/test-vectors` and `docs/ble-protocol.md`, so a protocol change releases both.
+Kotlin publishes to GitHub Packages; Swift is mirrored to `fluxisus/fluxis-ble-swift` for SwiftPM.
+
 ## Architecture: Key Concepts
 
 - **Organization**: Top-level entity (the business using Fluxis). Has API keys.
@@ -83,6 +97,7 @@ dist-tag; promote deliberately with `npm dist-tag add @fluxisus/react@<version> 
 - **Payment Request**: A request for payment created under a PoS. Returns a NASPIP token.
 - **Payment Intention**: Open-amount flow for `cashier_open` PoS — payer selects currency after merchant creates an intention.
 - **NASPIP Token**: A PASETO v4 token encoding payment instructions (amount, address, asset, expiration). Can be rendered as QR code or transmitted via NFC.
+- **BLE handoff**: A POS (collector) hands the NASPIP token to a nearby wallet (payer) over Bluetooth LE, encrypted per session. See `docs/ble-protocol.md` and `packages/ble/`.
 - **Transaction**: On-chain record of a deposit, withdrawal, swap, etc.
 - **Webhook**: Account-scoped HTTP callback for events (`payment_request`, `incoming_transfer`, `refund`). Secret returned on create.
 
