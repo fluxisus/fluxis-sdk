@@ -304,10 +304,11 @@ ERROR or BUSY only to a peer that subscribed to DATA, and then disconnects that 
    for the service-added callback, then starts advertising. When advertising has started, the
    phase is `ready`.
 2. In `ready`, any number of peers may connect, read `RECORD` and subscribe.
-3. On a complete START from peer *P*, the collector checks, in this order: `version` is 3,
-   `sessionId` matches, `now < expiresAt`, *P* is subscribed to DATA indications, and
-   `payerPublicKey` is valid. Failing any check produces the matching ERROR (where it can be
-   sent) and disconnects *P*.
+3. On a complete START from peer *P*, the collector checks, in this order: the payload is 82
+   bytes (`malformed`), `version` is 3 (`unsupported_version`), `payerPublicKey` is a valid
+   point (`invalid_key`), `sessionId` matches (`session_mismatch`), `now < expiresAt`
+   (`expired`), and *P* is subscribed to DATA indications. Failing any check produces the
+   matching ERROR (only possible if *P* is subscribed) and disconnects *P*.
 4. Once START is valid, the collector locks to *P* (`claimed`), stops advertising, derives
    the keys, seals the envelope, and sends the DATA frames one confirmed indication at a time,
    sized to *P*'s MTU.
