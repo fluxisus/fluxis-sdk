@@ -41,6 +41,26 @@
       "package-name": "@fluxisus/react",
       "include-paths": ["packages/frontend/react"],
       "bump-minor-pre-major": true
+    },
+    "packages/ble/kotlin": {
+      "component": "ble-kotlin",
+      "release-type": "simple",
+      "package-name": "us.fluxis:fluxis-ble-android",
+      "include-paths": ["packages/ble/kotlin", "packages/ble/test-vectors", "docs/ble-protocol.md"],
+      "bump-minor-pre-major": true
+    },
+    "packages/ble/swift": {
+      "component": "ble-swift",
+      "release-type": "simple",
+      "package-name": "FluxisBLE",
+      "include-paths": ["packages/ble/swift", "packages/ble/test-vectors", "docs/ble-protocol.md"],
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "Sources/FluxisBLECore/FluxisBLEConstants.swift"
+        }
+      ]
     }
   }
 }
