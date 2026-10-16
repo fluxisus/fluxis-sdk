@@ -1,0 +1,61 @@
+name: SDK — BLE (Swift)
+
+# Publishing lives in release-please.yml (publish-ble-swift): the package is mirrored to
+# the public fluxisus/fluxis-ble-swift repo, because Swift Package Manager needs
+# Package.swift at the repository root.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/ble/swift/**'
+      - 'packages/ble/test-vectors/**'
+      - 'docs/ble-protocol.md'
+      - '.github/workflows/sdk-ble-swift.yml'
+  pull_request:
+    paths:
+      - 'packages/ble/swift/**'
+      - 'packages/ble/test-vectors/**'
+      - 'docs/ble-protocol.md'
+      - '.github/workflows/sdk-ble-swift.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/ble/swift
+
+jobs:
+  apple:
+    name: macOS + iOS (CryptoKit, CoreBluetooth)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: swift --version && xcodebuild -version
+
+      - name: Build (macOS)
+        run: swift build
+
+      - name: Test (macOS)
+        run: swift test
+
+      - name: Build for iOS
+        run: |
+          xcodebuild build \
+            -scheme FluxisBLE-Package \
+            -destination 'generic/platform=iOS' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+  linux:
+    name: Linux core (swift-crypto)
+    runs-on: ubuntu-latest
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Test
+        run: swift test

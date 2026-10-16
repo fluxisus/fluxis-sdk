@@ -1,0 +1,80 @@
+name: SDK — BLE (Kotlin/Android)
+
+# Publishing lives in release-please.yml (publish-ble-kotlin): GitHub Packages, on a
+# `ble-kotlin` release.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/ble/kotlin/**'
+      - 'packages/ble/test-vectors/**'
+      - 'docs/ble-protocol.md'
+      - '.github/workflows/sdk-ble-kotlin.yml'
+  pull_request:
+    paths:
+      - 'packages/ble/kotlin/**'
+      - 'packages/ble/test-vectors/**'
+      - 'docs/ble-protocol.md'
+      - '.github/workflows/sdk-ble-kotlin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  vectors:
+    name: Test vectors are up to date
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ble/test-vectors/reference
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cryptography
+        run: pip install 'cryptography>=41'
+
+      - name: Regenerate and compare
+        run: python3 generate_vectors.py --check
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ble/kotlin
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The runner image ships the Android SDK (ANDROID_HOME); AGP installs the
+      # missing platform/build-tools on first use.
+      - name: Core tests (pure JVM, shared vectors)
+        run: ./gradlew --no-daemon :core:test
+
+      - name: Android unit tests
+        run: ./gradlew --no-daemon :android:testDebugUnitTest
+
+      - name: Android lint (NewApi / MissingPermission are fatal)
+        run: ./gradlew --no-daemon :android:lintDebug
+
+      - name: Assemble release AAR
+        run: ./gradlew --no-daemon :android:assembleRelease
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ble-kotlin-reports
+          path: |
+            packages/ble/kotlin/*/build/reports/
+            packages/ble/kotlin/*/build/test-results/
