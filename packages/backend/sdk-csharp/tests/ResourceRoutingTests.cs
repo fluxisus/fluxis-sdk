@@ -50,6 +50,7 @@ public class ResourceRoutingTests
                 Network = "polygon",
             });
             handler.LastApiRequest().Method.Should().Be(HttpMethod.Post);
+            handler.LastApiRequest().RequestUri!.AbsolutePath.Should().EndWith("/account/settlement/acc-1/settlement-addresses");
 
             await client.Accounts.UpdateSettlementAddressAsync("acc-1", new SettlementAddressRequest
             {
@@ -57,8 +58,10 @@ public class ResourceRoutingTests
                 Network = "ethereum",
             });
             handler.LastApiRequest().Method.Should().Be(HttpMethod.Put);
+            handler.LastApiRequest().RequestUri!.AbsolutePath.Should().EndWith("/account/settlement/acc-1/settlement-addresses");
 
             await client.Accounts.DeleteSettlementAddressAsync("acc-1", "polygon");
+            handler.LastApiRequest().RequestUri!.AbsolutePath.Should().EndWith("/account/settlement/acc-1/settlement-addresses");
             handler.LastApiRequest().RequestUri!.Query.Should().Contain("network=polygon");
         }
     }

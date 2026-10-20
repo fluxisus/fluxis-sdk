@@ -197,7 +197,7 @@ Renders a QR code encoding the NASPIP token with the Fluxis logo in the center.
 |------|------|---------|-------------|
 | `token` | `string` | required | NASPIP token (`naspip;…`) |
 | `size` | `number` | `280` | QR size in pixels |
-| `level` | `'L' \| 'M' \| 'Q' \| 'H'` | `'H'` | Error correction (H recommended with logo) |
+| `level` | `'L' \| 'M' \| 'Q' \| 'H'` | `'M'` | Error correction (H recommended with logo) |
 | `logo` | `string` | bundled Fluxis logo | Center image URL or data URI (overlaid on QR) |
 | `logoSize` | `number` | `21.4%` of size | Logo dimensions |
 | `fgColor` | `string` | theme | Foreground color |

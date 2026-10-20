@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/fluxisus/fluxis-sdk/compare/csharp-sdk-v1.0.0...csharp-sdk-v1.0.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **csharp:** send account settlement writes to nested path ([3f9231d](https://github.com/fluxisus/fluxis-sdk/commit/3f9231ddeeefa05ce751e52e2f9d5894e182d321))
+
 ## [1.0.0](https://github.com/fluxisus/fluxis-sdk/compare/csharp-sdk-v0.2.0...csharp-sdk-v1.0.0) (2026-06-06)
 
 

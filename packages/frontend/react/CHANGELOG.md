@@ -1,5 +1,94 @@
 # Changelog
 
+## [0.9.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.9.0...react-sdk-v0.9.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **react:** re-select asset when manual_transfer ([1f847eb](https://github.com/fluxisus/fluxis-sdk/commit/1f847eb4ff315c65033056018d219255314ce7aa))
+* **react:** re-select asset when manual_transfer diverges from auto-s… ([0099795](https://github.com/fluxisus/fluxis-sdk/commit/0099795f74833b4ee206bd4e07f8be84059d95e2))
+* **react:** re-select asset when manual_transfer diverges from auto-selected balance ([d2b61f2](https://github.com/fluxisus/fluxis-sdk/commit/d2b61f22d97514b7fcea28825e398529f2e54276))
+
+## [0.9.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.1...react-sdk-v0.9.0) (2026-09-07)
+
+
+### Features
+
+* **checkout:** connect DeFi wallets via WalletConnect on mobile and desktop ([a9ec385](https://github.com/fluxisus/fluxis-sdk/commit/a9ec3853552450c78e630444be762f2ef37739b9))
+* **checkout:** connect DeFi wallets via WalletConnect on mobile and desktop ([e08e3d8](https://github.com/fluxisus/fluxis-sdk/commit/e08e3d89b191f9cdc83296253471dbc57f2686cd))
+* **checkout:** connect DeFi wallets via WalletConnect on mobile/desktop ([ba8e372](https://github.com/fluxisus/fluxis-sdk/commit/ba8e3722d306434d109fce7b5f05b8348e7df272))
+
+## [0.8.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.8.0...react-sdk-v0.8.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **react:** normalize unique asset id in selection ([3d3e0b5](https://github.com/fluxisus/fluxis-sdk/commit/3d3e0b55b2b661bd0792f0402d9edf3d87e53fc2))
+
+## [0.8.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.7.0...react-sdk-v0.8.0) (2026-09-03)
+
+
+### Features
+
+* **react:** show crypto asset details and wallet payment tx status ([3177d74](https://github.com/fluxisus/fluxis-sdk/commit/3177d74f157b3931802d7e9b3f2b0898b504b71c))
+* **react:** show crypto asset details and wallet payment tx status ([29663a3](https://github.com/fluxisus/fluxis-sdk/commit/29663a3c66f8e14af36831ada8e0f36402242426))
+
+## [0.7.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.6.0...react-sdk-v0.7.0) (2026-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **checkout:** add wallet connection to HostedCheckoutWidget
+
+### Features
+
+* **checkout:** add wallet connection to HostedCheckoutWidget ([7285b84](https://github.com/fluxisus/fluxis-sdk/commit/7285b84324a9c08c58d44dd2ec5c2afb00dd5480))
+
+## [0.6.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.1...react-sdk-v0.6.0) (2026-08-24)
+
+
+### Features
+
+* **react:** hosted checkout widget and unique-asset catalog ([86cef66](https://github.com/fluxisus/fluxis-sdk/commit/86cef66b54534b7e06722f5dacaf14d5e6387449))
+* **react:** hosted checkout widget and unique-asset catalog ([#79](https://github.com/fluxisus/fluxis-sdk/issues/79)) ([bcbfc5d](https://github.com/fluxisus/fluxis-sdk/commit/bcbfc5d28a7b95f60beb9159021d41d1aa1519c3))
+
+
+### Bug Fixes
+
+* **react:** tune QR error correction for NASPIP scan density ([fb81c9f](https://github.com/fluxisus/fluxis-sdk/commit/fb81c9f945fe16a225102e53a120a5d1ae6f18d2))
+
+## [0.5.1](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.5.0...react-sdk-v0.5.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **checkout:** expired screen fallback and polling recovery ([8701e7a](https://github.com/fluxisus/fluxis-sdk/commit/8701e7a70924b8784edbccf9eec1986578456439))
+* **checkout:** fall back to ExpiredScreen when expiry outlasts polling ([55f797c](https://github.com/fluxisus/fluxis-sdk/commit/55f797c75530b1fc64f1f575bb73da4a8aa90402))
+* **checkout:** fall back to ExpiredScreen when expiry outlasts polling ([43b5d2b](https://github.com/fluxisus/fluxis-sdk/commit/43b5d2b069c74a62faccb18e665fb636f71c4343))
+
+## [0.5.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.4.0...react-sdk-v0.5.0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **checkout:** CheckoutSession.return_url is now optional, matching what the backend actually sends. Consumers reading it as a required string will need to handle undefined.
+
+### Features
+
+* **checkout:** hold the completed screen when there is no merchant to return to ([#57](https://github.com/fluxisus/fluxis-sdk/issues/57)) ([78573df](https://github.com/fluxisus/fluxis-sdk/commit/78573dfc103111103d657611befc6dbf86fc9dd8))
+
+## [0.4.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.3.0...react-sdk-v0.4.0) (2026-07-31)
+
+
+### Features
+
+* **checkout:** add wallet payment, with expired-retry and single-asset fixes ([e384bae](https://github.com/fluxisus/fluxis-sdk/commit/e384baef4e5dd64dd4549ea5894a579e7e805383))
+
+
+### Bug Fixes
+
+* **checkout:** repair expired retry, single-asset picker and wallet payment ([#48](https://github.com/fluxisus/fluxis-sdk/issues/48)) ([df4bb5a](https://github.com/fluxisus/fluxis-sdk/commit/df4bb5a096b9f8894730baa846843bb3b90bd745))
+
 ## [0.3.0](https://github.com/fluxisus/fluxis-sdk/compare/react-sdk-v0.2.0...react-sdk-v0.3.0) (2026-07-28)
 
 

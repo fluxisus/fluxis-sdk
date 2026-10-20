@@ -96,7 +96,7 @@ public sealed class AccountsResource
         CancellationToken cancellationToken = default)
     {
         return await _client.RequestAsync<SettlementAddressResponse>(
-            HttpMethod.Post, $"/account/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
+            HttpMethod.Post, $"/account/settlement/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -113,7 +113,7 @@ public sealed class AccountsResource
         CancellationToken cancellationToken = default)
     {
         return await _client.RequestAsync<SettlementAddressResponse>(
-            HttpMethod.Put, $"/account/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
+            HttpMethod.Put, $"/account/settlement/{accountId}/settlement-addresses", request, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -130,7 +130,7 @@ public sealed class AccountsResource
     {
         await _client.RequestAsync(
             HttpMethod.Delete,
-            $"/account/{accountId}/settlement-addresses",
+            $"/account/settlement/{accountId}/settlement-addresses",
             query: new Dictionary<string, string> { ["network"] = network },
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);

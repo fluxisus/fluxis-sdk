@@ -50,7 +50,11 @@ class AccountsResource:
         account_id: str,
         data: SettlementAddressRequest,
     ) -> SettlementAddressResponse:
-        result = self._client.request("POST", f"/account/{account_id}/settlement-addresses", data)
+        result = self._client.request(
+            "POST",
+            f"/account/settlement/{account_id}/settlement-addresses",
+            data,
+        )
         return SettlementAddressResponse.from_dict(result)
 
     def update_settlement_address(
@@ -58,13 +62,17 @@ class AccountsResource:
         account_id: str,
         data: SettlementAddressRequest,
     ) -> SettlementAddressResponse:
-        result = self._client.request("PUT", f"/account/{account_id}/settlement-addresses", data)
+        result = self._client.request(
+            "PUT",
+            f"/account/settlement/{account_id}/settlement-addresses",
+            data,
+        )
         return SettlementAddressResponse.from_dict(result)
 
     def delete_settlement_address(self, account_id: str, network: str) -> None:
         self._client.request(
             "DELETE",
-            f"/account/{account_id}/settlement-addresses",
+            f"/account/settlement/{account_id}/settlement-addresses",
             query={"network": network},
         )
 
@@ -103,7 +111,7 @@ class AsyncAccountsResource:
     ) -> SettlementAddressResponse:
         result = await self._client.request(
             "POST",
-            f"/account/{account_id}/settlement-addresses",
+            f"/account/settlement/{account_id}/settlement-addresses",
             data,
         )
         return SettlementAddressResponse.from_dict(result)
@@ -115,7 +123,7 @@ class AsyncAccountsResource:
     ) -> SettlementAddressResponse:
         result = await self._client.request(
             "PUT",
-            f"/account/{account_id}/settlement-addresses",
+            f"/account/settlement/{account_id}/settlement-addresses",
             data,
         )
         return SettlementAddressResponse.from_dict(result)
@@ -123,6 +131,6 @@ class AsyncAccountsResource:
     async def delete_settlement_address(self, account_id: str, network: str) -> None:
         await self._client.request(
             "DELETE",
-            f"/account/{account_id}/settlement-addresses",
+            f"/account/settlement/{account_id}/settlement-addresses",
             query={"network": network},
         )

@@ -9,6 +9,14 @@
 - [TypeScript SDK](packages/backend/sdk/llms-full.txt): `@fluxisus/sdk` — Node.js 18+, zero dependencies, native fetch
 - [C# SDK](packages/backend/sdk-csharp/llms-full.txt): `Fluxis.Sdk` — .NET 6/8, async/await, System.Text.Json
 
+## BLE handoff SDKs (in development)
+
+Hand a NASPIP token from a POS (collector) to a nearby wallet (payer) over Bluetooth LE. They make no REST API calls.
+
+- [Protocol spec](docs/ble-protocol.md): Fluxis BLE Protocol v3, preview only (read-only RECORD + PREVIEW with the NASPIP token; amounts in minor units + scale + currency)
+- [Kotlin/Android](packages/ble/kotlin/README.md): `us.fluxis:fluxis-ble-android` — `FluxisBleCollector`, `FluxisBlePayer`, `FluxisBlePermissions` (minSdk 26)
+- [Swift/iOS](packages/ble/swift/README.md): `FluxisBLE` — `FluxisBLEPayer` (CoreBluetooth, iOS 15+)
+
 ## Frontend SDKs (in development)
 
 Browser/UI packages under `packages/frontend/` — see [`packages/frontend/README.md`](packages/frontend/README.md). No `llms-full.txt` yet.

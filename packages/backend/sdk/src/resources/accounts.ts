@@ -8,6 +8,19 @@ import type {
 } from '../types/accounts.js';
 import type { SettlementAddressResponse } from '../types/organization.js';
 
+/** Canonical read path on core-api (`GET /account/{accountId}/settlement-addresses`). */
+function accountSettlementReadPath(accountId: string): string {
+  return `/account/${accountId}/settlement-addresses`;
+}
+
+/**
+ * Write path on core-api. POST/PUT/DELETE (and a redundant GET) live under
+ * `/account/settlement/{accountID}/settlement-addresses`.
+ */
+function accountSettlementWritePath(accountId: string): string {
+  return `/account/settlement/${accountId}/settlement-addresses`;
+}
+
 export class AccountsResource {
   constructor(private readonly client: FluxisClient) {}
 
@@ -34,7 +47,7 @@ export class AccountsResource {
   async getSettlementAddresses(accountId: string): Promise<AccountSettlementAddresses> {
     return this.client.request<AccountSettlementAddresses>(
       'GET',
-      `/account/${accountId}/settlement-addresses`,
+      accountSettlementReadPath(accountId),
     );
   }
 
@@ -44,7 +57,7 @@ export class AccountsResource {
   ): Promise<SettlementAddressResponse> {
     return this.client.request<SettlementAddressResponse>(
       'POST',
-      `/account/${accountId}/settlement-addresses`,
+      accountSettlementWritePath(accountId),
       data,
     );
   }
@@ -55,7 +68,7 @@ export class AccountsResource {
   ): Promise<SettlementAddressResponse> {
     return this.client.request<SettlementAddressResponse>(
       'PUT',
-      `/account/${accountId}/settlement-addresses`,
+      accountSettlementWritePath(accountId),
       data,
     );
   }
@@ -63,7 +76,7 @@ export class AccountsResource {
   async deleteSettlementAddress(accountId: string, network: string): Promise<void> {
     await this.client.request<void>(
       'DELETE',
-      `/account/${accountId}/settlement-addresses`,
+      accountSettlementWritePath(accountId),
       undefined,
       { network },
     );

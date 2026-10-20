@@ -28,6 +28,10 @@ jobs:
       react_release_created: ${{ steps.release.outputs['packages/frontend/react--release_created'] }}
       react_tag_name: ${{ steps.release.outputs['packages/frontend/react--tag_name'] }}
       react_version: ${{ steps.release.outputs['packages/frontend/react--version'] }}
+      ble_kotlin_release_created: ${{ steps.release.outputs['packages/ble/kotlin--release_created'] }}
+      ble_kotlin_version: ${{ steps.release.outputs['packages/ble/kotlin--version'] }}
+      ble_swift_release_created: ${{ steps.release.outputs['packages/ble/swift--release_created'] }}
+      ble_swift_version: ${{ steps.release.outputs['packages/ble/swift--version'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -165,3 +169,76 @@ jobs:
         run: npm publish --workspace=packages/frontend/react --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-ble-kotlin:
+    needs: release-please
+    if: needs.release-please.outputs.ble_kotlin_release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: packages/ble/kotlin
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test
+        run: ./gradlew --no-daemon :core:test :android:testDebugUnitTest :android:lintDebug
+
+      # us.fluxis:fluxis-ble-core and us.fluxis:fluxis-ble-android; the version comes from
+      # version.txt, which release-please bumped in the release PR.
+      - name: Publish to GitHub Packages
+        run: ./gradlew --no-daemon publishAllPublicationsToGitHubPackagesRepository
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Swift Package Manager resolves packages by repository root and semver tag, so the
+  # package is mirrored (with the shared vectors and the spec) to fluxisus/fluxis-ble-swift
+  # and tagged there as v<version>, like the Go SDK's mirror.
+  publish-ble-swift:
+    needs: release-please
+    if: needs.release-please.outputs.ble_swift_release_created == 'true'
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build mirror snapshot
+        run: |
+          MIRROR="$RUNNER_TEMP/mirror"
+          rm -rf "$MIRROR" && mkdir -p "$MIRROR/test-vectors" "$MIRROR/docs"
+          rsync -a --exclude '.build' --exclude '.swiftpm' --exclude 'CLAUDE.md' \
+            packages/ble/swift/ "$MIRROR/"
+          cp packages/ble/test-vectors/vectors.json packages/ble/test-vectors/README.md "$MIRROR/test-vectors/"
+          cp docs/ble-protocol.md "$MIRROR/docs/"
+          cp LICENSE "$MIRROR/"
+
+      - name: Test the mirror as consumers will see it
+        working-directory: ${{ runner.temp }}/mirror
+        run: swift test
+
+      - name: Push to public repo
+        working-directory: ${{ runner.temp }}/mirror
+        env:
+          GH_PAT: ${{ secrets.BLE_SWIFT_MIRROR_TOKEN }}
+          VERSION: ${{ needs.release-please.outputs.ble_swift_version }}
+        run: |
+          rm -rf .build
+          git init -q && git checkout -q -b main
+          git config user.name "fluxis-bot"
+          git config user.email "dev@fluxis.us"
+          git add -A && git commit -q -m "release: v${VERSION}"
+          git tag "v${VERSION}"
+          git remote add origin "https://x-access-token:${GH_PAT}@github.com/fluxisus/fluxis-ble-swift.git"
+          git push --force origin main
+          git push --force origin "v${VERSION}"

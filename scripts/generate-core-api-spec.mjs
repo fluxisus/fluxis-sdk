@@ -459,22 +459,29 @@ const paths = {
       parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
       responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountSettlementAddressesResponseSchema') } } }, ...errorResponses },
     },
+  },
+  '/account/settlement/{accountID}/settlement-addresses': {
+    get: {
+      tags: ['Accounts'], summary: 'Get settlement addresses (nested path)', security,
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/GetAccountSettlementAddressesResponseSchema') } } }, ...errorResponses },
+    },
     post: {
       tags: ['Accounts'], summary: 'Set settlement addresses', security,
-      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
       requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
       responses: { 201: { description: 'Created', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
     },
     put: {
       tags: ['Accounts'], summary: 'Update settlement addresses', security,
-      parameters: [{ name: 'accountId', in: 'path', required: true, schema: { type: 'string' } }],
+      parameters: [{ name: 'accountID', in: 'path', required: true, schema: { type: 'string' } }],
       requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/AccountSetSettlementAddressRequestSchema' } } } },
       responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/AccountSettlementAddressResponseSchema') } } }, 400: errorResponses[400], 403: errorResponses[403] },
     },
     delete: {
       tags: ['Accounts'], summary: 'Delete settlement addresses', security,
       parameters: [
-        { name: 'accountId', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'accountID', in: 'path', required: true, schema: { type: 'string' } },
         { name: 'network', in: 'query', required: true, schema: { type: 'string' } },
       ],
       responses: { 200: { description: 'OK', content: { 'application/json': { schema: apiResponse('#/components/schemas/OkResponse') } } }, ...errorResponses },

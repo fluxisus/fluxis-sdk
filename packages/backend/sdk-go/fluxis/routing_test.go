@@ -165,6 +165,7 @@ func TestAccountsResourceRouting(t *testing.T) {
 	require.NoError(t, err)
 	req = env.lastAPIRequest()
 	assert.Equal(t, http.MethodPost, req.method)
+	assert.Equal(t, "/account/settlement/acc-1/settlement-addresses", req.path)
 	assert.Contains(t, req.body, `"network":"polygon"`)
 
 	_, err = env.client.Accounts.UpdateSettlementAddress(ctx, "acc-1", &SettlementAddressRequest{
@@ -172,11 +173,14 @@ func TestAccountsResourceRouting(t *testing.T) {
 		Network: "ethereum",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, http.MethodPut, env.lastAPIRequest().method)
+	req = env.lastAPIRequest()
+	assert.Equal(t, http.MethodPut, req.method)
+	assert.Equal(t, "/account/settlement/acc-1/settlement-addresses", req.path)
 
 	err = env.client.Accounts.DeleteSettlementAddress(ctx, "acc-1", "polygon")
 	require.NoError(t, err)
 	req = env.lastAPIRequest()
+	assert.Equal(t, "/account/settlement/acc-1/settlement-addresses", req.path)
 	assert.Equal(t, "polygon", req.query.Get("network"))
 }
 
