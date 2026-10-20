@@ -2,50 +2,32 @@ package us.fluxis.ble.core
 
 import java.util.UUID
 
-/** Wire constants of the Fluxis BLE Handoff Protocol v3 (docs/ble-protocol.md). */
+/** Wire constants of the Fluxis BLE Protocol v3, preview only (docs/ble-protocol.md). */
 public object FluxisBle {
     public const val PROTOCOL_VERSION: Int = 3
 
     public val SERVICE_UUID: UUID = UUID.fromString("f1b10100-6ff9-4bf4-a699-f9b7aa31119b")
+    /** Unauthenticated hints: sessionId, amount, display name (spec §4.1). */
     public val RECORD_UUID: UUID = UUID.fromString("f1b10101-6ff9-4bf4-a699-f9b7aa31119b")
-    public val CONTROL_UUID: UUID = UUID.fromString("f1b10102-6ff9-4bf4-a699-f9b7aa31119b")
-    public val DATA_UUID: UUID = UUID.fromString("f1b10103-6ff9-4bf4-a699-f9b7aa31119b")
-    public val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+    /** The active sale: NASPIP token, or the POS id as a fallback (spec §4.2). */
+    public val PREVIEW_UUID: UUID = UUID.fromString("f1b10104-6ff9-4bf4-a699-f9b7aa31119b")
 
     public const val DEFAULT_MTU: Int = 23
-    public const val FRAME_HEADER_BYTES: Int = 3
-    public const val MAX_MESSAGE_BYTES: Int = 4096
-    public const val MAX_FRAMES: Int = 255
 
+    /** ATT maximum attribute value length; no Fluxis value is longer. */
+    public const val MAX_ATTRIBUTE_BYTES: Int = 512
     public const val SESSION_ID_BYTES: Int = 16
-    public const val PUBLIC_KEY_BYTES: Int = 65
-    public const val NONCE_BYTES: Int = 12
-    public const val TAG_BYTES: Int = 16
-    public const val ACK_BYTES: Int = 16
-    public const val START_BYTES: Int = 1 + SESSION_ID_BYTES + PUBLIC_KEY_BYTES
+    public const val POS_ID_BYTES: Int = 16
+    public const val PREVIEW_HEADER_BYTES: Int = 1 + SESSION_ID_BYTES + 1
+
+    /** Largest NASPIP token (UTF-8 bytes) carried in PREVIEW; longer tokens use the POS id. */
+    public const val MAX_PREVIEW_TOKEN_BYTES: Int = MAX_ATTRIBUTE_BYTES - PREVIEW_HEADER_BYTES
 
     public const val MAX_DISPLAY_NAME_BYTES: Int = 64
     public const val MAX_CURRENCY_CHARS: Int = 12
     public const val MAX_SCALE: Int = 18
+    public const val MAX_RECORD_BYTES: Int = 1 + 1 + SESSION_ID_BYTES + 8 + 1 + 1 + MAX_CURRENCY_CHARS + 1 + MAX_DISPLAY_NAME_BYTES
 
-    /** Largest NASPIP token (UTF-8 bytes) that fits in one DATA message. */
-    public const val MAX_TOKEN_BYTES: Int = MAX_MESSAGE_BYTES - NONCE_BYTES - TAG_BYTES - 1
-
-    public const val DEFAULT_TTL_SECONDS: Int = 120
-    public const val MAX_TTL_SECONDS: Int = 300
-
+    /** The collector disconnects a peer this long after it connected. */
     public const val T_IDLE_MS: Long = 15_000
-    public const val T_FRAME_MS: Long = 3_000
-    public const val T_ACK_MS: Long = 5_000
-    public const val T_LINGER_MS: Long = 250
-    public const val T_FIRST_RESPONSE_MS: Long = 5_000
-
-    /** Payers hide records that expired more than this long ago by their own clock. */
-    public const val EXPIRY_TOLERANCE_SECONDS: Long = 60
-
-    /** Largest frame payload for an ATT MTU: frame = MTU − 3, payload = frame − 3. */
-    public fun maxFramePayload(mtu: Int): Int {
-        if (mtu < DEFAULT_MTU) throw FluxisBleProtocolException(ProtocolErrorCode.MTU_TOO_SMALL)
-        return mtu - 3 - FRAME_HEADER_BYTES
-    }
 }

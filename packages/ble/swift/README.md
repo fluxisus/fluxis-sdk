@@ -1,16 +1,15 @@
 # Fluxis BLE for iOS (Swift)
 
 Payer (wallet) role of the
-[Fluxis BLE Handoff Protocol v3](https://github.com/fluxisus/fluxis-sdk/blob/main/docs/ble-protocol.md)
-for iOS 15+ and macOS 12+, on CoreBluetooth and CryptoKit.
+[Fluxis BLE Protocol v3 (preview only)](https://github.com/fluxisus/fluxis-sdk/blob/main/docs/ble-protocol.md)
+for iOS 15+ and macOS 12+, on CoreBluetooth.
 
 | Library | Contents |
 |---|---|
 | `FluxisBLE` | `FluxisBLEPayer` (CoreBluetooth central). Re-exports `FluxisBLECore`. |
-| `FluxisBLECore` | Wire format, crypto, `PayerSession` and the transport-independent `PayerFlow`. No CoreBluetooth; also builds on Linux with swift-crypto. |
+| `FluxisBLECore` | Wire format (`DiscoveryRecord`, `PreviewValue`, `FluxisAmount`), `FluxisBLEPreview` and the transport-independent `PreviewFlow`. No CoreBluetooth; also builds on Linux. |
 
-There are no third-party dependencies on Apple platforms. On Linux the core uses
-[swift-crypto](https://github.com/apple/swift-crypto), which has the same API as CryptoKit.
+There are no dependencies.
 
 ## Install
 
@@ -32,7 +31,7 @@ payer runs:
 
 ```xml
 <key>NSBluetoothAlwaysUsageDescription</key>
-<string>Bluetooth is used to receive payment requests from nearby points of sale.</string>
+<string>Bluetooth is used to show the sale of a nearby point of sale.</string>
 ```
 
 ## Payer (wallet)
@@ -42,57 +41,60 @@ import FluxisBLE
 
 let payer = FluxisBLEPayer()
 
-// "Tap to pay": connect to the strongest collector nearby and take its token.
-func payNearby() async {
+func previewNearestSale() async {
     do {
-        let delivery = try await payer.claimNearest()
-        let payment = try await walletAPI.resolveNaspip(delivery.token)  // your backend / POST /naspip/read
-        showConfirmation(merchant: payment.merchant, amount: payment.amount)  // from the API, never from the record
+        let preview = try await payer.readNearestPreview()
+        let sale: Sale
+        switch preview.content {
+        case .naspip(let token): sale = try await walletAPI.readQR(token)        // POST /public/qr/read → merchant + checkout URL
+        case .posId(let posId):  sale = try await walletAPI.checkout(posId)      // GET /public/checkout/pos/{posId}
+        }
+        showConfirmation(merchant: sale.merchant, amount: sale.amount)           // from the API, never preview.record
+        // On "Pay": re-fetch the payment request, check it is still pending, then sign and pay.
     } catch let error as FluxisBLEPayerError {
         switch error.reason {
-        case .busy: show("The POS is serving someone else, try again")
         case .notFound: show("No Fluxis POS nearby")
+        case .notSupported: show("This POS doesn't publish its sale; scan the QR")
         case .bluetoothOff: show("Turn on Bluetooth")
-        case .unauthorized: openSettings()
-        case .cancelled: break
-        default: show("Couldn't receive the payment (\(error.reason.rawValue))")
+        default: show("Bluetooth error: \(error.message)")
         }
-    } catch {
-        show("Unexpected error: \(error)")
-    }
+    } catch {}
 }
 
-// Or let the user pick:
-let candidates = try await payer.discover()    // records read, expired ones hidden
-// candidates[i].displayName, candidates[i].amount?.description (e.g. "ARS 12.50"), .rssi
-let delivery = try await payer.claim(candidates[chosen])
+// Or let the user pick among several POS:
+let candidates = try await payer.discover()     // RECORD read: displayName + amount hints, rssi
+let preview = try await payer.readPreview(candidates[chosen])
 ```
 
 | Call | What it does |
 |---|---|
-| `discover(scanTimeout: 4, maxCandidates: 5)` | Scans for the Fluxis service, then reads the record of the strongest collectors. |
-| `claim(_:timeout: 15)` | Connects, runs START/DATA/ACK and returns `FluxisBLEDelivery(token:record:)`. |
-| `claimNearest(scanTimeout: 6, timeout: 15)` | Waits for the first collector, keeps the strongest seen over 0.8 s more, and claims it. |
+| `discover(scanTimeout: 4, maxCandidates: 5)` | Scans, then reads `RECORD` from the strongest collectors; returns `[FluxisBLECandidate]`. |
+| `readPreview(_:timeout: 6)` | Short connection: reads `RECORD` and `PREVIEW` (CoreBluetooth does the long read), disconnects, checks the session ids match. |
+| `readNearestPreview(scanTimeout: 6, timeout: 6)` | Waits for the first collector, keeps the strongest seen over 0.8 s more, and reads its preview. |
 
+- `FluxisBLEPreview` has `record`, `sessionId`, `content` (`.naspip(String)` or
+  `.posId(UUID)`), `identifier` and `rssi`, plus `token`/`posId` shortcuts. Its `description`
+  never prints the token.
 - Errors are `FluxisBLEPayerError` with a `reason`: `bluetoothUnavailable`, `bluetoothOff`,
-  `unauthorized`, `notFound`, `connectionFailed`, `busy`, `rejected` (see `collectorError`),
-  `expired`, `protocolError`, `decryptFailed`, `timeout` or `cancelled`.
+  `unauthorized`, `notFound`, `connectionFailed`, `notSupported` (no PREVIEW), `invalid` (see
+  `protocolError`), `timeout` or `cancelled`.
 - Cancel the calling `Task` to abort; the connection is closed and the call throws `.cancelled`.
 - `FluxisBLEPayer(options: .init(showPowerAlert: true))` lets iOS show its own "Turn on
   Bluetooth" alert. It's off by default so the wallet can show its own UI.
 - Scanning works in the foreground. iOS throttles background scans and ignores
   duplicate-advertisement updates while backgrounded.
 
-The record's `displayName` and `amount` are unauthenticated hints: any nearby device can
-advertise a fake collector. Show the merchant and amount returned by the Fluxis API for the
-token and have the user confirm them (§8 of the spec).
+The preview is public, like the QR on the POS screen, and the record fields are
+unauthenticated. Show the merchant from `POST /public/qr/read` and the amount from
+`GET /public/checkout/pos/{posId}`, make the merchant name prominent (a fake collector is the
+BLE version of a swapped QR sticker), and re-check that the request is still pending right
+before signing (§7–8 of the spec).
 
 ## Other transports and testing
 
-`PayerFlow.deliver(over:)` runs the payer side of the protocol over any type that conforms to
-`FluxisBLELink` (read the record, subscribe, write CONTROL frames, receive indications).
-`FluxisBLEPayer` is the CoreBluetooth implementation. The unit tests drive the same flow
-against an in-memory collector built from the shared test vectors.
+`PreviewFlow.read(over:)` runs the payer's read sequence over any type that conforms to
+`FluxisBLEReadLink` (discover, read RECORD, read PREVIEW). `FluxisBLEPayer` is the
+CoreBluetooth implementation; the unit tests use an in-memory link.
 
 ## Collector on iOS
 
@@ -106,7 +108,7 @@ Android collector in `us.fluxis:fluxis-ble-android`.
 ```bash
 cd packages/ble/swift
 swift build
-swift test      # shared vectors + PayerFlow scenarios; runs on macOS and on Linux
+swift test      # shared vectors + PreviewFlow scenarios; runs on macOS and on Linux
 ```
 
 On Linux only `FluxisBLECore` is compiled (the CoreBluetooth sources are behind

@@ -1,3 +1,8 @@
+> **Superseded in part (2026-10-20).** The claim handshake designed below (ECDH, AES-GCM,
+> framing, BUSY, re-arm, expiry) was replaced by a read-only PREVIEW characteristic. See the
+> revision note in `proposal.md` and `docs/ble-protocol.md` §2 and §8 for the current design and
+> its security model (the preview is public, like the printed QR).
+
 ## Context
 
 The prototype (TeroKiosk ↔ Fluxis iOS) proved that a POS can serve the NASPIP token over a GATT

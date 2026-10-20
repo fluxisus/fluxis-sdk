@@ -3,7 +3,6 @@ package us.fluxis.ble.android
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -18,14 +17,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
-import us.fluxis.ble.core.AbortReason
-import us.fluxis.ble.core.CollectorErrorCode
 import us.fluxis.ble.core.DiscoveryRecord
 import us.fluxis.ble.core.FluxisAmount
 import us.fluxis.ble.core.FluxisBle
 import us.fluxis.ble.core.FluxisBleProtocolException
-import us.fluxis.ble.core.PayerEvent
-import us.fluxis.ble.core.PayerSession
+import us.fluxis.ble.core.PreviewContent
+import us.fluxis.ble.core.PreviewValue
+import java.util.UUID
 
 /** A collector seen while scanning (not yet connected). */
 public class FluxisBleAdvertisement(public val address: String, public val rssi: Int, internal val device: BluetoothDevice)
@@ -39,24 +37,38 @@ public class FluxisBleCandidate internal constructor(
 ) {
     public val displayName: String get() = record.displayName
     public val amount: FluxisAmount? get() = record.amount
-    public val expiresAtEpochSeconds: Long get() = record.expiresAtEpochSeconds
 }
 
 /**
- * A delivered NASPIP token. Resolve it with the Fluxis API and show the merchant and amount the
- * API returns; [record] only says which POS it came from.
+ * The active sale of a nearby POS. Resolve [content] with the Fluxis API and show the merchant
+ * and amount the API returns; [record] only holds unauthenticated hints.
+ *
+ * - [PreviewContent.Naspip]: `POST /public/qr/read {"token": …}` → merchant + checkout URL.
+ * - [PreviewContent.PosId]: `GET /public/checkout/pos/{posId}` directly.
+ *
+ * Several payers may see the same sale: re-check that the payment request is still pending
+ * right before signing.
  */
-public class FluxisBleDelivery internal constructor(
-    public val token: String,
+public class FluxisBlePreview internal constructor(
     public val record: DiscoveryRecord,
+    sessionId: ByteArray,
+    public val content: PreviewContent,
     public val address: String,
-)
+    public val rssi: Int,
+) {
+    private val sid = sessionId.copyOf()
+    public val sessionId: ByteArray get() = sid.copyOf()
+
+    /** The NASPIP token, or null when the POS published its id instead. */
+    public val token: String? get() = (content as? PreviewContent.Naspip)?.token
+
+    /** The POS id, when the POS published it instead of the token. */
+    public val posId: UUID? get() = (content as? PreviewContent.PosId)?.posId
+}
 
 public class FluxisBlePayerException internal constructor(
     public val reason: Reason,
     message: String,
-    /** Set when [reason] is [Reason.REJECTED]: the collector's ERROR code. */
-    public val collectorError: CollectorErrorCode? = null,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
     public enum class Reason {
@@ -66,25 +78,23 @@ public class FluxisBlePayerException internal constructor(
         SCAN_FAILED,
         NOT_FOUND,
         CONNECTION_FAILED,
-        /** The POS is serving another payer; retrying shortly usually works. */
-        BUSY,
-        /** The POS answered with ERROR; see [collectorError]. */
-        REJECTED,
-        EXPIRED,
-        PROTOCOL_ERROR,
-        DECRYPT_FAILED,
+        /** The collector has no PREVIEW characteristic. */
+        NOT_SUPPORTED,
+        /** RECORD or PREVIEW failed strict decoding, or their session ids differ. */
+        INVALID,
         TIMEOUT,
     }
 }
 
 /**
- * Payer (wallet) role on Android: finds Fluxis collectors and receives the NASPIP token over
- * BLE (docs/ble-protocol.md §7). Host-agnostic: it returns the token and nothing else.
+ * Payer (wallet) role on Android: finds Fluxis collectors and reads the active sale they publish
+ * (docs/ble-protocol.md §7). Read-only and host-agnostic: it never claims or locks the POS and
+ * never calls the Fluxis API.
  *
  * ```
  * val payer = FluxisBlePayer(context)
- * val delivery = payer.claimNearest()          // or: discover() + claim(candidate)
- * val payment = myWalletBackend.resolveNaspip(delivery.token)
+ * val preview = payer.readNearestPreview()          // or: discover() + readPreview(candidate)
+ * val sale = myWalletBackend.resolve(preview)       // /public/qr/read + /public/checkout/pos/{posId}
  * ```
  */
 @SuppressLint("MissingPermission")
@@ -121,7 +131,7 @@ public class FluxisBlePayer(context: Context) {
 
     /**
      * Scans for [scanTimeoutMs], then reads the record of up to [maxCandidates] collectors
-     * (strongest signal first). Expired and unreadable collectors are skipped.
+     * (strongest signal first). Unreadable collectors are skipped.
      */
     @JvmOverloads
     public suspend fun discover(scanTimeoutMs: Long = 4_000, maxCandidates: Int = 5): List<FluxisBleCandidate> {
@@ -129,34 +139,31 @@ public class FluxisBlePayer(context: Context) {
         withTimeoutOrNull(scanTimeoutMs) {
             scan().collect { ad -> if ((seen[ad.address]?.rssi ?: Int.MIN_VALUE) < ad.rssi) seen[ad.address] = ad }
         }
-        val nowSeconds = System.currentTimeMillis() / 1000
         val candidates = mutableListOf<FluxisBleCandidate>()
         for (ad in seen.values.sortedByDescending { it.rssi }.take(maxCandidates)) {
             val record = try {
-                readRecord(ad.device)
+                withTimeoutOrNull(DEFAULT_READ_TIMEOUT_MS) { readRecord(ad.device) } ?: continue
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 continue
             }
-            if (!record.isExpired(nowSeconds, FluxisBle.EXPIRY_TOLERANCE_SECONDS)) {
-                candidates += FluxisBleCandidate(ad.address, ad.rssi, record, ad.device)
-            }
+            candidates += FluxisBleCandidate(ad.address, ad.rssi, record, ad.device)
         }
         return candidates
     }
 
-    /** Claims the token from [candidate] over a fresh connection. */
+    /** Short connection to [candidate]: reads RECORD and PREVIEW, then disconnects. */
     @JvmOverloads
-    public suspend fun claim(candidate: FluxisBleCandidate, timeoutMs: Long = 15_000): FluxisBleDelivery =
-        deliver(candidate.device, timeoutMs)
+    public suspend fun readPreview(candidate: FluxisBleCandidate, timeoutMs: Long = DEFAULT_READ_TIMEOUT_MS): FluxisBlePreview =
+        preview(candidate.device, candidate.rssi, timeoutMs)
 
     /**
      * Scans until a collector is seen (keeping the strongest one found within a short settle
-     * window) and claims its token in one connection. For the common "tap phone to POS" flow.
+     * window) and reads its preview. For the common "hold the phone near the POS" flow.
      */
     @JvmOverloads
-    public suspend fun claimNearest(scanTimeoutMs: Long = 6_000, timeoutMs: Long = 15_000): FluxisBleDelivery {
+    public suspend fun readNearestPreview(scanTimeoutMs: Long = 6_000, timeoutMs: Long = DEFAULT_READ_TIMEOUT_MS): FluxisBlePreview {
         val seen = LinkedHashMap<String, FluxisBleAdvertisement>()
         val first = withTimeoutOrNull(scanTimeoutMs) { scan().first() }
             ?: throw error(FluxisBlePayerException.Reason.NOT_FOUND, "no Fluxis collector in range")
@@ -164,86 +171,58 @@ public class FluxisBlePayer(context: Context) {
         withTimeoutOrNull(SETTLE_MS) {
             scan().collect { ad -> if ((seen[ad.address]?.rssi ?: Int.MIN_VALUE) < ad.rssi) seen[ad.address] = ad }
         }
-        return deliver(seen.values.maxByOrNull { it.rssi }!!.device, timeoutMs)
+        val nearest = seen.values.maxByOrNull { it.rssi }!!
+        return preview(nearest.device, nearest.rssi, timeoutMs)
     }
 
     private suspend fun readRecord(device: BluetoothDevice): DiscoveryRecord {
         val client = open(device)
         try {
             val record = client.discover().getCharacteristic(FluxisBle.RECORD_UUID)
-                ?: throw error(FluxisBlePayerException.Reason.PROTOCOL_ERROR, "RECORD characteristic missing")
+                ?: throw error(FluxisBlePayerException.Reason.NOT_SUPPORTED, "RECORD characteristic missing")
             return DiscoveryRecord.decode(client.read(record))
         } finally {
             client.close()
         }
     }
 
-    private suspend fun deliver(device: BluetoothDevice, timeoutMs: Long): FluxisBleDelivery {
+    private suspend fun preview(device: BluetoothDevice, rssi: Int, timeoutMs: Long): FluxisBlePreview {
         ensureReady()
         var client: GattClient? = null
         try {
             return withTimeoutOrNull(timeoutMs) {
-                open(device).also { client = it }.let { runDelivery(it, device) }
-            } ?: throw error(FluxisBlePayerException.Reason.TIMEOUT, "delivery timed out")
+                val c = open(device).also { client = it }
+                // A large MTU turns the ~450-byte long read into one or two round trips.
+                try {
+                    c.requestMtu(DESIRED_MTU)
+                } catch (e: GattException) {
+                    // Keep the default MTU; long reads still work.
+                }
+                val service = c.discover()
+                val recordChar = service.getCharacteristic(FluxisBle.RECORD_UUID)
+                val previewChar = service.getCharacteristic(FluxisBle.PREVIEW_UUID)
+                if (recordChar == null || previewChar == null) {
+                    throw error(FluxisBlePayerException.Reason.NOT_SUPPORTED, "collector has no PREVIEW characteristic")
+                }
+                val recordBytes = c.read(recordChar)
+                val previewBytes = c.read(previewChar)
+                c.close()
+                client = null
+                val record = DiscoveryRecord.decode(recordBytes)
+                val value = PreviewValue.decode(previewBytes)
+                if (!record.sessionId.contentEquals(value.sessionId)) {
+                    throw error(FluxisBlePayerException.Reason.INVALID, "RECORD and PREVIEW session ids differ")
+                }
+                FluxisBlePreview(record, value.sessionId, value.content, device.address, rssi)
+            } ?: throw error(FluxisBlePayerException.Reason.TIMEOUT, "preview read timed out")
         } catch (e: FluxisBleProtocolException) {
-            throw error(FluxisBlePayerException.Reason.PROTOCOL_ERROR, e.message ?: "protocol error", e)
+            throw error(FluxisBlePayerException.Reason.INVALID, e.message ?: "invalid preview", e)
         } catch (e: GattException) {
             throw error(FluxisBlePayerException.Reason.CONNECTION_FAILED, e.message ?: "GATT error", e)
         } catch (e: SecurityException) {
             throw error(FluxisBlePayerException.Reason.PERMISSION_DENIED, "Bluetooth permission missing", e)
         } finally {
             client?.close()
-        }
-    }
-
-    private suspend fun runDelivery(client: GattClient, device: BluetoothDevice): FluxisBleDelivery {
-        val mtu = try {
-            client.requestMtu(DESIRED_MTU)
-        } catch (e: GattException) {
-            client.mtu
-        }
-        val service = client.discover()
-        val recordChar = service.getCharacteristic(FluxisBle.RECORD_UUID)
-        val controlChar = service.getCharacteristic(FluxisBle.CONTROL_UUID)
-        val dataChar = service.getCharacteristic(FluxisBle.DATA_UUID)
-        if (recordChar == null || controlChar == null || dataChar == null) {
-            throw error(FluxisBlePayerException.Reason.PROTOCOL_ERROR, "Fluxis characteristics missing")
-        }
-        val recordBytes = client.read(recordChar)
-        val session = PayerSession(recordBytes, mtu)
-        if (session.record.isExpired(System.currentTimeMillis() / 1000, FluxisBle.EXPIRY_TOLERANCE_SECONDS)) {
-            throw error(FluxisBlePayerException.Reason.EXPIRED, "collector session expired")
-        }
-        client.enableIndications(dataChar)
-        session.startFrames.forEach { client.write(controlChar, it) }
-
-        var waitMs = FluxisBle.T_FIRST_RESPONSE_MS
-        while (true) {
-            val frame = withTimeoutOrNull(waitMs) { client.indications.receive() }
-                ?: run {
-                    writeBestEffort(client, controlChar, session.abortFrames(AbortReason.TIMEOUT))
-                    throw error(FluxisBlePayerException.Reason.TIMEOUT, "collector stopped responding")
-                }
-            waitMs = FluxisBle.T_FRAME_MS
-            when (val event = session.onIndication(frame)) {
-                PayerEvent.Incomplete -> continue
-                is PayerEvent.Delivered -> {
-                    event.ackFrames.forEach { client.write(controlChar, it) }
-                    return FluxisBleDelivery(event.token, session.record, device.address)
-                }
-                PayerEvent.Busy -> throw error(FluxisBlePayerException.Reason.BUSY, "collector is busy with another payer")
-                is PayerEvent.Rejected -> {
-                    val reason = if (event.code == CollectorErrorCode.EXPIRED) FluxisBlePayerException.Reason.EXPIRED
-                    else FluxisBlePayerException.Reason.REJECTED
-                    throw error(reason, "collector rejected the request: ${event.code.name.lowercase()}", collectorError = event.code)
-                }
-                is PayerEvent.Failed -> {
-                    writeBestEffort(client, controlChar, event.abortFrames)
-                    val reason = if (event.reason == AbortReason.DECRYPT_FAILED) FluxisBlePayerException.Reason.DECRYPT_FAILED
-                    else FluxisBlePayerException.Reason.PROTOCOL_ERROR
-                    throw error(reason, event.cause.message ?: "protocol error", cause = event.cause)
-                }
-            }
         }
     }
 
@@ -267,14 +246,6 @@ public class FluxisBlePayer(context: Context) {
         throw error(FluxisBlePayerException.Reason.CONNECTION_FAILED, last?.message ?: "connect failed", cause = last)
     }
 
-    private suspend fun writeBestEffort(client: GattClient, c: BluetoothGattCharacteristic, frames: List<ByteArray>) {
-        try {
-            frames.forEach { client.write(c, it) }
-        } catch (e: GattException) {
-            // The link is being torn down anyway.
-        }
-    }
-
     private fun ensureReady(): BluetoothAdapter {
         val a = adapter ?: throw error(FluxisBlePayerException.Reason.BLUETOOTH_UNAVAILABLE, "no Bluetooth adapter")
         val missing = FluxisBlePermissions.missing(appContext, FluxisBleRole.PAYER)
@@ -283,18 +254,15 @@ public class FluxisBlePayer(context: Context) {
         return a
     }
 
-    private fun error(
-        reason: FluxisBlePayerException.Reason,
-        message: String,
-        cause: Throwable? = null,
-        collectorError: CollectorErrorCode? = null,
-    ) = FluxisBlePayerException(reason, message, collectorError, cause)
+    private fun error(reason: FluxisBlePayerException.Reason, message: String, cause: Throwable? = null) =
+        FluxisBlePayerException(reason, message, cause)
 
-    private companion object {
-        const val DESIRED_MTU = 517
-        const val CONNECT_ATTEMPTS = 2
-        const val CONNECT_TIMEOUT_MS = 6_000L
-        const val RETRY_DELAY_MS = 300L
-        const val SETTLE_MS = 800L
+    public companion object {
+        public const val DEFAULT_READ_TIMEOUT_MS: Long = 6_000
+        private const val DESIRED_MTU = 517
+        private const val CONNECT_ATTEMPTS = 2
+        private const val CONNECT_TIMEOUT_MS = 5_000L
+        private const val RETRY_DELAY_MS = 300L
+        private const val SETTLE_MS = 800L
     }
 }

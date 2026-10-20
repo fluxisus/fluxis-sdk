@@ -1,30 +1,30 @@
 ## ADDED Requirements
 
 ### Requirement: Host-agnostic payer API
-The Android (`FluxisBlePayer`) and iOS (`FluxisBLEPayer`) SDKs SHALL expose `discover`, `claim(candidate)` and `claimNearest`, returning the NASPIP token and the discovery record. They SHALL NOT call the Fluxis API or depend on wallet code.
+The Android (`FluxisBlePayer`) and iOS (`FluxisBLEPayer`) SDKs SHALL expose `discover`, `readPreview(candidate)` and `readNearestPreview`, returning a preview with the record, session id and content (NASPIP token or POS id). They SHALL NOT call the Fluxis API or depend on wallet code.
 
-#### Scenario: Tap to pay
-- **WHEN** a wallet calls `claimNearest()` near a `ready` collector
-- **THEN** it receives a delivery whose `token` equals the collector's NASPIP token
+#### Scenario: Hold the phone near the POS
+- **WHEN** a wallet calls `readNearestPreview()` near an advertising collector
+- **THEN** it receives a preview whose token equals the collector's NASPIP token, after a short connect, read and disconnect
 
 #### Scenario: Picker flow
 - **WHEN** a wallet calls `discover()`
-- **THEN** it receives candidates with display name, amount hint, RSSI and expiry, sorted by signal strength, excluding records that expired more than 60 seconds ago
+- **THEN** it receives candidates with display name, amount hint and RSSI, strongest signal first
 
 ### Requirement: Typed failures
-Payer operations SHALL fail with a typed error whose reason distinguishes Bluetooth unavailable or off, permission denied, not found, connection failure, busy, rejected (with the collector's ERROR code), expired, protocol error, decrypt failure, timeout and, on iOS, cancellation.
+Payer operations SHALL fail with a typed error whose reason distinguishes Bluetooth unavailable or off, permission denied, not found, connection failure, not supported (no PREVIEW), invalid value, timeout and, on iOS, cancellation.
 
-#### Scenario: Collector busy
-- **WHEN** the collector answers START with BUSY
-- **THEN** the payer fails with reason `busy` and the wallet can retry
+#### Scenario: Collector without PREVIEW
+- **WHEN** the connected device serves RECORD but not PREVIEW
+- **THEN** the payer fails with reason `notSupported` / `NOT_SUPPORTED`
 
-#### Scenario: Collector silent
-- **WHEN** no DATA, BUSY or ERROR frame arrives within 5 seconds of START
-- **THEN** the payer writes ABORT `timeout` and fails with reason `timeout`
+#### Scenario: Mismatched session
+- **WHEN** RECORD and PREVIEW carry different session ids
+- **THEN** the payer fails with reason `invalid`
 
 ### Requirement: Transport-independent payer flow
-The payer protocol logic SHALL run over a link abstraction (`FluxisBLELink` in Swift, `PayerSession` in Kotlin) so it can be tested without Bluetooth on every CI platform.
+The Swift payer read sequence SHALL run over a link abstraction (`FluxisBLEReadLink`, `PreviewFlow`) so it can be tested without Bluetooth on every CI platform.
 
 #### Scenario: Flow tested on Linux
 - **WHEN** `swift test` runs on Linux
-- **THEN** `PayerFlow` delivers the vector token over an in-memory collector at MTUs 23 and 185
+- **THEN** `PreviewFlow` reads the vector preview over an in-memory link

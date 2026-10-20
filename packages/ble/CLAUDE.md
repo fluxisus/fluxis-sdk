@@ -12,9 +12,10 @@
 2. `vectors.json`: `cd test-vectors/reference && python3 generate_vectors.py`;
 3. every SDK, until `./gradlew :core:test` and `swift test` pass against the new vectors.
 
-Never edit `vectors.json` by hand; CI runs `generate_vectors.py --check`. Any wire-format change
-bumps the protocol version byte. Versions `1` and `2` are reserved for the prototype and stay
-rejected.
+Never edit `vectors.json` by hand; CI runs `generate_vectors.py --check`. Once an SDK version
+has been released, any wire-format change bumps the protocol version byte (the preview-only
+redesign replaced the unreleased claim draft of v3 in place). Versions `1` and `2` are
+reserved for the prototype and stay rejected.
 
 ## Layout
 
@@ -23,24 +24,25 @@ packages/ble/
 ├── test-vectors/                 # vectors.json + reference/ (Python, `cryptography`)
 ├── kotlin/                       # Gradle 8.11, AGP 8.7, Kotlin 2.1, explicitApi
 │   ├── core/                     # us.fluxis.ble.core — pure JVM, no Android imports
-│   │   ├── DiscoveryRecord, FluxisAmount, Framing, Handshake, Crypto
-│   │   ├── PayerSession          # sans-IO payer state machine
-│   │   └── CollectorEngine       # sans-IO collector state machine (spec §6)
+│   │   ├── DiscoveryRecord, PreviewValue, FluxisAmount
+│   │   └── CollectorEngine       # sans-IO collector: offset reads, T_IDLE (spec §6)
 │   └── android/                  # us.fluxis.ble.android — thin adapters over core
 │       ├── FluxisBleCollector    # GATT server + advertiser on a HandlerThread
 │       ├── FluxisBlePayer        # central; coroutines
 │       ├── GattClient            # internal suspend wrapper over BluetoothGatt
 │       └── FluxisBlePermissions  # device API × targetSdk decision table
 └── swift/                        # SwiftPM, tools 5.9, iOS 15 / macOS 12
-    ├── Sources/FluxisBLECore/    # pure Swift; CryptoKit (Apple) / swift-crypto (Linux)
-    │   └── PayerFlow             # payer protocol over the FluxisBLELink protocol
+    ├── Sources/FluxisBLECore/    # pure Swift, no dependencies
+    │   └── Preview               # PreviewValue, FluxisBLEPreview, PreviewFlow over FluxisBLEReadLink
     └── Sources/FluxisBLE/        # CoreBluetooth, all behind #if canImport(CoreBluetooth)
 ```
 
 ## Rules
 
 - **Host-agnostic.** No dependency on Fluxis app, Tero or POS code, and no Fluxis API calls. The
-  collector takes a token; the payer returns a token.
+  collector takes a token; the payer returns a preview (token or POS id).
+- **Read-only link.** No claim, lock or writable attribute: every payer can read the active
+  sale, and payment happens through the API. Don't reintroduce per-peer protocol state.
 - **Sans-IO cores.** Protocol logic lives in `core` / `FluxisBLECore` and is tested without
   Bluetooth. Platform layers only translate callbacks into engine calls. A bug that can be
   reproduced in a core test gets one.
@@ -58,9 +60,9 @@ packages/ble/
   `CancellationException`.
 - **Swift.** Keep the package warning-free under `-strict-concurrency=complete`. The
   CoreBluetooth layer confines state to one serial queue and bridges callbacks with
-  `FluxisBLEPending` / `FluxisBLEInbox`.
-- **Secrets.** Never log tokens, keys or shared secrets. The collector's `logger` option only
-  receives phases and reasons.
+  `FluxisBLEPending`.
+- **Secrets.** Never log tokens. The collector's `logger` option only receives phases, sizes and
+  reasons; `description`/`toString` of previews print the token length, not the token.
 
 ## Testing
 
@@ -70,7 +72,7 @@ cd packages/ble/kotlin && ./gradlew :core:test :android:testDebugUnitTest :andro
 cd packages/ble/swift && swift test
 ```
 
-Real BLE behaviour (advertising, MTU, indications, iOS ↔ Android interop) can only be checked
+Real BLE behaviour (advertising, MTU, long reads, iOS ↔ Android interop) can only be checked
 on devices; see the manual test plan in `openspec/changes/ble-payment-sdk/tasks.md`.
 
 ## Releasing

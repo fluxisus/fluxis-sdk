@@ -1,36 +1,25 @@
 import Foundation
 
-/// The value of the RECORD characteristic (spec §5.1). Payers read it to show a candidate, and
-/// both sides hash its exact bytes into the transcript.
+/// The value of the RECORD characteristic (spec §4.1): unauthenticated hints that a payer can
+/// show in a picker of nearby POS. `sessionId` ties it to the PREVIEW value of the same session.
 ///
 /// `amount` and `displayName` are informational only: wallets must show the merchant and amount
-/// that the Fluxis API returns for the NASPIP token.
+/// that the Fluxis API returns for the preview.
 public struct DiscoveryRecord: Hashable, Sendable {
     public static let flagAmountPresent: UInt8 = 0x01
 
-    public let expiresAt: UInt32
     public let sessionId: [UInt8]
-    public let collectorPublicKey: [UInt8]
     public let amount: FluxisAmount?
     public let displayName: String
 
-    public init(expiresAt: UInt32, sessionId: [UInt8], collectorPublicKey: [UInt8], amount: FluxisAmount?, displayName: String) {
-        self.expiresAt = expiresAt
+    public init(sessionId: [UInt8], amount: FluxisAmount?, displayName: String) {
         self.sessionId = sessionId
-        self.collectorPublicKey = collectorPublicKey
         self.amount = amount
         self.displayName = displayName
     }
 
-    public var expiresAtDate: Date { Date(timeIntervalSince1970: TimeInterval(expiresAt)) }
-
-    public func isExpired(now: Date = Date(), toleranceSeconds: UInt32 = 0) -> Bool {
-        now.timeIntervalSince1970 >= TimeInterval(UInt64(expiresAt) + UInt64(toleranceSeconds))
-    }
-
     public func encode() throws -> [UInt8] {
         guard sessionId.count == FluxisBLEConstants.sessionIdBytes else { throw FluxisBLEProtocolError.invalidSessionId }
-        _ = try P256Keys.validatePublicKey(collectorPublicKey)
         let name = Array(displayName.utf8)
         guard (1...FluxisBLEConstants.maxDisplayNameBytes).contains(name.count) else {
             throw FluxisBLEProtocolError.invalidDisplayName
@@ -38,9 +27,7 @@ public struct DiscoveryRecord: Hashable, Sendable {
         var w = ByteWriter()
         w.u8(FluxisBLEConstants.protocolVersion)
         w.u8(amount == nil ? 0 : DiscoveryRecord.flagAmountPresent)
-        w.u32(expiresAt)
         w.append(sessionId)
-        w.append(collectorPublicKey)
         if let amount = amount {
             let currency = Array((amount.currency ?? "").utf8)
             w.u64(UInt64(amount.minorUnits))
@@ -58,10 +45,7 @@ public struct DiscoveryRecord: Hashable, Sendable {
         var r = ByteReader(bytes)
         guard try r.u8() == FluxisBLEConstants.protocolVersion else { throw FluxisBLEProtocolError.unsupportedVersion }
         let flags = try r.u8()
-        let expiresAt = try r.u32()
         let sessionId = try r.take(FluxisBLEConstants.sessionIdBytes)
-        let publicKey = try r.take(FluxisBLEConstants.publicKeyBytes)
-        _ = try P256Keys.validatePublicKey(publicKey)
         var amount: FluxisAmount?
         if flags & flagAmountPresent != 0 {
             let minor = try r.u64()
@@ -80,7 +64,7 @@ public struct DiscoveryRecord: Hashable, Sendable {
         }
         guard let name = decodeUTF8Strict(try r.take(nameLen)) else { throw FluxisBLEProtocolError.invalidDisplayName }
         guard r.remaining == 0 else { throw FluxisBLEProtocolError.trailingBytes }
-        return DiscoveryRecord(expiresAt: expiresAt, sessionId: sessionId, collectorPublicKey: publicKey, amount: amount, displayName: name)
+        return DiscoveryRecord(sessionId: sessionId, amount: amount, displayName: name)
     }
 
     /// Trims `name` and cuts it to at most 64 UTF-8 bytes on a character boundary.

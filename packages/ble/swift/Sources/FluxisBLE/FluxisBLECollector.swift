@@ -9,14 +9,14 @@ public enum FluxisBLECollectorError: Error, Sendable {
 
 /// Collector (POS) role on iOS — scaffold only.
 ///
-/// A real implementation needs a `CBPeripheralManager` GATT server with the RECORD, CONTROL
-/// and DATA characteristics (docs/ble-protocol.md §3) and a Swift port of the Kotlin
-/// `CollectorEngine` state machine (§6). Platform limits to plan for:
+/// A real implementation needs a `CBPeripheralManager` GATT server with the read-only RECORD
+/// and PREVIEW characteristics (docs/ble-protocol.md §3), answering offset reads, and a Swift
+/// port of the Kotlin `CollectorEngine` (§6). Platform limits to plan for:
 /// - iOS advertises the service UUID only while the app is in the foreground; in the background
 ///   it moves to the "overflow area", which Android payers filtering by UUID do not see.
 /// - The advertised local name and TX power cannot be controlled.
 ///
-/// The API mirrors the Android `FluxisBleCollector.start(token, amount, displayName, ttl)`
+/// The API mirrors the Android `FluxisBleCollector.start(token, amount, displayName, posId)`
 /// so callers can be written against it today.
 public final class FluxisBLECollector {
     public init() {}
@@ -25,7 +25,7 @@ public final class FluxisBLECollector {
         token: String,
         amount: FluxisAmount?,
         displayName: String,
-        ttlSeconds: Int = FluxisBLEConstants.defaultTTLSeconds
+        posId: UUID? = nil
     ) throws {
         throw FluxisBLECollectorError.notImplemented
     }

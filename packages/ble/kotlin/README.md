@@ -1,15 +1,15 @@
 # Fluxis BLE for Android (Kotlin)
 
 Collector (POS) and payer (wallet) roles of the
-[Fluxis BLE Handoff Protocol v3](../../../docs/ble-protocol.md) for Android 8.0+ (API 26).
+[Fluxis BLE Protocol v3 (preview only)](../../../docs/ble-protocol.md) for Android 8.0+ (API 26).
 
 | Artifact | Contents |
 |---|---|
 | `us.fluxis:fluxis-ble-android` | `FluxisBleCollector`, `FluxisBlePayer`, `FluxisBlePermissions` (AAR, minSdk 26) |
-| `us.fluxis:fluxis-ble-core` | Wire format, crypto, `CollectorEngine` and `PayerSession` state machines (pure JVM, no Android) |
+| `us.fluxis:fluxis-ble-core` | Wire format (`DiscoveryRecord`, `PreviewValue`, `FluxisAmount`) and the `CollectorEngine` state machine (pure JVM, no Android) |
 
-`fluxis-ble-android` depends on `fluxis-ble-core` and `kotlinx-coroutines-android`. It uses
-only platform crypto (P-256, AES-GCM, HMAC-SHA256); there are no other dependencies.
+`fluxis-ble-android` depends on `fluxis-ble-core` and `kotlinx-coroutines-android`; there are
+no other dependencies.
 
 ## Install
 
@@ -40,27 +40,22 @@ dependencies {
 
 ## Collector (POS)
 
-The collector advertises, serves the discovery record and delivers the token to the first
-wallet that claims it. `start` returns immediately; follow progress through `state` (a
-`StateFlow`) or a `Listener`.
+The collector advertises and serves `RECORD` and `PREVIEW` (the sale's NASPIP token) to every
+wallet nearby until you stop it. Nobody can claim or lock it. `start` returns immediately;
+follow it through `state` (a `StateFlow`) or a `Listener`.
 
 ```kotlin
-class CheckoutActivity : AppCompatActivity() {
-    private lateinit var collector: FluxisBleCollector
+class CheckoutActivity : ComponentActivity() {
+    private val collector by lazy { FluxisBleCollector(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        collector = FluxisBleCollector(this)
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 collector.state.collect { s ->
                     when (s.phase) {
-                        CollectorPhase.READY -> showHint("Hold the phone near the terminal")
-                        CollectorPhase.CLAIMED, CollectorPhase.AWAITING_ACK -> showHint("Sending to wallet…")
-                        CollectorPhase.DELIVERED -> showHint("Confirm the payment in your wallet")
-                        CollectorPhase.EXPIRED -> offerRestart()
-                        CollectorPhase.FAILED -> showQrOnly(reason = s.detail) // e.g. "bluetooth_off"
+                        CollectorPhase.ADVERTISING -> showPulse()          // wallets nearby can see the sale
+                        CollectorPhase.FAILED -> showQrOnly(s.detail)      // e.g. bluetooth_off, missing_permission:…
                         else -> Unit
                     }
                 }
@@ -68,19 +63,14 @@ class CheckoutActivity : AppCompatActivity() {
         }
     }
 
-    fun onPaymentRequestCreated(naspipToken: String) {
-        if (!FluxisBlePermissions.hasAll(this, FluxisBleRole.COLLECTOR)) {
-            requestPermissions(FluxisBlePermissions.missing(this, FluxisBleRole.COLLECTOR).toTypedArray(), 1)
-            return
-        }
+    fun onPaymentIntention(token: String, posId: UUID) {
         collector.start(
-            token = naspipToken,                           // from Fluxis core-api
-            amount = FluxisAmount.parse("12.50", "ARS"),   // hint for the wallet; null for open amount
-            displayName = "Café Tero",                     // cut to 64 UTF-8 bytes
-            ttlSeconds = 120,                              // max 300
+            token = token,                                 // NASPIP token from core-api
+            amount = FluxisAmount.parse("12.50", "ARS"),   // hint; null for open amount
+            displayName = "Café Tero",                     // hint; cut to 64 UTF-8 bytes
+            posId = posId,                                 // published only if the token is > 494 bytes
         )
-        // Keep the QR on screen as well: BLE is an extra channel, not a replacement.
-        // Keep polling your backend for the payment status; DELIVERED only means the wallet got the token.
+        // Payment status comes from your backend: poll it, and stop() when paid/cancelled/expired.
     }
 
     override fun onDestroy() {
@@ -90,27 +80,22 @@ class CheckoutActivity : AppCompatActivity() {
 }
 ```
 
-From Java, `start(token, amount, displayName)` and `start(token, amount, displayName, ttl,
-listener)` are both available, and `Listener` is a functional interface:
+From Java, `start(token, amount, displayName)` and `start(token, amount, displayName, posId,
+listener)` are available:
 
 ```java
-collector.start(token, FluxisAmount.parse("12.50", "ARS"), "Café Tero", 120,
-        state -> runOnUiThread(() -> render(state)));
+collector.start(token, FluxisAmount.parse("12.50", "ARS"), "Café Tero", posId,
+    state -> Log.d("POS", state.getPhase().getWire()));
 ```
 
-Behaviour worth knowing:
-
-- One session at a time. `start` replaces a running session; `stop()` ends it (`STOPPED`);
-  `release()` also frees the worker thread.
-- A failed attempt (wallet walked away, bad ACK, ABORT, timeout) re-arms the session: it goes
-  back to `READY` and advertises again until `expiresAt`. Pass
-  `Options(rearmOnFailure = false)` to fail instead.
-- `FAILED` covers problems the collector can't recover from. `detail` holds a machine-readable
-  reason, such as `server_failed:bluetooth_off`, `server_failed:bluetooth_unavailable`,
-  `server_failed:missing_permission:<perms>`, `server_failed:advertising_unsupported`,
-  `server_failed:open_server_failed` or `advertise_failed:too_many_advertisers`.
-- Invalid input (an empty token, a token over 4067 bytes, a bad display name or TTL) throws
-  synchronously from `start`.
+- Phases: `IDLE` → `PREPARING` → `ADVERTISING` → `STOPPED` (by `stop()`) or `FAILED`.
+- One session at a time. `start` replaces a running session; `stop()` ends it; `release()`
+  also frees the worker thread. There is no TTL: the session runs until you stop it.
+- `CollectorState` also carries `sessionId` (hex), `previewBytes`, `previewKind` (`naspip` or
+  `pos_id`) and `previewReads` (complete PREVIEW reads, for diagnostics only). The token is
+  never logged.
+- Invalid input (an empty token, a token over 494 bytes without `posId`, a bad display name)
+  throws synchronously from `start`.
 - Callbacks and `state` updates come from an internal `HandlerThread`. `StateFlow` collectors
   run on whatever dispatcher you collect on.
 - `Options(txPowerLevel = …)` takes `AdvertiseSettings.ADVERTISE_TX_POWER_*`. Medium (the
@@ -147,59 +132,66 @@ want to explain the request before showing the system dialog.
 ```kotlin
 val payer = FluxisBlePayer(context)
 
-// "Tap to pay": connect to the strongest collector nearby and take its token.
+// "Hold the phone near the POS": read the strongest collector's active sale.
 lifecycleScope.launch {
     try {
-        val delivery = payer.claimNearest()
-        val payment = walletApi.resolveNaspip(delivery.token)   // your backend / POST /naspip/read
-        showConfirmation(payment.merchant, payment.amount)      // from the API, never from the record
+        val preview = payer.readNearestPreview()
+        val sale = when (val c = preview.content) {
+            is PreviewContent.Naspip -> walletApi.readQr(c.token)          // POST /public/qr/read → merchant + checkout URL
+            is PreviewContent.PosId -> walletApi.checkoutForPos(c.posId)   // GET /public/checkout/pos/{posId}
+        }
+        showConfirmation(sale.merchant, sale.amount)   // from the API, never from preview.record
+        // On "Pay": re-fetch the payment request, check it is still pending, then sign and pay.
     } catch (e: FluxisBlePayerException) {
         when (e.reason) {
-            FluxisBlePayerException.Reason.BUSY -> toast("The POS is serving someone else, try again")
             FluxisBlePayerException.Reason.NOT_FOUND -> toast("No Fluxis POS nearby")
-            FluxisBlePayerException.Reason.PERMISSION_DENIED -> askForBluetoothPermissions()
-            else -> toast("Couldn't receive the payment (${e.reason})")
+            FluxisBlePayerException.Reason.NOT_SUPPORTED -> toast("This POS doesn't publish its sale; scan the QR")
+            else -> toast("Bluetooth error: ${e.message}")
         }
     }
 }
 
-// Or let the user pick:
-val candidates = payer.discover()                      // records read, expired ones hidden
-showPicker(candidates.map { "${it.displayName} ${it.amount ?: ""}" })
-val delivery = payer.claim(candidates[chosen])
+// Or let the user pick among several POS:
+val candidates = payer.discover()                      // RECORD read: name + amount hints, RSSI
+showPicker(candidates)                                 // candidate.displayName, candidate.amount, candidate.rssi
+val preview = payer.readPreview(candidates[chosen])
 ```
 
 | Call | What it does |
 |---|---|
-| `scan(): Flow<FluxisBleAdvertisement>` | Raw low-latency scan filtered by the Fluxis service UUID. Cancel the collecting coroutine to stop. |
-| `discover(scanTimeoutMs = 4000, maxCandidates = 5)` | Scans, then reads the record of the strongest collectors. |
-| `claim(candidate, timeoutMs = 15000)` | Connects, runs START/DATA/ACK and returns `FluxisBleDelivery(token, record, address)`. |
-| `claimNearest(scanTimeoutMs = 6000, timeoutMs = 15000)` | Waits for the first collector, keeps the strongest seen over 0.8 s more, and claims it. |
+| `scan()` | `Flow` of advertisements (service UUID filter, low latency). |
+| `discover(scanTimeoutMs = 4000, maxCandidates = 5)` | Scans, then reads `RECORD` from the strongest collectors. |
+| `readPreview(candidate, timeoutMs = 6000)` | Short connection: MTU 517, reads `RECORD` and `PREVIEW` (long read), disconnects, checks the session ids match. |
+| `readNearestPreview(scanTimeoutMs = 6000, timeoutMs = 6000)` | Waits for the first collector, keeps the strongest seen over 0.8 s more, and reads its preview. |
 
-Errors are `FluxisBlePayerException` with a `reason`: `BLUETOOTH_UNAVAILABLE`,
-`BLUETOOTH_OFF`, `PERMISSION_DENIED`, `SCAN_FAILED`, `NOT_FOUND`, `CONNECTION_FAILED`, `BUSY`,
-`REJECTED` (see `collectorError`), `EXPIRED`, `PROTOCOL_ERROR`, `DECRYPT_FAILED` or `TIMEOUT`.
-Cancelling the coroutine cancels the operation and closes the connection.
+`FluxisBlePreview` has `record`, `sessionId`, `content` (`PreviewContent.Naspip(token)` or
+`PreviewContent.PosId(posId)`), `address` and `rssi`, plus `token`/`posId` shortcuts. Errors
+are `FluxisBlePayerException` with a `reason`: `BLUETOOTH_UNAVAILABLE`, `BLUETOOTH_OFF`,
+`PERMISSION_DENIED`, `SCAN_FAILED`, `NOT_FOUND`, `CONNECTION_FAILED`, `NOT_SUPPORTED`,
+`INVALID` or `TIMEOUT`. Cancelling the coroutine cancels the operation and closes the
+connection.
 
-Android limits apps to five scan starts per 30 seconds. Don't call `discover`/`claimNearest`
+Android limits apps to five scan starts per 30 seconds. Don't call `discover`/`readNearestPreview`
 in a tight retry loop.
 
-The record's `displayName` and `amount` are unauthenticated hints: any nearby device can
-advertise a fake collector. Show the merchant and amount returned by the Fluxis API for the
-token and have the user confirm them (see §8 of the spec).
+The preview is public, like the QR on the POS screen, and the record fields are
+unauthenticated. Show the merchant from `POST /public/qr/read` and the amount from
+`GET /public/checkout/pos/{posId}`, make the merchant name prominent (a fake collector is the
+BLE version of a swapped QR sticker), and re-check that the request is still pending right
+before signing (see §7–8 of the spec).
 
 ## Protocol core without Android
 
-`fluxis-ble-core` runs on any JVM: `DiscoveryRecord`, `FluxisAmount`, `Framing`/`Reassembler`,
-`KeySchedule`, `PayerSession` and the `CollectorEngine` state machine. The engine is sans-IO:
-you feed it GATT events and a clock, and it calls back through `CollectorIo`. The Android
+`fluxis-ble-core` runs on any JVM: `DiscoveryRecord`, `PreviewValue`, `FluxisAmount` and the
+`CollectorEngine` state machine. The engine is sans-IO: you feed it GATT events (connections,
+offset reads) and a clock, and it calls back through `CollectorIo`. The Android
 collector is a thin adapter around it, and the engine tests run on a plain JVM.
 
 ## Development
 
 ```bash
 cd packages/ble/kotlin
-./gradlew :core:test                    # shared vectors + collector state machine (no Android SDK needed)
+./gradlew :core:test                    # shared vectors + collector engine (no Android SDK needed)
 ./gradlew :android:testDebugUnitTest :android:lintDebug :android:assembleRelease
 ```
 

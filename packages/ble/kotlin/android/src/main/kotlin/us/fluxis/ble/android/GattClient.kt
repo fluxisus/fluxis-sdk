@@ -5,22 +5,19 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
-import android.os.Build
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import us.fluxis.ble.core.FluxisBle
 
 /**
- * Minimal coroutine wrapper over [BluetoothGatt]: one outstanding operation at a time, as the
- * Android stack requires, with indications delivered on [indications].
+ * Minimal coroutine wrapper over [BluetoothGatt] for short read-only connections: one
+ * outstanding operation at a time, as the Android stack requires. Long reads (values longer
+ * than MTU − 1) are done by the stack.
  */
 @SuppressLint("MissingPermission")
 internal class GattClient(private val context: Context, private val device: BluetoothDevice) {
@@ -33,8 +30,6 @@ internal class GattClient(private val context: Context, private val device: Blue
     @Volatile var mtu: Int = FluxisBle.DEFAULT_MTU
         private set
 
-    val indications = Channel<ByteArray>(Channel.UNLIMITED)
-
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
@@ -43,7 +38,6 @@ internal class GattClient(private val context: Context, private val device: Blue
                 val error = GattException("disconnected (status $status)", status)
                 connected.completeExceptionally(error)
                 pending?.completeExceptionally(error)
-                indications.close(error)
             }
         }
 
@@ -61,20 +55,6 @@ internal class GattClient(private val context: Context, private val device: Blue
         @Suppress("DEPRECATION")
         override fun onCharacteristicRead(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) =
             finish(status, c.value?.copyOf())
-
-        override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) = finish(status, null)
-
-        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) = finish(status, null)
-
-        override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
-            if (c.uuid == FluxisBle.DATA_UUID) indications.trySend(value.copyOf())
-        }
-
-        @Deprecated("Called below API 33")
-        @Suppress("DEPRECATION")
-        override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic) {
-            if (c.uuid == FluxisBle.DATA_UUID) c.value?.let { indications.trySend(it.copyOf()) }
-        }
 
         private fun finish(status: Int, value: Any?) {
             val p = pending ?: return
@@ -99,35 +79,11 @@ internal class GattClient(private val context: Context, private val device: Blue
     suspend fun read(c: BluetoothGattCharacteristic): ByteArray =
         op { g -> g.readCharacteristic(c) } as ByteArray? ?: ByteArray(0)
 
-    suspend fun enableIndications(c: BluetoothGattCharacteristic) {
-        val g = gatt ?: throw GattException("not connected", -1)
-        if (!g.setCharacteristicNotification(c, true)) throw GattException("setCharacteristicNotification failed", -1)
-        val cccd = c.getDescriptor(FluxisBle.CCCD_UUID) ?: throw GattException("DATA has no CCCD", -1)
-        op { gg ->
-            if (Build.VERSION.SDK_INT >= 33) {
-                gg.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) == BluetoothStatusCodes.SUCCESS
-            } else {
-                writeDescriptorLegacy(gg, cccd)
-            }
-        }
-    }
-
-    suspend fun write(c: BluetoothGattCharacteristic, value: ByteArray) {
-        op { g ->
-            if (Build.VERSION.SDK_INT >= 33) {
-                g.writeCharacteristic(c, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
-            } else {
-                writeCharacteristicLegacy(g, c, value)
-            }
-        }
-    }
-
     fun close() {
         val g = gatt ?: return
         gatt = null
         runCatching { g.disconnect() }
         runCatching { g.close() }
-        indications.close()
         pending?.cancel()
     }
 
@@ -145,19 +101,6 @@ internal class GattClient(private val context: Context, private val device: Blue
         } finally {
             pending = null
         }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun writeDescriptorLegacy(g: BluetoothGatt, d: BluetoothGattDescriptor): Boolean {
-        d.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-        return g.writeDescriptor(d)
-    }
-
-    @Suppress("DEPRECATION")
-    private fun writeCharacteristicLegacy(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray): Boolean {
-        c.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        c.value = value
-        return g.writeCharacteristic(c)
     }
 
     private companion object {

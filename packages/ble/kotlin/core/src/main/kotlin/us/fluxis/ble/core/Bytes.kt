@@ -16,8 +16,6 @@ internal class ByteReader(private val data: ByteArray) {
 
     fun u8(): Int = take(1)[0].toInt() and 0xFF
 
-    fun u32(): Long = take(4).fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
-
     /** Raw 64-bit value; values ≥ 2^63 come back negative. */
     fun u64(): Long = take(8).fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
 
@@ -28,8 +26,6 @@ internal class ByteWriter {
     private val out = ByteArrayOutputStream()
 
     fun u8(v: Int) = apply { out.write(v and 0xFF) }
-
-    fun u32(v: Long) = apply { for (shift in 24 downTo 0 step 8) out.write(((v shr shift) and 0xFF).toInt()) }
 
     fun u64(v: Long) = apply { for (shift in 56 downTo 0 step 8) out.write(((v shr shift) and 0xFF).toInt()) }
 

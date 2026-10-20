@@ -13,16 +13,21 @@ public struct FluxisBLECandidate: @unchecked Sendable {
 
     public var displayName: String { record.displayName }
     public var amount: FluxisAmount? { record.amount }
-    public var expiresAt: Date { record.expiresAtDate }
 }
 
-/// Payer (wallet) role on iOS: finds Fluxis collectors and receives the NASPIP token over BLE
-/// (docs/ble-protocol.md §7). Host-agnostic: it returns the token and nothing else.
+/// Payer (wallet) role on iOS: finds Fluxis collectors and reads the active sale they publish
+/// (docs/ble-protocol.md §7). Read-only and host-agnostic: it never claims or locks the POS
+/// and never calls the Fluxis API.
 ///
 /// ```swift
 /// let payer = FluxisBLEPayer()
-/// let delivery = try await payer.claimNearest()     // or: discover() + claim(_:)
-/// let payment = try await walletBackend.resolveNaspip(delivery.token)
+/// let preview = try await payer.readNearestPreview()   // or: discover() + readPreview(_:)
+/// switch preview.content {
+/// case .naspip(let token): merchant = try await api.readQR(token)        // POST /public/qr/read
+/// case .posId(let posId):  break                                          // build the checkout URL
+/// }
+/// let sale = try await api.checkout(posId)                                // GET /public/checkout/pos/{posId}
+/// // Show the API's merchant + amount; re-check the request is pending right before signing.
 /// ```
 ///
 /// Cancel the calling `Task` to abort; errors are `FluxisBLEPayerError` (cancellation surfaces
@@ -59,7 +64,7 @@ public final class FluxisBLEPayer: NSObject, @unchecked Sendable {
     }
 
     /// Scans for `scanTimeout` seconds, then reads the record of up to `maxCandidates`
-    /// collectors (strongest signal first). Expired and unreadable collectors are skipped.
+    /// collectors (strongest signal first). Unreadable collectors are skipped.
     public func discover(scanTimeout: TimeInterval = 4, maxCandidates: Int = 5) async throws -> [FluxisBLECandidate] {
         try await mapErrors {
             let central = try await self.readyCentral()
@@ -74,32 +79,31 @@ public final class FluxisBLEPayer: NSObject, @unchecked Sendable {
                 } catch {
                     continue
                 }
-                if !record.isExpired(toleranceSeconds: FluxisBLEConstants.expiryToleranceSeconds) {
-                    candidates.append(FluxisBLECandidate(identifier: peripheral.identifier, rssi: rssi, record: record, peripheral: peripheral))
-                }
+                candidates.append(FluxisBLECandidate(identifier: peripheral.identifier, rssi: rssi, record: record, peripheral: peripheral))
             }
             return candidates
         }
     }
 
-    /// Claims the token from `candidate` over a fresh connection.
-    public func claim(_ candidate: FluxisBLECandidate, timeout: TimeInterval = 15) async throws -> FluxisBLEDelivery {
+    /// Short connection to `candidate`: reads RECORD and PREVIEW (long read), then disconnects.
+    /// Errors: `.notSupported` (no PREVIEW), `.timeout`, `.invalid`, `.connectionFailed`, …
+    public func readPreview(_ candidate: FluxisBLECandidate, timeout: TimeInterval = FluxisBLEConstants.defaultReadTimeout) async throws -> FluxisBLEPreview {
         try await mapErrors {
             let central = try await self.readyCentral()
-            return try await self.deliver(candidate.peripheral, central, timeout: timeout)
+            return try await self.preview(candidate.peripheral, rssi: candidate.rssi, central, timeout: timeout)
         }
     }
 
     /// Scans until a collector is seen (keeping the strongest one found within a short settle
-    /// window) and claims its token in one connection. For the common "tap phone to POS" flow.
-    public func claimNearest(scanTimeout: TimeInterval = 6, timeout: TimeInterval = 15) async throws -> FluxisBLEDelivery {
+    /// window) and reads its preview. For the common "hold the phone near the POS" flow.
+    public func readNearestPreview(scanTimeout: TimeInterval = 6, timeout: TimeInterval = FluxisBLEConstants.defaultReadTimeout) async throws -> FluxisBLEPreview {
         try await mapErrors {
             let central = try await self.readyCentral()
             let seen = try await self.scan(central, until: .firstSeen(within: scanTimeout, settle: Self.settleWindow))
             guard let nearest = seen.max(by: { $0.rssi < $1.rssi }) else {
                 throw FluxisBLEPayerError(.notFound, "no Fluxis collector in range")
             }
-            return try await self.deliver(nearest.peripheral, central, timeout: timeout)
+            return try await self.preview(nearest.peripheral, rssi: nearest.rssi, central, timeout: timeout)
         }
     }
 
@@ -202,20 +206,23 @@ public final class FluxisBLEPayer: NSObject, @unchecked Sendable {
     // MARK: Connections
 
     private func readRecord(_ peripheral: CBPeripheral, _ central: CBCentralManager) async throws -> DiscoveryRecord {
-        let link = try await connect(peripheral, central)
-        defer { disconnect(link) }
-        do {
-            return try DiscoveryRecord.decode(try await link.readRecord())
-        } catch let e as FluxisBLEProtocolError {
-            throw FluxisBLEPayerError(.protocolError, "invalid discovery record: \(e.rawValue)")
+        try await FluxisBLEAsync.withDeadline(FluxisBLEConstants.defaultReadTimeout, timeoutError: FluxisBLEPayerError(.timeout, "record read timed out")) {
+            let link = try await self.connect(peripheral, central)
+            defer { self.disconnect(link) }
+            _ = try await link.discover()
+            do {
+                return try DiscoveryRecord.decode(try await link.readRecord())
+            } catch let e as FluxisBLEProtocolError {
+                throw FluxisBLEPayerError(.invalid, "invalid discovery record: \(e.rawValue)", protocolError: e)
+            }
         }
     }
 
-    private func deliver(_ peripheral: CBPeripheral, _ central: CBCentralManager, timeout: TimeInterval) async throws -> FluxisBLEDelivery {
-        try await FluxisBLEAsync.withDeadline(timeout, timeoutError: FluxisBLEPayerError(.timeout, "delivery timed out")) {
+    private func preview(_ peripheral: CBPeripheral, rssi: Int, _ central: CBCentralManager, timeout: TimeInterval) async throws -> FluxisBLEPreview {
+        try await FluxisBLEAsync.withDeadline(timeout, timeoutError: FluxisBLEPayerError(.timeout, "preview read timed out")) {
             let link = try await self.connect(peripheral, central)
             defer { self.disconnect(link) }
-            return try await PayerFlow.deliver(over: link)
+            return try await PreviewFlow.read(over: link, identifier: peripheral.identifier, rssi: rssi)
         }
     }
 
@@ -232,7 +239,6 @@ public final class FluxisBLEPayer: NSObject, @unchecked Sendable {
                 timeout: options.connectTimeout,
                 timeoutError: FluxisBLEPayerError(.connectionFailed, "connection timed out")
             )
-            try await link.discoverService()
             return link
         } catch {
             disconnect(link)

@@ -33,14 +33,21 @@
 
 ## 5. On-device verification (manual)
 
-- [ ] 5.1 Clover Flex 4 (Android 13, targetSdk 29 app): collector advertises, Android and iOS wallets discover and claim
+- [ ] 5.1 Clover Flex 4 (Android 13, targetSdk 29 app): collector advertises, Android and iOS wallets discover and read the preview
 - [ ] 5.2 Clover PTA0010 (Android 10): same, including the location permission prompt
-- [ ] 5.3 MTU 23 path (force a small MTU) and a 4 KB token: multi-frame DATA delivers within the timeouts
-- [ ] 5.4 Two wallets at once: the second gets BUSY; the collector re-arms after the first walks away mid-handshake
+- [ ] 5.3 Long read of a 449–512-byte PREVIEW at MTU 23 (forced) and 517, within the 6 s read timeout
+- [ ] 5.4 Two wallets at once: both read the same preview; the collector keeps advertising
 - [ ] 5.5 Toggle Bluetooth off during a session: the collector reports `FAILED` with `bluetooth_off`; the payer reports `.bluetoothOff` / `CONNECTION_FAILED`
-- [ ] 5.6 Session expiry: the collector stops advertising at `expiresAt`; wallets hide the candidate
+- [ ] 5.6 Host stops the session when its backend reports the payment: advertising stops, state `STOPPED`
 
 ## 6. Migration (separate repositories)
 
 - [ ] 6.1 TeroKiosk adopts `FluxisBleCollector`
 - [ ] 6.2 The Fluxis Android and iOS wallets adopt `FluxisBlePayer` / `FluxisBLEPayer`
+
+## 7. Preview-only redesign (2026-10-20)
+
+- [x] 7.1 Replace the claim handshake (START/ECDH/DATA/ACK/BUSY) with a read-only PREVIEW characteristic (`f1b10104`): spec, reference, vectors
+- [x] 7.2 Kotlin: `PreviewValue`, simplified `CollectorEngine` (idle/preparing/advertising/stopped/failed), Android collector and payer `discover`/`readPreview`/`readNearestPreview`
+- [x] 7.3 Swift: `PreviewValue`, `FluxisBLEPreview`, `PreviewFlow`, read-only `PeripheralLink`; drop swift-crypto
+- [x] 7.4 READMEs, `CLAUDE.md`, `llms.txt`

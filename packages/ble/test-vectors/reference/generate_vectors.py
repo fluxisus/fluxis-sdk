@@ -9,33 +9,31 @@ All keys, nonces and tokens are derived from fixed labels, so the output is repr
 
 from __future__ import annotations
 
-import base64
+import hashlib
 import json
+import uuid
 import sys
 from pathlib import Path
 
 import fluxis_ble_ref as ref
 
 OUT = Path(__file__).resolve().parent.parent / "vectors.json"
-P256_N = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
 
 
 def det(label: str, n: int) -> bytes:
     out, counter = b"", 0
     while len(out) < n:
-        out += ref.sha256(f"fluxis-ble-vectors/{label}/{counter}".encode())
+        out += hashlib.sha256(f"fluxis-ble-vectors/{label}/{counter}".encode()).digest()
         counter += 1
     return out[:n]
 
 
-def det_scalar(label: str) -> bytes:
-    k = int.from_bytes(det(label, 32), "big") % (P256_N - 1) + 1
-    return k.to_bytes(32, "big")
-
-
 def det_token(label: str, length: int) -> str:
-    body = base64.urlsafe_b64encode(det(label, length)).decode().rstrip("=")
-    return ("v4.local." + body)[:length]
+    """A NASPIP-shaped ASCII string of exactly `length` bytes (not a real token)."""
+    body = det(label, length).hex()
+    while len(body) < length:
+        body += body
+    return ("naspip;fluxis.us;fluxis.qr.dyn.1;v4.public." + body)[:length]
 
 
 def h(b: bytes) -> str:
@@ -48,12 +46,6 @@ def expect_error(fn, *args) -> str:
     except ref.ProtocolError as e:
         return str(e)
     raise AssertionError(f"expected ProtocolError from {fn.__name__}{args!r}")
-
-
-def keypair(label: str):
-    scalar = det_scalar(label)
-    priv = ref.private_key_from_scalar(scalar)
-    return scalar, priv, ref.public_key_bytes(priv)
 
 
 # ── Amounts ──────────────────────────────────────────────────────────────────
@@ -102,16 +94,16 @@ def amounts() -> dict:
 # ── Records ──────────────────────────────────────────────────────────────────
 
 
+def amount_json(a):
+    return None if a is None else {"minor": str(a.minor), "scale": a.scale, "currency": a.currency}
+
+
 def record_json(rec: ref.Record, encoded: bytes, name: str, decode_only: bool = False) -> dict:
     out = {
         "name": name,
         "hex": h(encoded),
-        "expiresAt": rec.expires_at,
         "sessionId": h(rec.session_id),
-        "collectorPublicKey": h(rec.collector_public_key),
-        "amount": None
-        if rec.amount is None
-        else {"minor": str(rec.amount.minor), "scale": rec.amount.scale, "currency": rec.amount.currency},
+        "amount": amount_json(rec.amount),
         "displayName": rec.display_name,
     }
     if decode_only:
@@ -120,271 +112,143 @@ def record_json(rec: ref.Record, encoded: bytes, name: str, decode_only: bool = 
 
 
 def records() -> dict:
-    _, _, pub = keypair("record-collector")
     sid = det("record-session", 16)
-    base = dict(expires_at=1792800000, session_id=sid, collector_public_key=pub)
-
     cases = [
-        ("amount ARS 12.50, accented name", ref.Record(amount=ref.Amount.parse("12.50", "ARS"), display_name="Café Tero", **base)),
-        ("open amount", ref.Record(amount=None, display_name="Kiosko 24", **base)),
-        ("amount without currency", ref.Record(amount=ref.Amount.parse("999.99"), display_name="POS 1", **base)),
-        ("USDC 6 decimals", ref.Record(amount=ref.Amount.parse("25.000001", "USDC"), display_name="Tienda Online", **base)),
-        ("max name 64 bytes, max currency", ref.Record(amount=ref.Amount.parse("1", "ABCDEFGHIJKL"), display_name="€" * 21 + "x", **base)),
-        ("one-byte name, max amount", ref.Record(amount=ref.Amount(ref.MAX_AMOUNT_MINOR, 18, "ETH"), display_name="A", **dict(base, expires_at=0xFFFFFFFF))),
+        ("amount ARS 12.50, accented name", ref.Record(sid, ref.Amount.parse("12.50", "ARS"), "Café Tero")),
+        ("open amount", ref.Record(sid, None, "Kiosko 24")),
+        ("amount without currency", ref.Record(sid, ref.Amount.parse("999.99"), "POS 1")),
+        ("USDC 6 decimals", ref.Record(sid, ref.Amount.parse("25.000001", "USDC"), "Tienda Online")),
+        ("max size: 64-byte name, 12-char currency", ref.Record(sid, ref.Amount.parse("1", "ABCDEFGHIJKL"), "€" * 21 + "x")),
+        ("one-byte name, max amount", ref.Record(sid, ref.Amount(ref.MAX_AMOUNT_MINOR, 18, "ETH"), "A")),
     ]
     valid = []
     for name, rec in cases:
         enc = rec.encode()
         assert ref.Record.decode(enc) == rec
         valid.append(record_json(rec, enc, name))
+    assert len(cases[4][1].encode()) == ref.MAX_RECORD
 
     reserved = bytearray(cases[0][1].encode())
     reserved[1] |= 0x80
-    dec = ref.Record.decode(bytes(reserved))
-    valid.append(record_json(dec, bytes(reserved), "reserved flag bits are ignored", decode_only=True))
+    valid.append(record_json(ref.Record.decode(bytes(reserved)), bytes(reserved), "reserved flag bits are ignored", decode_only=True))
 
     ok = cases[0][1].encode()  # amount present, currency ARS, name "Café Tero"
     open_ok = cases[1][1].encode()
-    amt_off = 87  # offset of amountMinor
+    amt_off = 18  # offset of amountMinor
     cur_len_off = amt_off + 9
     name_len_off = cur_len_off + 1 + 3
 
     def patch(b: bytes, off: int, new: bytes) -> bytes:
         return b[:off] + new + b[off + len(new) :]
 
-    bad_point = bytearray(pub)
-    bad_point[-1] ^= 0x01
-    compressed = bytes([0x02 + (pub[-1] & 1)]) + pub[1:33] + b"\x00" * 32
     invalid_inputs = [
         ("empty", b""),
         ("version 2 (prototype)", patch(ok, 0, b"\x02")),
         ("version 1 (prototype bootstrap)", patch(ok, 0, b"\x01")),
         ("version 4", patch(ok, 0, b"\x04")),
-        ("truncated in public key", ok[:50]),
-        ("truncated before name", ok[: name_len_off]),
+        ("truncated in session id", ok[:10]),
+        ("truncated before name", ok[:name_len_off]),
         ("truncated inside name", ok[:-1]),
         ("trailing byte", ok + b"\x00"),
-        ("public key not on curve", patch(ok, 22, bytes(bad_point))),
-        ("public key compressed prefix", patch(ok, 22, compressed)),
         ("scale 19", patch(ok, amt_off + 8, b"\x13")),
         ("amount above 2^63-1", patch(ok, amt_off, (1 << 63).to_bytes(8, "big"))),
         ("currency length 13", patch(ok, cur_len_off, b"\x0d")),
         ("lower-case currency", patch(ok, cur_len_off + 1, b"ars")),
         ("non-ascii currency", patch(ok, cur_len_off + 1, b"A\xc3\x89")),
-        ("name length 0", open_ok[:87] + b"\x00"),
-        ("name length 65", open_ok[:87] + b"\x41" + b"a" * 65),
-        ("name invalid utf-8", open_ok[:87] + b"\x02\xc3\x28"),
+        ("name length 0", open_ok[:18] + b"\x00"),
+        ("name length 65", open_ok[:18] + b"\x41" + b"a" * 65),
+        ("name invalid utf-8", open_ok[:18] + b"\x02\xc3\x28"),
         ("open amount but amount bytes present", patch(ok, 1, b"\x00")),
     ]
     invalid = [{"name": n, "hex": h(b), "error": expect_error(ref.Record.decode, b)} for n, b in invalid_inputs]
     return {"valid": valid, "invalid": invalid}
 
 
-# ── Framing ──────────────────────────────────────────────────────────────────
+# ── Previews ─────────────────────────────────────────────────────────────────
 
 
-def framing() -> dict:
-    split_cases = [
-        ("BUSY, empty payload", ref.T_BUSY, b"", 23),
-        ("ERROR expired", ref.T_ERROR, b"\x04", 23),
-        ("17 bytes fills one frame at MTU 23", ref.T_DATA, det("f17", 17), 23),
-        ("18 bytes needs two frames at MTU 23", ref.T_DATA, det("f18", 18), 23),
-        ("START size at MTU 23", ref.T_START, det("f82", 82), 23),
-        ("START size at MTU 185", ref.T_START, det("f82", 82), 185),
-        ("1000 bytes at MTU 247", ref.T_DATA, det("f1000", 1000), 247),
-        ("max message at MTU 23", ref.T_DATA, det("f4096", 4096), 23),
+def preview_json(p: ref.Preview, encoded: bytes, name: str) -> dict:
+    if isinstance(p.content, uuid.UUID):
+        content = {"kind": "pos_id", "posId": str(p.content)}
+    else:
+        content = {"kind": "naspip", "token": p.content}
+    return {"name": name, "hex": h(encoded), "sessionId": h(p.session_id), "length": len(encoded), **content}
+
+
+def previews() -> dict:
+    sid = det("preview-session", 16)
+    pos = uuid.UUID("d2929894-2582-4877-8f92-ebe861f60987")
+    cases = [
+        ("naspip, staging-sized token (431 bytes)", ref.Preview(sid, det_token("pv-431", 431))),
+        ("naspip, max token (494 bytes, value 512)", ref.Preview(sid, det_token("pv-494", ref.MAX_PREVIEW_TOKEN))),
+        ("naspip, one byte", ref.Preview(sid, "x")),
+        ("naspip, non-ascii", ref.Preview(sid, "v4.public.ñandú")),
+        ("pos_id", ref.Preview(sid, pos)),
     ]
-    split = [
-        {"name": n, "type": t, "mtu": m, "payload": h(p), "frames": [h(f) for f in ref.frame(t, p, m)]}
-        for n, t, p, m in split_cases
+    valid = []
+    for name, p in cases:
+        enc = p.encode()
+        assert ref.Preview.decode(enc) == p
+        valid.append(preview_json(p, enc, name))
+    assert valid[1]["length"] == ref.MAX_ATTRIBUTE
+
+    # The collector's choice between token and POS id.
+    choice_inputs = [
+        ("token fits", det_token("ch-431", 431), str(pos)),
+        ("token exactly 494 bytes", det_token("ch-494", 494), str(pos)),
+        ("token 495 bytes falls back to POS id", det_token("ch-495", 495), str(pos)),
+        ("token 1200 bytes falls back to POS id", det_token("ch-1200", 1200), str(pos)),
     ]
-    for c in split:
-        r = ref.Reassembler(ref.TO_COLLECTOR | ref.TO_PAYER, c["mtu"])
-        res = [r.push(bytes.fromhex(f)) for f in c["frames"]]
-        assert res[-1] == (c["type"], bytes.fromhex(c["payload"])) and all(x is None for x in res[:-1])
-
-    split_errors = [
-        {"name": "message above 4096", "type": ref.T_DATA, "mtu": 517, "payloadLength": 4097,
-         "error": expect_error(ref.frame, ref.T_DATA, b"\x00" * 4097, 517)},
-        {"name": "MTU below 23", "type": ref.T_DATA, "mtu": 22, "payloadLength": 10,
-         "error": expect_error(ref.frame, ref.T_DATA, b"\x00" * 10, 22)},
+    choice = []
+    for name, token, pid in choice_inputs:
+        p = ref.Preview.for_token(sid, token, uuid.UUID(pid))
+        choice.append({"name": name, "sessionId": h(sid), "token": token, "posId": pid, "hex": h(p.encode()),
+                       "kind": "pos_id" if isinstance(p.content, uuid.UUID) else "naspip"})
+    choice_errors = [
+        {"name": "token too large without POS id", "sessionId": h(sid), "token": det_token("ce-495", 495), "posId": None,
+         "error": expect_error(ref.Preview.for_token, sid, det_token("ce-495", 495), None)},
+        {"name": "empty token", "sessionId": h(sid), "token": "", "posId": str(pos),
+         "error": expect_error(ref.Preview.for_token, sid, "", pos)},
     ]
 
-    def fr(t, seq, total, payload=b"\xaa") -> bytes:
-        return bytes([t, seq, total]) + payload
-
-    big = [fr(ref.T_DATA, i, 9, b"\xbb" * 511) for i in range(9)]
-    reassembly = [
-        ("valid two-frame DATA", "toPayer", 23, [fr(2, 0, 2, b"\x01" * 17), fr(2, 1, 2, b"\x02")]),
-        ("valid short chunks are accepted", "toPayer", 23, [fr(2, 0, 3, b"\x01"), fr(2, 1, 3, b"\x02\x03"), fr(2, 2, 3, b"\x04")]),
-        ("valid empty BUSY", "toPayer", 23, [bytes([0x7E, 0, 1])]),
-        ("valid ACK to collector", "toCollector", 23, [fr(3, 0, 1, b"\x11" * 16)]),
-        ("frame shorter than header", "toPayer", 23, [b"\x02\x00"]),
-        ("frame longer than MTU-3", "toPayer", 23, [fr(2, 0, 1, b"\x00" * 18)]),
-        ("DATA sent to collector", "toCollector", 23, [fr(2, 0, 1)]),
-        ("START sent to payer", "toPayer", 23, [fr(1, 0, 1)]),
-        ("unknown type", "toPayer", 23, [fr(0x10, 0, 1)]),
-        ("total zero", "toPayer", 23, [fr(2, 0, 0)]),
-        ("seq not starting at zero", "toPayer", 23, [fr(2, 1, 2)]),
-        ("seq skips", "toPayer", 23, [fr(2, 0, 3), fr(2, 2, 3)]),
-        ("seq >= total", "toPayer", 23, [fr(2, 0, 2), fr(2, 2, 2)]),
-        ("type changes mid-message", "toPayer", 23, [fr(2, 0, 2), fr(0x7F, 1, 2)]),
-        ("total changes mid-message", "toPayer", 23, [fr(2, 0, 2), fr(2, 1, 3)]),
-        ("new message before previous completed", "toPayer", 23, [fr(2, 0, 2), fr(2, 0, 2)]),
-        ("empty payload in multi-frame message", "toPayer", 23, [fr(2, 0, 2, b"")]),
-        ("reassembled above 4096", "toPayer", 517, big),
+    ok = cases[0][1].encode()
+    pos_ok = cases[4][1].encode()
+    invalid_inputs = [
+        ("empty", b""),
+        ("version 2", b"\x02" + ok[1:]),
+        ("version 4", b"\x04" + ok[1:]),
+        ("truncated in session id", ok[:10]),
+        ("no kind", ok[:17]),
+        ("naspip without content", ok[:18]),
+        ("naspip invalid utf-8", ok[:18] + b"\xc3\x28"),
+        ("unknown kind 0x03", ok[:17] + b"\x03" + ok[18:]),
+        ("kind 0x00", ok[:17] + b"\x00" + ok[18:]),
+        ("pos_id 15 bytes", pos_ok[:-1]),
+        ("pos_id 17 bytes", pos_ok + b"\x00"),
+        ("value 513 bytes", ok[:18] + b"a" * 495),
     ]
-    reassemble = []
-    for name, direction, mtu, frames in reassembly:
-        allowed = ref.TO_PAYER if direction == "toPayer" else ref.TO_COLLECTOR
-        r = ref.Reassembler(allowed, mtu)
-        entry = {"name": name, "direction": direction, "mtu": mtu, "frames": [h(f) for f in frames]}
-        result = None
-        for i, f in enumerate(frames):
-            try:
-                result = r.push(f)
-            except ref.ProtocolError as e:
-                assert i == len(frames) - 1, f"{name}: error must be raised on the last frame"
-                entry["error"] = str(e)
-                break
-            assert (result is None) == (i < len(frames) - 1), name
-        else:
-            entry["expect"] = {"type": result[0], "payload": h(result[1])}
-        reassemble.append(entry)
-    return {"split": split, "splitErrors": split_errors, "reassemble": reassemble}
-
-
-# ── Messages ─────────────────────────────────────────────────────────────────
-
-
-def messages() -> dict:
-    _, _, payer_pub = keypair("msg-payer")
-    sid = det("msg-session", 16)
-    start = ref.encode_start(sid, payer_pub)
-    bad_point = bytearray(payer_pub)
-    bad_point[10] ^= 0xFF
-
-    def env_err(b: bytes) -> str:
-        return expect_error(ref.decode_envelope, b)
-
-    return {
-        "start": {"sessionId": h(sid), "payerPublicKey": h(payer_pub), "hex": h(start)},
-        "startInvalid": [
-            {"name": n, "hex": h(b), "error": expect_error(ref.decode_start, b)}
-            for n, b in [
-                ("81 bytes", start[:-1]),
-                ("83 bytes", start + b"\x00"),
-                ("version 2", b"\x02" + start[1:]),
-                ("key not on curve", start[:17] + bytes(bad_point)),
-            ]
-        ],
-        "envelope": [
-            {"token": t, "hex": h(ref.encode_envelope(t))}
-            for t in ["v4.local.abc", "v4.public.ñandú"]
-        ],
-        "envelopeInvalid": [
-            {"name": "content type 2", "hex": "02" + b"x".hex(), "error": env_err(b"\x02x")},
-            {"name": "content type only", "hex": "01", "error": env_err(b"\x01")},
-            {"name": "empty", "hex": "", "error": env_err(b"")},
-            {"name": "invalid utf-8 token", "hex": "01c328", "error": env_err(b"\x01\xc3\x28")},
-        ],
-        "abortReasons": {
-            "user_cancelled": 0x00, "decrypt_failed": 0x01, "unsupported_content": 0x02,
-            "protocol_error": 0x03, "timeout": 0x04, "other": 0xFF,
-        },
-        "errorCodes": {
-            "malformed": 0x01, "unsupported_version": 0x02, "session_mismatch": 0x03, "expired": 0x04,
-            "invalid_key": 0x05, "bad_ack": 0x06, "timeout": 0x07, "internal": 0x08,
-        },
-    }
-
-
-# ── Handshakes ───────────────────────────────────────────────────────────────
-
-
-def handshake(name: str, label: str, amount, display_name: str, token_len: int, mtus: list[int]) -> dict:
-    c_scalar, c_priv, c_pub = keypair(f"{label}/collector")
-    p_scalar, p_priv, p_pub = keypair(f"{label}/payer")
-    sid = det(f"{label}/session", 16)
-    record = ref.Record(1792800000, sid, c_pub, amount, display_name).encode()
-    start = ref.encode_start(sid, p_pub)
-    keys = ref.derive_keys(c_priv, p_pub, record, start)
-    assert ref.derive_keys(p_priv, c_pub, record, start) == keys
-    token = det_token(f"{label}/token", token_len)
-    envelope = ref.encode_envelope(token)
-    nonce = det(f"{label}/nonce", 12)
-    data = ref.seal_data(keys, nonce, envelope)
-    assert ref.open_data(keys, data) == envelope
-    ack = ref.ack_mac(keys, envelope)
-    assert ref.verify_ack(keys, envelope, ack)
-
-    tampered = bytearray(data)
-    tampered[20] ^= 0x01
-    assert expect_error(ref.open_data, keys, bytes(tampered)) == "decrypt_failed"
-    bad_ack = bytearray(ack)
-    bad_ack[0] ^= 0x80
-    assert not ref.verify_ack(keys, envelope, bytes(bad_ack))
-
-    return {
-        "name": name,
-        "collectorPrivateKey": h(c_scalar),
-        "collectorPublicKey": h(c_pub),
-        "payerPrivateKey": h(p_scalar),
-        "payerPublicKey": h(p_pub),
-        "sessionId": h(sid),
-        "record": h(record),
-        "start": h(start),
-        "sharedSecret": h(keys.shared_secret),
-        "transcriptHash": h(keys.transcript_hash),
-        "prk": h(keys.prk),
-        "dataKey": h(keys.data_key),
-        "ackKey": h(keys.ack_key),
-        "token": token,
-        "envelope": h(envelope),
-        "nonce": h(nonce),
-        "data": h(data),
-        "ack": h(ack),
-        "tamperedData": h(bytes(tampered)),
-        "tamperedAck": h(bytes(bad_ack)),
-        "frames": [
-            {
-                "mtu": m,
-                "start": [h(f) for f in ref.frame(ref.T_START, start, m)],
-                "data": [h(f) for f in ref.frame(ref.T_DATA, data, m)],
-                "ack": [h(f) for f in ref.frame(ref.T_ACK, ack, m)],
-            }
-            for m in mtus
-        ],
-    }
-
-
-def handshakes() -> list[dict]:
-    return [
-        handshake("ARS 12.50, typical token", "hs1", ref.Amount.parse("12.50", "ARS"), "Café Tero", 290, [23, 185]),
-        handshake("open amount, long token", "hs2", None, "Kiosko 24", 1500, [23, 247, 517]),
-        handshake("max-size token", "hs3", ref.Amount.parse("0.000001", "USDC"), "Max", 4067, [23, 517]),
-    ]
+    invalid = [{"name": n, "hex": h(b), "error": expect_error(ref.Preview.decode, b)} for n, b in invalid_inputs]
+    return {"valid": valid, "choice": choice, "choiceErrors": choice_errors, "invalid": invalid}
 
 
 def build() -> dict:
     return {
-        "description": "Fluxis BLE Handoff Protocol v3 test vectors. Generated by "
+        "description": "Fluxis BLE Protocol v3 (preview only) test vectors. Generated by "
         "reference/generate_vectors.py — do not edit by hand. Spec: docs/ble-protocol.md.",
         "protocolVersion": ref.PROTOCOL_VERSION,
-        "uuids": {
-            "service": ref.SERVICE_UUID,
-            "record": ref.RECORD_UUID,
-            "control": ref.CONTROL_UUID,
-            "data": ref.DATA_UUID,
-            "cccd": ref.CCCD_UUID,
+        "uuids": {"service": ref.SERVICE_UUID, "record": ref.RECORD_UUID, "preview": ref.PREVIEW_UUID},
+        "limits": {
+            "maxAttributeBytes": ref.MAX_ATTRIBUTE,
+            "maxPreviewTokenBytes": ref.MAX_PREVIEW_TOKEN,
+            "maxRecordBytes": ref.MAX_RECORD,
+            "sessionIdBytes": ref.SESSION_ID_LEN,
+            "maxDisplayNameBytes": ref.MAX_NAME_BYTES,
+            "idleTimeoutMs": ref.T_IDLE_MS,
         },
-        "messageTypes": {"start": ref.T_START, "data": ref.T_DATA, "ack": ref.T_ACK,
-                         "abort": ref.T_ABORT, "busy": ref.T_BUSY, "error": ref.T_ERROR},
+        "previewKinds": {"naspip": ref.KIND_NASPIP, "pos_id": ref.KIND_POS_ID},
         "amounts": amounts(),
         "records": records(),
-        "framing": framing(),
-        "messages": messages(),
-        "handshakes": handshakes(),
+        "previews": previews(),
     }
 
 

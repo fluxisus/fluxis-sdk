@@ -8,6 +8,15 @@ discovery record, amounts are whole pesos with no currency, and the framing rule
 ambiguous. The owner confirmed that backward compatibility with the prototype isn't required.
 TeroKiosk and the Fluxis app will migrate to the SDK.
 
+## Revision (2026-10-20): preview only
+
+The owner replaced the claim handshake with a public, read-only preview: nobody can take the
+POS, every nearby wallet can read the active sale (the NASPIP token, or the POS id when the
+token doesn't fit), and whoever pays through the API is the payer. The ECDH/AES-GCM delivery,
+framing, BUSY and the delivered/expired states were removed. Because nothing was released, the
+change stays protocol version 3. The original text below is kept as history; the specs in
+this change and `docs/ble-protocol.md` describe the current design.
+
 ## What Changes
 
 - New normative spec `docs/ble-protocol.md`: Fluxis BLE Handoff Protocol **v3**. It defines

@@ -58,4 +58,3 @@ func assertProtocolError(_ expected: String, _ label: String, file: StaticString
     }
 }
 
-func hexes(_ frames: [[UInt8]]) -> [String] { frames.map(\.hexString) }

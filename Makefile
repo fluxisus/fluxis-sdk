@@ -79,13 +79,13 @@ test-go: ## Run Go tests against staging (requires FLUXIS_API_KEY + FLUXIS_API_S
 
 # ── BLE (offline: no staging credentials needed) ─────────────────────────────
 
-ble-vectors: ## Check packages/ble/test-vectors/vectors.json against the reference implementation (needs `cryptography`)
+ble-vectors: ## Check packages/ble/test-vectors/vectors.json against the reference implementation (standard library only)
 	cd packages/ble/test-vectors/reference && python3 generate_vectors.py --check
 
 test-ble-kotlin: ## Run BLE Kotlin tests (Android unit tests + lint too when ANDROID_HOME is set)
 	cd packages/ble/kotlin && ./gradlew :core:test $$( [ -n "$$ANDROID_HOME$$ANDROID_SDK_ROOT" ] || grep -qs sdk.dir local.properties && echo ":android:testDebugUnitTest :android:lintDebug" )
 
-test-ble-swift: ## Run BLE Swift tests (macOS, or Linux with swift-crypto)
+test-ble-swift: ## Run BLE Swift tests (macOS or Linux)
 	cd packages/ble/swift && swift test
 
 # ── Release management ────────────────────────────────────────────────────────

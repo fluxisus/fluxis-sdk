@@ -13,7 +13,7 @@
 
 Hand a NASPIP token from a POS (collector) to a nearby wallet (payer) over Bluetooth LE. They make no REST API calls.
 
-- [Protocol spec](docs/ble-protocol.md): Fluxis BLE Handoff Protocol v3 (P-256 ECDH, AES-256-GCM, amounts in minor units + scale + currency)
+- [Protocol spec](docs/ble-protocol.md): Fluxis BLE Protocol v3, preview only (read-only RECORD + PREVIEW with the NASPIP token; amounts in minor units + scale + currency)
 - [Kotlin/Android](packages/ble/kotlin/README.md): `us.fluxis:fluxis-ble-android` — `FluxisBleCollector`, `FluxisBlePayer`, `FluxisBlePermissions` (minSdk 26)
 - [Swift/iOS](packages/ble/swift/README.md): `FluxisBLE` — `FluxisBLEPayer` (CoreBluetooth, iOS 15+)
 

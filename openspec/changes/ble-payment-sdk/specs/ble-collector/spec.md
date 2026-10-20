@@ -1,37 +1,26 @@
 ## ADDED Requirements
 
 ### Requirement: Start a collector session from a NASPIP token
-The Android SDK SHALL provide `FluxisBleCollector(context).start(token, amount, displayName, ttlSeconds)`. It validates the input synchronously, then generates an ephemeral key pair and session id, opens the GATT server, and advertises the Fluxis service UUID. Progress SHALL be observable through a `StateFlow<CollectorState>` and an optional listener.
+The Android SDK SHALL provide `FluxisBleCollector(context).start(token, amount, displayName, posId)`. It validates the input synchronously, then generates a session id, opens a GATT server with RECORD and PREVIEW, and advertises the Fluxis service UUID. Progress SHALL be observable through a `StateFlow<CollectorState>` and an optional listener.
 
-#### Scenario: Session becomes ready
+#### Scenario: Session starts advertising
 - **WHEN** the host calls `start` with a valid token on a device with Bluetooth on and permissions granted
-- **THEN** the state moves `preparing` → `ready` once advertising has started
+- **THEN** the state moves `preparing` → `advertising` once advertising has started
 
 #### Scenario: Invalid input
-- **WHEN** the host calls `start` with an empty token, a token over 4067 bytes, or a TTL outside 1–300 seconds
+- **WHEN** the host calls `start` with an empty token, or a token over 494 bytes without a POS id
 - **THEN** `start` throws and no Bluetooth resources are opened
 
-### Requirement: Deliver to exactly one payer
-The collector SHALL lock to the first peer that sends a valid START, stop advertising, deliver the sealed token as confirmed indications, and report `delivered` only after verifying the payer's ACK. Other peers sending START while it is locked SHALL receive BUSY.
+### Requirement: Serve every payer until stopped
+The collector SHALL keep advertising and answering reads of RECORD and PREVIEW, for any number of payers, until the host calls `stop()` or a failure occurs. It SHALL reject writes, disconnect peers idle for 15 seconds, and never report a payment: the host learns the sale was paid from its backend.
 
-#### Scenario: Successful delivery
-- **WHEN** a payer completes START and returns a valid ACK
-- **THEN** the state becomes `delivered`, the payer is disconnected after 250 ms, and the GATT server is closed
+#### Scenario: Wallet reads the preview
+- **WHEN** a payer completes a read of PREVIEW
+- **THEN** `previewReads` increments and the state stays `advertising`
 
-#### Scenario: Concurrent payer
-- **WHEN** a second payer sends START while the collector is `claimed`
-- **THEN** that payer receives BUSY and is disconnected, and the first delivery continues
-
-### Requirement: Re-arm after a failed attempt
-Unless configured otherwise, the collector SHALL return to `ready` and advertise the same record after a failed attempt (disconnect, timeout, ABORT, bad ACK) for as long as the session hasn't expired.
-
-#### Scenario: Payer walks away mid-handshake
-- **WHEN** the claimed payer disconnects before sending ACK
-- **THEN** the collector goes back to `ready` and another payer can claim the token
-
-#### Scenario: Expiry
-- **WHEN** `expiresAt` passes before delivery
-- **THEN** the state becomes `expired`, advertising stops and every peer is disconnected
+#### Scenario: Host stops the session
+- **WHEN** the host calls `stop()` after its backend reports the payment
+- **THEN** advertising stops, peers are disconnected, the GATT server is closed and the state becomes `stopped`
 
 ### Requirement: Android 8–14 compatibility, including targetSdk ≤ 30 hosts
 The Android library SHALL run on API 26+, guard every newer API, and report the runtime permissions a host needs based on both the device API level and the host's `targetSdkVersion`.

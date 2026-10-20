@@ -14,8 +14,6 @@ struct ByteReader {
 
     mutating func u8() throws -> UInt8 { try take(1)[0] }
 
-    mutating func u32() throws -> UInt32 { try take(4).reduce(0) { ($0 << 8) | UInt32($1) } }
-
     mutating func u64() throws -> UInt64 { try take(8).reduce(0) { ($0 << 8) | UInt64($1) } }
 
     var remaining: Int { data.count - pos }
@@ -25,8 +23,6 @@ struct ByteWriter {
     private(set) var bytes: [UInt8] = []
 
     mutating func u8(_ v: UInt8) { bytes.append(v) }
-
-    mutating func u32(_ v: UInt32) { for shift in stride(from: 24, through: 0, by: -8) { bytes.append(UInt8((v >> UInt32(shift)) & 0xFF)) } }
 
     mutating func u64(_ v: UInt64) { for shift in stride(from: 56, through: 0, by: -8) { bytes.append(UInt8((v >> UInt64(shift)) & 0xFF)) } }
 

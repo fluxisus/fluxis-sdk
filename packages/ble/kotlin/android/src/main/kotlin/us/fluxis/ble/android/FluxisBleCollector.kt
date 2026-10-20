@@ -11,7 +11,6 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
@@ -33,38 +32,40 @@ import us.fluxis.ble.core.CollectorIo
 import us.fluxis.ble.core.CollectorPhase
 import us.fluxis.ble.core.FluxisAmount
 import us.fluxis.ble.core.FluxisBle
+import us.fluxis.ble.core.PreviewContent
 import us.fluxis.ble.core.toHex
-
-/** GATT server work items, executed strictly in order with one indication in flight. */
-private sealed class Op {
-    class Indicate(val peer: String, val frame: ByteArray) : Op()
-    class Disconnect(val peer: String) : Op()
-    object Close : Op()
-}
+import java.util.UUID
 
 /** Snapshot of the collector, published on [FluxisBleCollector.state]. */
 public data class CollectorState(
     val phase: CollectorPhase,
-    /** Why the phase changed, e.g. `bad_ack`, `peer_disconnected`, `missing_permission:…`. */
+    /** Why the phase changed, e.g. `advertise_failed:…`, `server_failed:missing_permission:…`. */
     val detail: String? = null,
     /** Hex session id of the current session, for logs and support. */
     val sessionId: String? = null,
-    val expiresAtEpochSeconds: Long? = null,
+    /** Size in bytes of the PREVIEW value being served (never the token itself). */
+    val previewBytes: Int? = null,
+    /** `naspip` or `pos_id`: what PREVIEW carries. */
+    val previewKind: String? = null,
+    /** Complete PREVIEW reads served in this session (diagnostics; not payment status). */
+    val previewReads: Int = 0,
 ) {
     val isTerminal: Boolean get() = phase.isTerminal
+    val isAdvertising: Boolean get() = phase == CollectorPhase.ADVERTISING
 }
 
 /**
- * Collector (POS) role: advertises, serves the discovery record and delivers the NASPIP token
- * to the first payer that claims it (docs/ble-protocol.md §6).
+ * Collector (POS) role: advertises and serves RECORD and PREVIEW (the active sale's NASPIP
+ * token) to every payer nearby until stopped (docs/ble-protocol.md §6). Nothing is claimed or
+ * locked; payment status comes from your backend, never from BLE.
  *
  * ```
  * val collector = FluxisBleCollector(context)
- * collector.start(token = naspipToken, amount = FluxisAmount.parse("12.50", "ARS"), displayName = "Café Tero")
- * collector.state.collect { if (it.phase == CollectorPhase.DELIVERED) startPollingBackend() }
+ * collector.start(token = naspipToken, amount = FluxisAmount.parse("12.50", "ARS"), displayName = "Café Tero", posId = posId)
+ * // … poll the backend; when the sale is paid, cancelled or expired:
+ * collector.stop()
  * ```
  *
- * Delivery only means the wallet received the token; poll your backend for the payment status.
  * One session runs at a time; [start] replaces any running session. Thread-safe.
  */
 @SuppressLint("MissingPermission")
@@ -75,9 +76,7 @@ public class FluxisBleCollector @JvmOverloads constructor(
     public class Options @JvmOverloads constructor(
         /** One of `AdvertiseSettings.ADVERTISE_TX_POWER_*`. Medium keeps range near the counter. */
         public val txPowerLevel: Int = AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM,
-        /** Go back to `ready` after a failed attempt instead of failing the session. */
-        public val rearmOnFailure: Boolean = true,
-        /** Debug log sink; never receives the token or key material. */
+        /** Debug log sink; never receives the token. */
         public val logger: ((String) -> Unit)? = null,
     )
 
@@ -95,20 +94,22 @@ public class FluxisBleCollector @JvmOverloads constructor(
     public val state: StateFlow<CollectorState> = mutableState.asStateFlow()
 
     /**
-     * Starts a session for [token] (the NASPIP token from Fluxis core-api). [amount] is shown
-     * to wallets as a hint (null for open-amount PoS). [displayName] is cut to 64 UTF-8 bytes.
-     * Throws [IllegalArgumentException] or `FluxisBleProtocolException` for invalid input;
-     * runtime Bluetooth problems surface as [CollectorPhase.FAILED] with a [CollectorState.detail].
+     * Starts a session for [token] (the NASPIP token from Fluxis core-api). [amount] and
+     * [displayName] are published as hints (amount null for open-amount PoS; name cut to 64
+     * UTF-8 bytes). [posId] is published instead of the token only if the token is longer
+     * than 494 bytes; without it such a token is rejected. Throws [IllegalArgumentException]
+     * or `FluxisBleProtocolException` for invalid input; runtime Bluetooth problems surface as
+     * [CollectorPhase.FAILED] with a [CollectorState.detail].
      */
     @JvmOverloads
     public fun start(
         token: String,
         amount: FluxisAmount?,
         displayName: String,
-        ttlSeconds: Int = FluxisBle.DEFAULT_TTL_SECONDS,
+        posId: UUID? = null,
         listener: Listener? = null,
     ) {
-        val config = CollectorConfig(token, amount, displayName, ttlSeconds, options.rearmOnFailure)
+        val config = CollectorConfig(token, amount, displayName, posId)
         handler.post {
             session?.stop()
             session = Session(config, listener).also { it.start() }
@@ -139,37 +140,23 @@ public class FluxisBleCollector @JvmOverloads constructor(
         private var advertiser: BluetoothLeAdvertiser? = null
         private var advertiseCallback: AdvertiseCallback? = null
         private val devices = HashMap<String, BluetoothDevice>()
-        private val subscribed = HashSet<String>()
-        private val queue = ArrayDeque<Op>()
-        private var inFlight: Op.Indicate? = null
         private var closed = false
         private val engine = CollectorEngine(config, this)
         private val sessionHex = engine.record.sessionId.toHex()
+        private val previewSize = engine.previewBytes().size
+        private val previewKind = if (engine.preview.content is PreviewContent.PosId) "pos_id" else "naspip"
         private val tick = Runnable { onTick() }
-        private val watchdog = Runnable { onIndicationDone(inFlight?.peer ?: return@Runnable, false) }
 
         private val recordChar = BluetoothGattCharacteristic(
             FluxisBle.RECORD_UUID,
             BluetoothGattCharacteristic.PROPERTY_READ,
             BluetoothGattCharacteristic.PERMISSION_READ,
         )
-        private val controlChar = BluetoothGattCharacteristic(
-            FluxisBle.CONTROL_UUID,
-            BluetoothGattCharacteristic.PROPERTY_WRITE,
-            BluetoothGattCharacteristic.PERMISSION_WRITE,
+        private val previewChar = BluetoothGattCharacteristic(
+            FluxisBle.PREVIEW_UUID,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ,
         )
-        private val dataChar = BluetoothGattCharacteristic(
-            FluxisBle.DATA_UUID,
-            BluetoothGattCharacteristic.PROPERTY_INDICATE,
-            0,
-        ).apply {
-            addDescriptor(
-                BluetoothGattDescriptor(
-                    FluxisBle.CCCD_UUID,
-                    BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE,
-                ),
-            )
-        }
 
         private val bluetoothStateReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -197,20 +184,14 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 val s = server ?: return@guarded engine.onServerFailed("open_server_failed")
                 val service = BluetoothGattService(FluxisBle.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
                 service.addCharacteristic(recordChar)
-                service.addCharacteristic(controlChar)
-                service.addCharacteristic(dataChar)
+                service.addCharacteristic(previewChar)
                 if (!s.addService(service)) engine.onServerFailed("add_service_failed")
             }
-            scheduleTick()
         }
 
         /** Stops and closes synchronously, so a replacement session never overlaps this server. */
         fun stop() {
             engine.stop()
-            queue.removeAll { it is Op.Indicate }
-            handler.removeCallbacks(watchdog)
-            inFlight = null
-            pump()
             closeNow()
         }
 
@@ -231,7 +212,7 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 .build()
             val callback = object : AdvertiseCallback() {
                 override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
-                    handler.post { if (advertiseCallback === this) engine.onAdvertisingStarted().also { scheduleTick() } }
+                    handler.post { if (advertiseCallback === this) engine.onAdvertisingStarted() }
                 }
 
                 override fun onStartFailure(errorCode: Int) {
@@ -243,7 +224,6 @@ public class FluxisBleCollector @JvmOverloads constructor(
                             advertiseCallback = null
                             engine.onAdvertisingFailed(advertiseError(errorCode))
                         }
-                        scheduleTick()
                     }
                 }
             }
@@ -257,75 +237,26 @@ public class FluxisBleCollector @JvmOverloads constructor(
             guarded("stop_advertising") { advertiser?.stopAdvertising(callback) }
         }
 
-        override fun indicate(peer: String, frame: ByteArray) {
-            queue.addLast(Op.Indicate(peer, frame))
-            pump()
-        }
-
         override fun disconnect(peer: String) {
-            queue.addLast(Op.Disconnect(peer))
-            pump()
+            devices[peer]?.let { d -> guarded("disconnect") { server?.cancelConnection(d) } }
         }
 
-        override fun closeServer() {
-            queue.addLast(Op.Close)
-            pump()
-        }
+        override fun closeServer() = closeNow()
 
         override fun onPhaseChanged(phase: CollectorPhase, detail: String?) {
-            log("phase=${phase.wire}${detail?.let { " ($it)" } ?: ""} session=$sessionHex")
-            val s = CollectorState(phase, detail, sessionHex, engine.record.expiresAtEpochSeconds)
+            log("phase=${phase.wire}${detail?.let { " ($it)" } ?: ""} session=$sessionHex preview=$previewKind/${previewSize}B")
+            publish(phase, detail)
+        }
+
+        override fun onPreviewRead(peer: String, total: Int) {
+            log("preview read #$total session=$sessionHex")
+            publish(engine.phase, mutableState.value.detail)
+        }
+
+        private fun publish(phase: CollectorPhase, detail: String?) {
+            val s = CollectorState(phase, detail, sessionHex, previewSize, previewKind, engine.previewReads)
             mutableState.value = s
             listener?.onStateChanged(s)
-        }
-
-        // ── Op queue: indications strictly one at a time, disconnects/close in order ──
-
-        private fun pump() {
-            while (inFlight == null && queue.isNotEmpty()) {
-                when (val op = queue.removeFirst()) {
-                    is Op.Indicate -> sendIndication(op)
-                    is Op.Disconnect -> devices[op.peer]?.let { d -> guarded("disconnect") { server?.cancelConnection(d) } }
-                    Op.Close -> closeNow()
-                }
-            }
-        }
-
-        private fun sendIndication(op: Op.Indicate) {
-            val device = devices[op.peer]
-            val s = server
-            if (device == null || s == null || op.peer !in subscribed) {
-                engine.onIndicationSent(op.peer, false)
-                return
-            }
-            inFlight = op
-            handler.postDelayed(watchdog, FluxisBle.T_FRAME_MS)
-            val ok = try {
-                if (Build.VERSION.SDK_INT >= 33) {
-                    s.notifyCharacteristicChanged(device, dataChar, true, op.frame) == BluetoothStatusCodes.SUCCESS
-                } else {
-                    indicateLegacy(s, device, op.frame)
-                }
-            } catch (e: SecurityException) {
-                false
-            }
-            if (!ok) onIndicationDone(op.peer, false)
-        }
-
-        @Suppress("DEPRECATION")
-        private fun indicateLegacy(s: BluetoothGattServer, device: BluetoothDevice, frame: ByteArray): Boolean {
-            dataChar.value = frame
-            return s.notifyCharacteristicChanged(device, dataChar, true)
-        }
-
-        private fun onIndicationDone(peer: String, success: Boolean) {
-            val op = inFlight ?: return
-            if (op.peer != peer) return
-            handler.removeCallbacks(watchdog)
-            inFlight = null
-            engine.onIndicationSent(peer, success)
-            pump()
-            scheduleTick()
         }
 
         private fun closeNow() {
@@ -337,8 +268,6 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 server?.close()
             }
             server = null
-            queue.clear()
-            handler.removeCallbacks(watchdog)
             handler.removeCallbacks(tick)
             if (receiverRegistered) {
                 runCatching { appContext.unregisterReceiver(bluetoothStateReceiver) }
@@ -374,14 +303,9 @@ public class FluxisBleCollector @JvmOverloads constructor(
                     engine.onConnected(id)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     devices.remove(id)
-                    subscribed.remove(id)
-                    queue.removeAll { it is Op.Indicate && it.peer == id }
                     engine.onDisconnected(id)
-                    onIndicationDone(id, false)
                 }
             }
-
-            override fun onMtuChanged(device: BluetoothDevice, mtu: Int) = post { engine.onMtuChanged(device.address, mtu) }
 
             override fun onCharacteristicReadRequest(
                 device: BluetoothDevice,
@@ -390,11 +314,15 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 characteristic: BluetoothGattCharacteristic,
             ) = post {
                 devices.getOrPut(device.address) { device }
-                if (characteristic.uuid != FluxisBle.RECORD_UUID) {
-                    respond(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, offset, null)
-                    return@post
+                val value = when (characteristic.uuid) {
+                    FluxisBle.RECORD_UUID -> engine.readRecord(device.address, offset)
+                    FluxisBle.PREVIEW_UUID -> engine.readPreview(device.address, offset)
+                    else -> {
+                        respond(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, offset, null)
+                        return@post
+                    }
                 }
-                val value = engine.readRecord(device.address, offset)
+                // The stack truncates the value to MTU − 1; the central asks again at the next offset.
                 if (value == null) {
                     respond(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)
                 } else {
@@ -411,30 +339,11 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 offset: Int,
                 value: ByteArray?,
             ) = post {
-                devices.getOrPut(device.address) { device }
-                val status = when {
-                    characteristic.uuid != FluxisBle.CONTROL_UUID -> BluetoothGatt.GATT_WRITE_NOT_PERMITTED
-                    preparedWrite -> GATT_REQUEST_NOT_SUPPORTED
-                    offset != 0 -> BluetoothGatt.GATT_INVALID_OFFSET
-                    else -> BluetoothGatt.GATT_SUCCESS
-                }
-                if (responseNeeded) respond(device, requestId, status, offset, null)
-                if (status == BluetoothGatt.GATT_SUCCESS) engine.onControlWrite(device.address, value ?: ByteArray(0))
+                if (responseNeeded) respond(device, requestId, BluetoothGatt.GATT_WRITE_NOT_PERMITTED, offset, null)
             }
 
             override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) = post {
                 respond(device, requestId, GATT_REQUEST_NOT_SUPPORTED, 0, null)
-            }
-
-            override fun onDescriptorReadRequest(
-                device: BluetoothDevice,
-                requestId: Int,
-                offset: Int,
-                descriptor: BluetoothGattDescriptor,
-            ) = post {
-                val on = device.address in subscribed
-                val value = if (on) BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-                respond(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
             }
 
             override fun onDescriptorWriteRequest(
@@ -446,26 +355,13 @@ public class FluxisBleCollector @JvmOverloads constructor(
                 offset: Int,
                 value: ByteArray?,
             ) = post {
-                devices.getOrPut(device.address) { device }
-                val isCccd = descriptor.uuid == FluxisBle.CCCD_UUID && descriptor.characteristic?.uuid == FluxisBle.DATA_UUID
-                if (!isCccd || preparedWrite) {
-                    if (responseNeeded) respond(device, requestId, BluetoothGatt.GATT_WRITE_NOT_PERMITTED, offset, null)
-                    return@post
-                }
-                val enabled = value != null && value.isNotEmpty() && (value[0].toInt() and 0x02) != 0
-                if (enabled) subscribed += device.address else subscribed -= device.address
-                if (responseNeeded) respond(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)
-                engine.onSubscriptionChanged(device.address, enabled)
-            }
-
-            override fun onNotificationSent(device: BluetoothDevice, status: Int) = post {
-                onIndicationDone(device.address, status == BluetoothGatt.GATT_SUCCESS)
+                if (responseNeeded) respond(device, requestId, BluetoothGatt.GATT_WRITE_NOT_PERMITTED, offset, null)
             }
         }
 
         private fun post(block: () -> Unit) {
             handler.post {
-                if (closed && server == null) return@post
+                if (closed) return@post
                 block()
                 scheduleTick()
             }

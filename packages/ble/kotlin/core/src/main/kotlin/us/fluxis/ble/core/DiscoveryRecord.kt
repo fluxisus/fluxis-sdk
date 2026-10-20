@@ -1,36 +1,25 @@
 package us.fluxis.ble.core
 
 /**
- * The value of the RECORD characteristic (spec §5.1). The payer reads it to show a candidate,
- * and both sides hash its exact bytes into the transcript.
+ * The value of the RECORD characteristic (spec §4.1): unauthenticated hints that a payer can
+ * show in a picker of nearby POS. [sessionId] ties it to the PREVIEW value of the same session.
  *
  * [amount] and [displayName] are informational only: wallets must show the merchant and amount
- * that the Fluxis API returns for the NASPIP token.
+ * that the Fluxis API returns for the preview.
  */
 public class DiscoveryRecord(
-    public val expiresAtEpochSeconds: Long,
     sessionId: ByteArray,
-    collectorPublicKey: ByteArray,
     public val amount: FluxisAmount?,
     public val displayName: String,
 ) {
     private val sessionIdBytes = sessionId.copyOf()
-    private val publicKeyBytes = collectorPublicKey.copyOf()
 
     public val sessionId: ByteArray get() = sessionIdBytes.copyOf()
-    public val collectorPublicKey: ByteArray get() = publicKeyBytes.copyOf()
-
-    public fun isExpired(nowEpochSeconds: Long, toleranceSeconds: Long = 0): Boolean =
-        nowEpochSeconds >= expiresAtEpochSeconds + toleranceSeconds
 
     public fun encode(): ByteArray {
-        if (expiresAtEpochSeconds !in 0..0xFFFF_FFFFL) {
-            throw FluxisBleProtocolException(ProtocolErrorCode.EXPIRES_AT_OUT_OF_RANGE)
-        }
         if (sessionIdBytes.size != FluxisBle.SESSION_ID_BYTES) {
             throw FluxisBleProtocolException(ProtocolErrorCode.INVALID_SESSION_ID)
         }
-        P256.validatePublicKey(publicKeyBytes)
         val name = displayName.toByteArray(Charsets.UTF_8)
         if (name.size !in 1..FluxisBle.MAX_DISPLAY_NAME_BYTES) {
             throw FluxisBleProtocolException(ProtocolErrorCode.INVALID_DISPLAY_NAME)
@@ -38,9 +27,7 @@ public class DiscoveryRecord(
         val w = ByteWriter()
             .u8(FluxisBle.PROTOCOL_VERSION)
             .u8(if (amount != null) FLAG_AMOUNT_PRESENT else 0)
-            .u32(expiresAtEpochSeconds)
             .bytes(sessionIdBytes)
-            .bytes(publicKeyBytes)
         if (amount != null) {
             val currency = amount.currency?.toByteArray(Charsets.US_ASCII) ?: ByteArray(0)
             w.u64(amount.minorUnits).u8(amount.scale).u8(currency.size).bytes(currency)
@@ -50,16 +37,14 @@ public class DiscoveryRecord(
 
     override fun equals(other: Any?): Boolean =
         other is DiscoveryRecord &&
-            other.expiresAtEpochSeconds == expiresAtEpochSeconds &&
             other.sessionIdBytes.contentEquals(sessionIdBytes) &&
-            other.publicKeyBytes.contentEquals(publicKeyBytes) &&
             other.amount == amount &&
             other.displayName == displayName
 
     override fun hashCode(): Int = sessionIdBytes.contentHashCode()
 
     override fun toString(): String =
-        "DiscoveryRecord(name=$displayName, amount=$amount, expiresAt=$expiresAtEpochSeconds, session=${sessionIdBytes.toHex()})"
+        "DiscoveryRecord(name=$displayName, amount=$amount, session=${sessionIdBytes.toHex()})"
 
     public companion object {
         public const val FLAG_AMOUNT_PRESENT: Int = 0x01
@@ -70,10 +55,7 @@ public class DiscoveryRecord(
             val r = ByteReader(data)
             if (r.u8() != FluxisBle.PROTOCOL_VERSION) throw FluxisBleProtocolException(ProtocolErrorCode.UNSUPPORTED_VERSION)
             val flags = r.u8()
-            val expiresAt = r.u32()
             val sessionId = r.take(FluxisBle.SESSION_ID_BYTES)
-            val publicKey = r.take(FluxisBle.PUBLIC_KEY_BYTES)
-            P256.validatePublicKey(publicKey)
             var amount: FluxisAmount? = null
             if (flags and FLAG_AMOUNT_PRESENT != 0) {
                 val minor = r.u64()
@@ -94,7 +76,7 @@ public class DiscoveryRecord(
             val name = decodeUtf8Strict(r.take(nameLen))
                 ?: throw FluxisBleProtocolException(ProtocolErrorCode.INVALID_DISPLAY_NAME)
             if (r.remaining() != 0) throw FluxisBleProtocolException(ProtocolErrorCode.TRAILING_BYTES)
-            return DiscoveryRecord(expiresAt, sessionId, publicKey, amount, name)
+            return DiscoveryRecord(sessionId, amount, name)
         }
 
         /**
