@@ -11,6 +11,19 @@ export interface WalletCatalogAppRaw {
   google_play_url: string | null;
   deep_link: string;
   type: WalletKind;
+  /**
+   * Maps session network names to the wallet's own network identifiers.
+   * Required when `deep_link` contains `[NETWORK]`.
+   * Example: `{ "polygon": "POLYGON" }` for Lemon.me.
+   */
+  network_map?: Record<string, string>;
+  /**
+   * Session `network:asset` combinations this wallet supports.
+   * When present, the entry is hidden unless the session's `manual_transfer`
+   * matches one of the listed combos. Required when `deep_link` contains any
+   * of `[ADDRESS]`, `[NETWORK]`, `[ASSET]`, or `[AMOUNT]`.
+   */
+  supported_transfers?: string[];
 }
 
 export interface WalletCatalogApp {
@@ -22,6 +35,10 @@ export interface WalletCatalogApp {
   googlePlayUrl: string | null;
   deepLink: string;
   type: WalletKind;
+  /** Camel-cased `network_map` from the raw catalog entry. */
+  networkMap?: Record<string, string>;
+  /** Camel-cased `supported_transfers` from the raw catalog entry. */
+  supportedTransfers?: string[];
 }
 
 export interface ConnectedWalletBalance {

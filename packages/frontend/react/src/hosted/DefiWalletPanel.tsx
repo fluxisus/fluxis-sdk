@@ -7,8 +7,9 @@ import { DEFAULT_WALLETCONNECT_LOGO, FLUXIS_MARK_LOGO } from '../utils/logo.js';
 import type { CheckoutPaymentOption, ConnectedWalletInfo, ManualTransferData } from '../types.js';
 import { AssetPicker } from './AssetPicker.js';
 import { DeeplinkQrCode } from './DeeplinkQrCode.js';
-import { toCompatibleApp } from './normalizeWalletCatalog.js';
+import { isAppSupportedForTransfer, toCompatibleApp } from './normalizeWalletCatalog.js';
 import { resolveWalletLink } from './resolveWalletLink.js';
+import type { TransferParams } from './resolveWalletLink.js';
 import type { ConnectedWalletBalance, WalletCatalogApp } from './types.js';
 import { useUniqueAssets } from './useUniqueAssets.js';
 import { findAsset } from './uniqueAssets.js';
@@ -148,7 +149,10 @@ export function DefiWalletPanel({
       deepLink: '',
       type: 'DEFI',
     };
-    const mobileApps = [...(hasFluxis ? cefiApps : []), ...apps, otherWalletsApp];
+    // Filter out transfer-required catalog entries that the current session cannot satisfy.
+    const visibleCefi = cefiApps.filter((app) => isAppSupportedForTransfer(app, manualTransfer));
+    const visibleDefi = apps.filter((app) => isAppSupportedForTransfer(app, manualTransfer));
+    const mobileApps = [...(hasFluxis ? visibleCefi : []), ...visibleDefi, otherWalletsApp];
     if (mobileApps.length === 0) return null;
 
     if (walletConnectFlow) {
@@ -171,7 +175,16 @@ export function DefiWalletPanel({
           apps={mobileApps}
           onSelect={(app) => {
             if (app.type === 'CEFI') {
-              window.location.assign(resolveWalletLink(app.deepLink, { naspipToken }));
+              const transfer: TransferParams | undefined = manualTransfer
+                ? {
+                    address: manualTransfer.wallet_address,
+                    network: manualTransfer.network,
+                    asset: manualTransfer.crypto_asset,
+                    amount: manualTransfer.crypto_amount,
+                    networkMap: app.networkMap,
+                  }
+                : undefined;
+              window.location.assign(resolveWalletLink(app.deepLink, { naspipToken, transfer }));
               return;
             }
             setSelectedName(app.name);
@@ -180,6 +193,10 @@ export function DefiWalletPanel({
       </div>
     );
   }
+
+  // Transfer-aware filtering for the desktop list too.
+  const visibleCefiDesktop = cefiApps.filter((app) => isAppSupportedForTransfer(app, manualTransfer));
+  const visibleDefiDesktop = apps.filter((app) => isAppSupportedForTransfer(app, manualTransfer));
 
   // Every non-Fluxis selection (a specific DEFI wallet, or "Otras wallets") now connects the same
   // way mobile does: scan the WalletConnect pairing QR, or — if that wallet's extension is
@@ -231,11 +248,11 @@ export function DefiWalletPanel({
               icon={
                 <img src={FLUXIS_MARK_LOGO} alt="" width={28} height={28} style={iconImg} />
               }
-              trailing={<CefiLogoStack apps={cefiApps} />}
+              trailing={<CefiLogoStack apps={visibleCefiDesktop} />}
               label="Fluxis"
             />
           ) : null}
-          {apps.map((app) => (
+          {visibleDefiDesktop.map((app) => (
             <WalletListButton
               key={app.name}
               selected={app.name === selectedName}

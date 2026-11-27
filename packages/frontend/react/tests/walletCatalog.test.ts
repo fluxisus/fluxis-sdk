@@ -1,31 +1,51 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isAppSupportedForTransfer,
+  isTransferRequired,
   parseWalletCatalog,
   splitWalletCatalog,
   toCompatibleApp,
 } from '../src/hosted/normalizeWalletCatalog.js';
 
+const BELO_RAW = {
+  name: 'belo',
+  display_name: 'Belo App',
+  image_url: 'https://assets.fluxis.us/apps/belo.svg',
+  website_url: 'https://belo.app',
+  app_store_url: null,
+  google_play_url: null,
+  deep_link: 'https://api.belo.app/dynamic-link?naspip_token=[NASPIP_TOKEN]',
+  type: 'CEFI',
+};
+
+const METAMASK_RAW = {
+  name: 'metamask',
+  display_name: 'Metamask',
+  image_url: 'https://assets.fluxis.us/apps/metamask.png',
+  website_url: 'https://metamask.io',
+  app_store_url: null,
+  google_play_url: null,
+  deep_link: 'https://metamask.app.link/dapp/[CHECKOUT_HOST_PATH]',
+  type: 'DEFI',
+};
+
+const LEMON_RAW = {
+  name: 'lemon',
+  display_name: 'Lemon',
+  image_url: 'https://assets.fluxis.us/apps/lemon.png',
+  website_url: 'https://lemon.me',
+  app_store_url: null,
+  google_play_url: null,
+  deep_link:
+    'https://www.lemon.me/app/cash-out-crypto?network=[NETWORK]&address=[ADDRESS]&currency=[ASSET]&amount=[AMOUNT]&partner=fluxis',
+  type: 'CEFI',
+  network_map: { polygon: 'POLYGON' },
+  supported_transfers: ['polygon:USDT', 'polygon:USDC'],
+};
+
 const RAW = [
-  {
-    name: 'belo',
-    display_name: 'Belo App',
-    image_url: 'https://assets.fluxis.us/apps/belo.svg',
-    website_url: 'https://belo.app',
-    app_store_url: null,
-    google_play_url: null,
-    deep_link: 'https://api.belo.app/dynamic-link?naspip_token=[NASPIP_TOKEN]',
-    type: 'CEFI',
-  },
-  {
-    name: 'metamask',
-    display_name: 'Metamask',
-    image_url: 'https://assets.fluxis.us/apps/metamask.png',
-    website_url: 'https://metamask.io',
-    app_store_url: null,
-    google_play_url: null,
-    deep_link: 'https://metamask.app.link/dapp/[CHECKOUT_HOST_PATH]',
-    type: 'DEFI',
-  },
+  BELO_RAW,
+  METAMASK_RAW,
   {
     name: 'unknown',
     display_name: 'Skip me',
@@ -36,33 +56,49 @@ const RAW = [
     deep_link: 'https://example.com',
     type: 'OTHER',
   },
+  LEMON_RAW,
 ];
 
 describe('parseWalletCatalog', () => {
   it('keeps CEFI and DEFI entries and drops unknown types', () => {
     const apps = parseWalletCatalog(RAW);
-    expect(apps.map((a) => a.name)).toEqual(['belo', 'metamask']);
+    expect(apps.map((a) => a.name)).toEqual(['belo', 'metamask', 'lemon']);
     expect(apps[0]?.type).toBe('CEFI');
     expect(apps[1]?.type).toBe('DEFI');
+    expect(apps[2]?.type).toBe('CEFI');
   });
 
   it('returns an empty list for non-arrays', () => {
     expect(parseWalletCatalog(null)).toEqual([]);
     expect(parseWalletCatalog({})).toEqual([]);
   });
+
+  it('preserves networkMap and supportedTransfers on Lemon', () => {
+    const apps = parseWalletCatalog([LEMON_RAW]);
+    const lemon = apps[0]!;
+    expect(lemon.networkMap).toEqual({ polygon: 'POLYGON' });
+    expect(lemon.supportedTransfers).toEqual(['polygon:USDT', 'polygon:USDC']);
+  });
+
+  it('leaves networkMap and supportedTransfers undefined for Belo (no raw fields)', () => {
+    const apps = parseWalletCatalog([BELO_RAW]);
+    const belo = apps[0]!;
+    expect(belo.networkMap).toBeUndefined();
+    expect(belo.supportedTransfers).toBeUndefined();
+  });
 });
 
 describe('splitWalletCatalog', () => {
   it('partitions by type', () => {
     const { cefi, defi } = splitWalletCatalog(parseWalletCatalog(RAW));
-    expect(cefi.map((a) => a.name)).toEqual(['belo']);
+    expect(cefi.map((a) => a.name)).toEqual(['belo', 'lemon']);
     expect(defi.map((a) => a.name)).toEqual(['metamask']);
   });
 });
 
 describe('toCompatibleApp', () => {
   it('drops type so existing stack components can consume the entry', () => {
-    const [belo] = parseWalletCatalog(RAW);
+    const [belo] = parseWalletCatalog([BELO_RAW]);
     expect(toCompatibleApp(belo!)).toEqual({
       name: 'belo',
       displayName: 'Belo App',
@@ -72,5 +108,64 @@ describe('toCompatibleApp', () => {
       googlePlayUrl: null,
       deepLink: 'https://api.belo.app/dynamic-link?naspip_token=[NASPIP_TOKEN]',
     });
+  });
+});
+
+describe('isTransferRequired', () => {
+  it('returns false for Belo (NASPIP template)', () => {
+    const [belo] = parseWalletCatalog([BELO_RAW]);
+    expect(isTransferRequired(belo!)).toBe(false);
+  });
+
+  it('returns false for MetaMask (CHECKOUT_HOST_PATH template)', () => {
+    const [mm] = parseWalletCatalog([METAMASK_RAW]);
+    expect(isTransferRequired(mm!)).toBe(false);
+  });
+
+  it('returns true for Lemon (uses [ADDRESS] etc.)', () => {
+    const [lemon] = parseWalletCatalog([LEMON_RAW]);
+    expect(isTransferRequired(lemon!)).toBe(true);
+  });
+});
+
+describe('isAppSupportedForTransfer', () => {
+  const [belo] = parseWalletCatalog([BELO_RAW]);
+  const [lemon] = parseWalletCatalog([LEMON_RAW]);
+
+  const polygonUsdt = {
+    wallet_address: '0xAbc',
+    network: 'polygon',
+    crypto_asset: 'USDT',
+    crypto_amount: '1.0',
+  };
+
+  it('always returns true for apps that do not use transfer placeholders', () => {
+    expect(isAppSupportedForTransfer(belo!, undefined)).toBe(true);
+    expect(isAppSupportedForTransfer(belo!, polygonUsdt)).toBe(true);
+  });
+
+  it('returns false when no transfer is provided for a transfer-required app', () => {
+    expect(isAppSupportedForTransfer(lemon!, undefined)).toBe(false);
+  });
+
+  it('returns true for a supported polygon:USDT transfer', () => {
+    expect(isAppSupportedForTransfer(lemon!, polygonUsdt)).toBe(true);
+  });
+
+  it('returns true for a supported polygon:USDC transfer', () => {
+    expect(isAppSupportedForTransfer(lemon!, { ...polygonUsdt, crypto_asset: 'USDC' })).toBe(true);
+  });
+
+  it('returns false for an unsupported asset on polygon', () => {
+    expect(isAppSupportedForTransfer(lemon!, { ...polygonUsdt, crypto_asset: 'wARS' })).toBe(false);
+  });
+
+  it('returns false for an unsupported network', () => {
+    expect(isAppSupportedForTransfer(lemon!, { ...polygonUsdt, network: 'base' })).toBe(false);
+  });
+
+  it('returns false when supported_transfers is an empty array', () => {
+    const [noCombo] = parseWalletCatalog([{ ...LEMON_RAW, supported_transfers: [] }]);
+    expect(isAppSupportedForTransfer(noCombo!, polygonUsdt)).toBe(false);
   });
 });

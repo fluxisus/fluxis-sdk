@@ -40,7 +40,15 @@ export { defaultTheme, mergeTheme, themeToCssVariables } from './theme/theme.js'
 
 // Utils
 export { isValidNaspipToken, buildDeepLink } from './utils/naspip.js';
-export { resolveWalletLink, checkoutHostPath } from './hosted/resolveWalletLink.js';
+export {
+  resolveWalletLink,
+  checkoutHostPath,
+  hasTransferPlaceholders,
+} from './hosted/resolveWalletLink.js';
+export {
+  isTransferRequired,
+  isAppSupportedForTransfer,
+} from './hosted/normalizeWalletCatalog.js';
 export {
   DEFAULT_FLUXIS_LOGO,
   DEFAULT_WALLETCONNECT_LOGO,
@@ -92,6 +100,7 @@ export type {
   ConnectedWalletBalance,
 } from './hosted/types.js';
 export type { DeeplinkQrCodeProps } from './hosted/DeeplinkQrCode.js';
+export type { TransferParams } from './hosted/resolveWalletLink.js';
 export type {
   UniqueAsset,
   UniqueToken,
