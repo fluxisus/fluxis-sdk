@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isAppSupportedForTransfer,
+  isNaspipCompatible,
   isTransferRequired,
   parseWalletCatalog,
   splitWalletCatalog,
@@ -89,10 +90,23 @@ describe('parseWalletCatalog', () => {
 });
 
 describe('splitWalletCatalog', () => {
-  it('partitions by type', () => {
+  it('partitions all entries by type', () => {
     const { cefi, defi } = splitWalletCatalog(parseWalletCatalog(RAW));
     expect(cefi.map((a) => a.name)).toEqual(['belo', 'lemon']);
     expect(defi.map((a) => a.name)).toEqual(['metamask']);
+  });
+
+  it('provides naspipCefi containing only NASPIP-compatible CEFI apps', () => {
+    const { naspipCefi } = splitWalletCatalog(parseWalletCatalog(RAW));
+    // Belo uses [NASPIP_TOKEN] → included; Lemon uses transfer fields → excluded
+    expect(naspipCefi.map((a) => a.name)).toEqual(['belo']);
+  });
+
+  it('naspipCefi is a strict subset of cefi', () => {
+    const { cefi, naspipCefi } = splitWalletCatalog(parseWalletCatalog(RAW));
+    for (const app of naspipCefi) {
+      expect(cefi.some((c) => c.name === app.name)).toBe(true);
+    }
   });
 });
 
@@ -108,6 +122,34 @@ describe('toCompatibleApp', () => {
       googlePlayUrl: null,
       deepLink: 'https://api.belo.app/dynamic-link?naspip_token=[NASPIP_TOKEN]',
     });
+  });
+});
+
+describe('isNaspipCompatible', () => {
+  it('returns true for Belo (deepLink contains [NASPIP_TOKEN])', () => {
+    const [belo] = parseWalletCatalog([BELO_RAW]);
+    expect(isNaspipCompatible(belo!)).toBe(true);
+  });
+
+  it('returns false for Lemon (deepLink uses transfer fields, not [NASPIP_TOKEN])', () => {
+    const [lemon] = parseWalletCatalog([LEMON_RAW]);
+    expect(isNaspipCompatible(lemon!)).toBe(false);
+  });
+
+  it('returns false for MetaMask (deepLink uses [CHECKOUT_HOST_PATH])', () => {
+    const [mm] = parseWalletCatalog([METAMASK_RAW]);
+    expect(isNaspipCompatible(mm!)).toBe(false);
+  });
+
+  it('is consistent: isNaspipCompatible and isTransferRequired are mutually exclusive for the catalog entries', () => {
+    const apps = parseWalletCatalog([BELO_RAW, METAMASK_RAW, LEMON_RAW]);
+    for (const app of apps) {
+      // An app can't simultaneously require NASPIP and transfer fields
+      // (a template using both would be a catalog authoring error)
+      if (isNaspipCompatible(app)) {
+        expect(isTransferRequired(app)).toBe(false);
+      }
+    }
   });
 });
 

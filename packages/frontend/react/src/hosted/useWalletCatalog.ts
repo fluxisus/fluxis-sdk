@@ -6,13 +6,15 @@ import {
 } from "./normalizeWalletCatalog.js";
 import type { WalletCatalogApp } from "./types.js";
 
-interface UseWalletCatalogOptions {
+export interface UseWalletCatalogOptions {
   appsUrl?: string;
 }
 
-interface UseWalletCatalogResult {
+export interface UseWalletCatalogResult {
   apps: WalletCatalogApp[];
   cefi: WalletCatalogApp[];
+  /** Subset of `cefi` that accept a NASPIP token — suitable for "compatible with Fluxis" UI. */
+  naspipCefi: WalletCatalogApp[];
   defi: WalletCatalogApp[];
   loading: boolean;
   error: Error | null;
@@ -92,6 +94,6 @@ export function useWalletCatalog({
     };
   }, [appsUrl]);
 
-  const { cefi, defi } = splitWalletCatalog(apps);
-  return { apps, cefi, defi, loading, error };
+  const { cefi, naspipCefi, defi } = splitWalletCatalog(apps);
+  return { apps, cefi, naspipCefi, defi, loading, error };
 }

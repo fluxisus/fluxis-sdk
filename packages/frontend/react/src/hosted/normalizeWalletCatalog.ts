@@ -39,12 +39,36 @@ export function parseWalletCatalog(raw: unknown): WalletCatalogApp[] {
     .filter((app): app is WalletCatalogApp => app !== null);
 }
 
+/**
+ * Returns `true` when this app understands the **NASPIP payment token** format.
+ *
+ * A NASPIP-compatible app:
+ * - Uses `[NASPIP_TOKEN]` in its deeplink template (e.g. Belo)
+ * - Can be shown in "compatible with Fluxis" UI: the desktop logo stack, QR helper text,
+ *   compatible-apps listings, and marquees
+ * - Works with `PayWithAppButton`, `CompatibleApps`, and similar NASPIP-first components
+ *
+ * A non-NASPIP app (e.g. Lemon) uses transfer-field placeholders (`[ADDRESS]`, `[NETWORK]`,
+ * `[ASSET]`, `[AMOUNT]`) instead. It MUST only appear as a mobile deeplink tile and must
+ * NOT appear in NASPIP-branded "compatible with Fluxis" UI.
+ *
+ * The predicate is derived from the template so it stays in sync automatically as entries
+ * change — no separate flag needed.
+ */
+export function isNaspipCompatible(app: WalletCatalogApp): boolean {
+  return app.deepLink.includes('[NASPIP_TOKEN]');
+}
+
 export function splitWalletCatalog(apps: WalletCatalogApp[]): {
   cefi: WalletCatalogApp[];
+  /** CEFI apps that accept a NASPIP token — the "compatible with Fluxis" set. */
+  naspipCefi: WalletCatalogApp[];
   defi: WalletCatalogApp[];
 } {
+  const cefi = apps.filter((app) => app.type === 'CEFI');
   return {
-    cefi: apps.filter((app) => app.type === 'CEFI'),
+    cefi,
+    naspipCefi: cefi.filter(isNaspipCompatible),
     defi: apps.filter((app) => app.type === 'DEFI'),
   };
 }

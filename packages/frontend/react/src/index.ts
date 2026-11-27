@@ -47,6 +47,7 @@ export {
 } from './hosted/resolveWalletLink.js';
 export {
   isTransferRequired,
+  isNaspipCompatible,
   isAppSupportedForTransfer,
 } from './hosted/normalizeWalletCatalog.js';
 export {
@@ -115,3 +116,7 @@ export type {
   UsePaymentStatusOptions,
   UsePaymentStatusResult,
 } from './hooks/usePaymentStatus.js';
+export type {
+  UseWalletCatalogOptions,
+  UseWalletCatalogResult,
+} from './hosted/useWalletCatalog.js';

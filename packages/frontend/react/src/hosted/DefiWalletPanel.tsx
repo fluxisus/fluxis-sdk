@@ -7,7 +7,7 @@ import { DEFAULT_WALLETCONNECT_LOGO, FLUXIS_MARK_LOGO } from '../utils/logo.js';
 import type { CheckoutPaymentOption, ConnectedWalletInfo, ManualTransferData } from '../types.js';
 import { AssetPicker } from './AssetPicker.js';
 import { DeeplinkQrCode } from './DeeplinkQrCode.js';
-import { isAppSupportedForTransfer, toCompatibleApp } from './normalizeWalletCatalog.js';
+import { isAppSupportedForTransfer, isNaspipCompatible, toCompatibleApp } from './normalizeWalletCatalog.js';
 import { resolveWalletLink } from './resolveWalletLink.js';
 import type { TransferParams } from './resolveWalletLink.js';
 import type { ConnectedWalletBalance, WalletCatalogApp } from './types.js';
@@ -248,7 +248,12 @@ export function DefiWalletPanel({
               icon={
                 <img src={FLUXIS_MARK_LOGO} alt="" width={28} height={28} style={iconImg} />
               }
-              trailing={<CefiLogoStack apps={visibleCefiDesktop} />}
+              trailing={
+                // Only NASPIP-compatible apps (e.g. Belo) belong in the "compatible with
+                // Fluxis" logo stack. Transfer-deeplink apps (e.g. Lemon) are mobile-only
+                // tiles and must NOT appear in this NASPIP-branded avatar row.
+                <CefiLogoStack apps={visibleCefiDesktop.filter(isNaspipCompatible)} />
+              }
               label="Fluxis"
             />
           ) : null}
