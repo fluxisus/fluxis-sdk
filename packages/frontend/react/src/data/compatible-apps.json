@@ -48,5 +48,19 @@
     "google_play_url": "https://play.google.com/store/apps/details?id=org.toshi",
     "deep_link": "https://go.cb-w.com/dapp?cb_url=[CHECKOUT_URL]",
     "type": "DEFI"
+  },
+  {
+    "name": "lemon",
+    "display_name": "Lemon",
+    "image_url": "https://assets.fluxis.us/apps/lemon.png",
+    "website_url": "https://lemon.me",
+    "app_store_url": "https://apps.apple.com/ar/app/lemon-cash/id1538620853",
+    "google_play_url": "https://play.google.com/store/apps/details?id=ar.lemon.app",
+    "deep_link": "https://www.lemon.me/app/cash-out-crypto?network=[NETWORK]&address=[ADDRESS]&currency=[ASSET]&amount=[AMOUNT]&partner=fluxis",
+    "type": "CEFI",
+    "network_map": {
+      "polygon": "POLYGON"
+    },
+    "supported_transfers": ["polygon:USDT", "polygon:USDC"]
   }
 ]
